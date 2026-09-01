@@ -98,6 +98,44 @@ await page.waitForTimeout(150);
 check('redo re-applies the property edit',
   (await page.locator('.es-canvas-host .scout-slider-field > label').innerText()).trim() === 'Completion');
 
+// --- 4b. Scout's default field style is ALTERNATIVE ------------------------
+check('value fields use the underlined ALTERNATIVE style by default',
+  await page.evaluate(() => {
+    const el = document.querySelector('.es-canvas-host .scout-string-field .input-field');
+    const style = getComputedStyle(el);
+    return el.classList.contains('alternative')
+      && style.borderLeftWidth === '0px'
+      && style.borderBottomWidth === '1px';
+  }));
+
+// --- 4c. responsive CONDENSED state ---------------------------------------
+const labelsSideBySide = await page.evaluate(() => {
+  const f = document.querySelector('.es-canvas-host .scout-string-field');
+  return f.querySelector('label').getBoundingClientRect().bottom > f.querySelector('.field').getBoundingClientRect().top + 2;
+});
+check('wide grid keeps the labels beside the field', labelsSideBySide);
+
+await page.evaluate(() => window.esMockup.store.updateCanvas({width: 1100}));
+await page.waitForTimeout(250);
+check('narrow grid moves the labels on top (CONDENSED)',
+  await page.evaluate(() => {
+    const f = document.querySelector('.es-canvas-host .scout-string-field');
+    return f.querySelector('label').getBoundingClientRect().bottom <= f.querySelector('.field').getBoundingClientRect().top + 2;
+  }));
+
+await page.evaluate(() => window.esMockup.store.updateTheme({responsive: false}));
+await page.waitForTimeout(250);
+check('the responsive setting can be turned off',
+  await page.evaluate(() => {
+    const f = document.querySelector('.es-canvas-host .scout-string-field');
+    return f.querySelector('label').getBoundingClientRect().bottom > f.querySelector('.field').getBoundingClientRect().top + 2;
+  }));
+await page.evaluate(() => {
+  window.esMockup.store.updateTheme({responsive: true});
+  window.esMockup.store.updateCanvas({width: 1440});
+});
+await page.waitForTimeout(200);
+
 // --- 5. theme ------------------------------------------------------------
 const headerColorBefore = await page.evaluate(() =>
   getComputedStyle(document.querySelector('.es-canvas-host .desktop-header')).backgroundColor);

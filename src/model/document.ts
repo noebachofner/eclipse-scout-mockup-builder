@@ -122,6 +122,7 @@ export function createDocument(root: MockupNode, name = 'Untitled mockup'): Mock
       base: 'default',
       colors: {},
       dense: false,
+      responsive: true,
       fontFamily: 'Arial, sans-serif'
     },
     canvas: {

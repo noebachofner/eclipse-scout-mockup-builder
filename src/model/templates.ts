@@ -123,8 +123,17 @@ export function defaultDesktopTemplate(name = 'New mockup'): MockupDocument {
           ]
         },
         {objectType: 'Menu', slot: 'toolMenus', properties: {text: '', iconId: 'search'}},
-        {objectType: 'Menu', slot: 'toolMenus', properties: {text: '', iconId: 'star'}},
-        {objectType: 'Menu', slot: 'toolMenus', properties: {text: '', iconId: 'person-solid'}}
+        {
+          objectType: 'Menu',
+          slot: 'toolMenus',
+          properties: {text: 'Quick access', iconId: 'star'},
+          children: [
+            {objectType: 'Menu', slot: 'childActions', properties: {text: 'Recently opened', iconId: 'clock'}},
+            {objectType: 'Menu', slot: 'childActions', properties: {text: 'Bookmarks', iconId: 'star-marked'}}
+          ]
+        },
+        {objectType: 'Menu', slot: 'toolMenus', properties: {text: 'Options', iconId: 'gear'}},
+        {objectType: 'Menu', slot: 'toolMenus', properties: {text: 'Alice', iconId: 'person-solid', displayStyle: 'avatar'}}
       ]
     }),
     name

@@ -187,9 +187,11 @@ const defs: WidgetDef[] = [
     description: 'On/off switch with optional labels.',
     jsClass: 'Switch',
     isFormField: true,
-    defaults: formFieldDefaults({label: 'Switch', value: true, activated: true, labelVisible: true}),
+    defaults: formFieldDefaults({label: 'Switch', value: true, labelVisible: true, displayStyle: 'default', iconVisible: false, text: ''}),
     props: formFieldProps(
       {name: 'value', label: 'On', type: 'boolean', group: GROUP_CONTENT},
+      {name: 'text', label: 'Text', type: 'string', group: GROUP_CONTENT},
+      {name: 'iconVisible', label: 'Icon in handle', type: 'boolean', group: GROUP_STYLE},
       {name: 'displayStyle', label: 'Display style', type: 'enum', group: GROUP_STYLE, options: [
         {value: 'default', label: 'DEFAULT'},
         {value: 'slider', label: 'SLIDER'}
@@ -198,10 +200,16 @@ const defs: WidgetDef[] = [
     slots: [],
     render(ctx, node) {
       const on = ctx.prop<boolean>(node, 'value', true);
-      const box = div('switch');
-      if (on) box.classList.add('activated');
-      box.appendChild(div('switch-slider'));
-      return box;
+      const style = ctx.prop<string>(node, 'displayStyle', 'default');
+      const wrapper = div(`switch style-${style === 'slider' ? 'slider' : 'default'}`);
+      if (!ctx.prop<boolean>(node, 'enabled', true)) wrapper.classList.add('disabled');
+      const text = ctx.prop<string>(node, 'text', '');
+      if (text) wrapper.appendChild(span('switch-label', text));
+      const button = div('switch-button');
+      if (on) button.classList.add('activated');
+      if (ctx.prop<boolean>(node, 'iconVisible', false)) button.classList.add('icon-visible');
+      wrapper.appendChild(button);
+      return wrapper;
     }
   }
 ];

@@ -33,6 +33,11 @@ export interface ThemeSettings {
   colors: ColorOverrides;
   /** Scout's compact display mode (`.dense`), which shrinks rows and paddings. */
   dense: boolean;
+  /**
+   * Mirrors Scout's ResponsiveManager: when a logical grid is narrower than the
+   * group box would like to be, the labels move on top (CONDENSED state).
+   */
+  responsive: boolean;
   fontFamily: string;
 }
 

@@ -101,6 +101,7 @@
 .view-button-box {
   display: flex;
   align-items: center;
+  gap: 6px;
   height: var(--scout-desktop-header-height);
   min-height: var(--scout-desktop-header-height);
   padding: 0 6px;
@@ -109,12 +110,17 @@
   font-size: var(--scout-font-size-large);
 }
 
+/*
+ * The outline switcher. When the navigation holds the active content Scout marks
+ * the tab `selected`, which turns it into the white rounded card on the blue
+ * header (`.view-menu-tab.selected`) - the look of Scout 22+.
+ */
 .view-menu-tab {
   display: flex;
   align-items: stretch;
-  flex: 1 1 auto;
+  flex: none;
   min-width: 0;
-  height: 36px;
+  height: 40px;
   border-radius: var(--scout-border-radius-medium);
   background-color: var(--scout-view-menu-tab-background-color);
 }
@@ -125,31 +131,82 @@
   justify-content: center;
   width: 50px;
   flex: none;
-  border-top-left-radius: var(--scout-border-radius-medium);
-  border-bottom-left-radius: var(--scout-border-radius-medium);
-  font-size: var(--scout-font-size-icon);
+  border-top-left-radius: inherit;
+  border-bottom-left-radius: inherit;
+}
+
+.view-menu-tab > .view-button > .font-icon {
+  font-size: 26px;
 }
 
 .view-menu-tab > .view-menu {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
-  flex: 1 1 auto;
-  min-width: 0;
-  padding: 0 12px 0 4px;
-  border-top-right-radius: var(--scout-border-radius-medium);
-  border-bottom-right-radius: var(--scout-border-radius-medium);
+  justify-content: center;
+  width: 44px;
+  flex: none;
+  border-top-right-radius: inherit;
+  border-bottom-right-radius: inherit;
 }
 
-.view-menu-tab .view-menu-text {
-  flex: 1 1 auto;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.view-menu-tab > .view-menu > .font-icon {
+  font-size: 24px;
 }
 
-.view-menu-tab .font-icon {
-  font-size: var(--scout-font-size-icon-small);
+.view-menu-tab > .view-menu::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  border-left: 1px solid var(--scout-desktop-header-background-color);
+}
+
+.view-menu-tab.selected {
+  color: var(--scout-accent-color-3);
+  background-color: var(--scout-palette-white);
+  border-top-left-radius: 0;
+  margin-right: 6px;
+}
+
+.view-menu-tab.selected > .view-button {
+  padding-left: 6px;
+  width: 56px;
+}
+
+.view-menu-tab.selected > .view-menu > .font-icon {
+  font-size: 26px;
+  padding: 7px;
+  border-radius: var(--scout-border-radius-medium);
+}
+
+.view-menu-tab.selected > .view-menu::before {
+  top: 10px;
+  height: calc(100% - 20px);
+  border-color: var(--scout-border-color);
+}
+
+/* Additional outlines are shown as small rounded buttons next to the switcher. */
+.view-tab-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.view-tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 40px;
+  border-radius: var(--scout-border-radius-medium);
+  background-color: var(--scout-view-menu-tab-background-color);
+  cursor: pointer;
+}
+
+.view-tab > .font-icon {
+  font-size: 22px;
 }
 
 .navigation-body {
@@ -220,6 +277,26 @@
 .tree-node.selected {
   background-color: var(--scout-item-selection-background-color);
   box-shadow: inset 2px 0 0 var(--scout-item-selection-border-color);
+}
+
+/* An outline node is filled, not just tinted (Outline.less). */
+.outline.tree > .tree-data > .outline-node.selected {
+  background-color: var(--scout-selected-background-color);
+  color: var(--scout-selected-color);
+  box-shadow: none;
+}
+
+.outline.tree > .tree-data > .outline-node.selected > .font-icon,
+.outline.tree > .tree-data > .outline-node.selected > .tree-node-control {
+  color: var(--scout-outline-node-selected-icon-color);
+}
+
+.desktop-navigation.in-background .outline.tree > .tree-data > .outline-node.selected {
+  background-color: var(--scout-selected-disabled-background-color);
+}
+
+.desktop-navigation.in-background > .navigation-body {
+  background-color: var(--scout-desktop-navigation-body-in-background-background-color);
 }
 
 .tree-node .font-icon {
@@ -355,6 +432,39 @@
   font-size: var(--scout-font-size-icon);
 }
 
+/* The user menu of the Scout demos: a round avatar badge next to the name. */
+.menu-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.22);
+}
+
+.menu-avatar > .font-icon {
+  font-size: var(--scout-font-size-icon);
+}
+
+.menu-avatar > .image-icon > img {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  max-height: none;
+}
+
+.desktop-tool-box > .menu-item.avatar-menu {
+  gap: 8px;
+  padding-left: 6px;
+}
+
+.menu-item:not(.desktop-tool-box > .menu-item) > .menu-avatar {
+  background-color: var(--scout-panel-background-color);
+}
+
 .desktop-tool-box > .menu-item.selected {
   background-color: var(--scout-desktop-tool-box-item-selected-background-color);
   color: var(--scout-desktop-header-color);
@@ -445,7 +555,7 @@
 
 .form.dialog {
   background-color: var(--scout-background-color);
-  border-radius: var(--scout-border-radius-medium);
+  border-radius: var(--scout-border-radius-large);
   box-shadow: 0 var(--scout-drop-shadow-large-y) var(--scout-drop-shadow-large-blur) rgba(0, 0, 0, 0.2);
   overflow: hidden;
 }
@@ -584,8 +694,178 @@
   padding-bottom: 8px;
 }
 
+/*
+ * Responsive behaviour - Scout's CONDENSED state.
+ *
+ * `ResponsiveManager` switches a group box to CONDENSED as soon as a logical
+ * grid column is narrower than `formColumnWidth` (@logical-grid-column-width,
+ * 420px) and then moves the labels on top
+ * (`GroupBoxResponsiveHandler#_transformLabelPositionOnTop`). The container
+ * queries below reproduce that per column count; the threshold is
+ * `columns * 420px + (columns - 1) * 30px`.
+ *
+ * Only fields whose labelPosition is DEFAULT are transformed - an explicitly
+ * chosen position always wins, exactly as in Scout, which restores the stored
+ * value when leaving the condensed state. Check boxes and fields inside a
+ * sequence box keep their label, as upstream does.
+ */
+@container es-grid (max-width: 419px) {
+  .logical-grid[data-columns="1"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) {
+    grid-template-columns: var(--scout-mandatory-indicator-width) minmax(0, 1fr) auto;
+    grid-template-rows: max-content minmax(var(--es-grid-row-height), auto);
+  }
+    .logical-grid[data-columns="1"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .label,
+    .logical-grid[data-columns="1"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .label-with-sub {
+    grid-column: 2 / span 2;
+    grid-row: 1;
+    padding-top: 0;
+    padding-bottom: var(--scout-top-label-border-padding-bottom);
+    font-size: var(--scout-top-label-font-size);
+    color: var(--scout-top-label-color);
+  }
+    .logical-grid[data-columns="1"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label).alternative > .label,
+    .logical-grid[data-columns="1"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label).alternative > .label-with-sub { padding-bottom: 0; }
+    .logical-grid[data-columns="1"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .mandatory-indicator { grid-row: 2; }
+    .logical-grid[data-columns="1"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .field { grid-column: 2; grid-row: 2; }
+    .logical-grid[data-columns="1"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .status { grid-column: 3; grid-row: 2; }
+    .logical-grid[data-columns="1"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .field-status-message { grid-column: 2; grid-row: 3; }
+    .logical-grid[data-columns="1"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label).has-status-message {
+    grid-template-rows: max-content minmax(var(--es-grid-row-height), auto) max-content;
+  }
+}
+
+@container es-grid (max-width: 869px) {
+  .logical-grid[data-columns="2"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) {
+    grid-template-columns: var(--scout-mandatory-indicator-width) minmax(0, 1fr) auto;
+    grid-template-rows: max-content minmax(var(--es-grid-row-height), auto);
+  }
+    .logical-grid[data-columns="2"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .label,
+    .logical-grid[data-columns="2"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .label-with-sub {
+    grid-column: 2 / span 2;
+    grid-row: 1;
+    padding-top: 0;
+    padding-bottom: var(--scout-top-label-border-padding-bottom);
+    font-size: var(--scout-top-label-font-size);
+    color: var(--scout-top-label-color);
+  }
+    .logical-grid[data-columns="2"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label).alternative > .label,
+    .logical-grid[data-columns="2"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label).alternative > .label-with-sub { padding-bottom: 0; }
+    .logical-grid[data-columns="2"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .mandatory-indicator { grid-row: 2; }
+    .logical-grid[data-columns="2"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .field { grid-column: 2; grid-row: 2; }
+    .logical-grid[data-columns="2"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .status { grid-column: 3; grid-row: 2; }
+    .logical-grid[data-columns="2"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .field-status-message { grid-column: 2; grid-row: 3; }
+    .logical-grid[data-columns="2"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label).has-status-message {
+    grid-template-rows: max-content minmax(var(--es-grid-row-height), auto) max-content;
+  }
+}
+
+@container es-grid (max-width: 1319px) {
+  .logical-grid[data-columns="3"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) {
+    grid-template-columns: var(--scout-mandatory-indicator-width) minmax(0, 1fr) auto;
+    grid-template-rows: max-content minmax(var(--es-grid-row-height), auto);
+  }
+    .logical-grid[data-columns="3"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .label,
+    .logical-grid[data-columns="3"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .label-with-sub {
+    grid-column: 2 / span 2;
+    grid-row: 1;
+    padding-top: 0;
+    padding-bottom: var(--scout-top-label-border-padding-bottom);
+    font-size: var(--scout-top-label-font-size);
+    color: var(--scout-top-label-color);
+  }
+    .logical-grid[data-columns="3"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label).alternative > .label,
+    .logical-grid[data-columns="3"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label).alternative > .label-with-sub { padding-bottom: 0; }
+    .logical-grid[data-columns="3"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .mandatory-indicator { grid-row: 2; }
+    .logical-grid[data-columns="3"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .field { grid-column: 2; grid-row: 2; }
+    .logical-grid[data-columns="3"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .status { grid-column: 3; grid-row: 2; }
+    .logical-grid[data-columns="3"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .field-status-message { grid-column: 2; grid-row: 3; }
+    .logical-grid[data-columns="3"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label).has-status-message {
+    grid-template-rows: max-content minmax(var(--es-grid-row-height), auto) max-content;
+  }
+}
+
+@container es-grid (max-width: 1769px) {
+  .logical-grid[data-columns="4"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) {
+    grid-template-columns: var(--scout-mandatory-indicator-width) minmax(0, 1fr) auto;
+    grid-template-rows: max-content minmax(var(--es-grid-row-height), auto);
+  }
+    .logical-grid[data-columns="4"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .label,
+    .logical-grid[data-columns="4"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .label-with-sub {
+    grid-column: 2 / span 2;
+    grid-row: 1;
+    padding-top: 0;
+    padding-bottom: var(--scout-top-label-border-padding-bottom);
+    font-size: var(--scout-top-label-font-size);
+    color: var(--scout-top-label-color);
+  }
+    .logical-grid[data-columns="4"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label).alternative > .label,
+    .logical-grid[data-columns="4"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label).alternative > .label-with-sub { padding-bottom: 0; }
+    .logical-grid[data-columns="4"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .mandatory-indicator { grid-row: 2; }
+    .logical-grid[data-columns="4"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .field { grid-column: 2; grid-row: 2; }
+    .logical-grid[data-columns="4"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .status { grid-column: 3; grid-row: 2; }
+    .logical-grid[data-columns="4"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .field-status-message { grid-column: 2; grid-row: 3; }
+    .logical-grid[data-columns="4"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label).has-status-message {
+    grid-template-rows: max-content minmax(var(--es-grid-row-height), auto) max-content;
+  }
+}
+
+@container es-grid (max-width: 2219px) {
+  .logical-grid[data-columns="5"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) {
+    grid-template-columns: var(--scout-mandatory-indicator-width) minmax(0, 1fr) auto;
+    grid-template-rows: max-content minmax(var(--es-grid-row-height), auto);
+  }
+    .logical-grid[data-columns="5"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .label,
+    .logical-grid[data-columns="5"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .label-with-sub {
+    grid-column: 2 / span 2;
+    grid-row: 1;
+    padding-top: 0;
+    padding-bottom: var(--scout-top-label-border-padding-bottom);
+    font-size: var(--scout-top-label-font-size);
+    color: var(--scout-top-label-color);
+  }
+    .logical-grid[data-columns="5"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label).alternative > .label,
+    .logical-grid[data-columns="5"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label).alternative > .label-with-sub { padding-bottom: 0; }
+    .logical-grid[data-columns="5"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .mandatory-indicator { grid-row: 2; }
+    .logical-grid[data-columns="5"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .field { grid-column: 2; grid-row: 2; }
+    .logical-grid[data-columns="5"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .status { grid-column: 3; grid-row: 2; }
+    .logical-grid[data-columns="5"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .field-status-message { grid-column: 2; grid-row: 3; }
+    .logical-grid[data-columns="5"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label).has-status-message {
+    grid-template-rows: max-content minmax(var(--es-grid-row-height), auto) max-content;
+  }
+}
+
+@container es-grid (max-width: 2669px) {
+  .logical-grid[data-columns="6"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) {
+    grid-template-columns: var(--scout-mandatory-indicator-width) minmax(0, 1fr) auto;
+    grid-template-rows: max-content minmax(var(--es-grid-row-height), auto);
+  }
+    .logical-grid[data-columns="6"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .label,
+    .logical-grid[data-columns="6"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .label-with-sub {
+    grid-column: 2 / span 2;
+    grid-row: 1;
+    padding-top: 0;
+    padding-bottom: var(--scout-top-label-border-padding-bottom);
+    font-size: var(--scout-top-label-font-size);
+    color: var(--scout-top-label-color);
+  }
+    .logical-grid[data-columns="6"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label).alternative > .label,
+    .logical-grid[data-columns="6"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label).alternative > .label-with-sub { padding-bottom: 0; }
+    .logical-grid[data-columns="6"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .mandatory-indicator { grid-row: 2; }
+    .logical-grid[data-columns="6"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .field { grid-column: 2; grid-row: 2; }
+    .logical-grid[data-columns="6"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .status { grid-column: 3; grid-row: 2; }
+    .logical-grid[data-columns="6"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .field-status-message { grid-column: 2; grid-row: 3; }
+    .logical-grid[data-columns="6"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label).has-status-message {
+    grid-template-rows: max-content minmax(var(--es-grid-row-height), auto) max-content;
+  }
+}
+
+/* Turned off per document via the "Responsive labels" setting. */
+.es-mockup-root.no-responsive .logical-grid { container-type: normal; }
+
 .logical-grid {
   display: grid;
+  container-type: inline-size;
+  container-name: es-grid;
   column-gap: var(--es-grid-column-gap);
   row-gap: var(--es-grid-row-gap);
   /* align-content is set per container by the layout code: `stretch` when a row
@@ -715,7 +995,7 @@
 .form-field.label-position-top,
 .form-field.label-position-bottom {
   grid-template-columns: var(--scout-mandatory-indicator-width) minmax(0, 1fr) auto;
-  grid-template-rows: auto minmax(var(--es-grid-row-height), auto);
+  grid-template-rows: max-content minmax(var(--es-grid-row-height), auto);
 }
 
 .form-field.label-position-top > .label,
@@ -725,6 +1005,12 @@
   padding-top: 0;
   padding-bottom: var(--scout-top-label-border-padding-bottom);
   font-size: var(--scout-top-label-font-size);
+  color: var(--scout-top-label-color);
+}
+
+.form-field.label-position-top.alternative > .label,
+.form-field.label-position-top.alternative > .label-with-sub {
+  padding-bottom: 0;
 }
 
 .form-field.label-position-top > .mandatory-indicator { grid-row: 2; }
@@ -800,11 +1086,57 @@
   white-space: nowrap;
 }
 
+/*
+ * ALTERNATIVE is Scout's default field style (`FormField.DEFAULT_FIELD_STYLE`):
+ * no box, just an underline. Values below are the compiled upstream rules.
+ */
+.input-field.alternative {
+  background-color: var(--scout-text-field-alternative-background-color);
+  border-color: transparent;
+  border-bottom-color: var(--scout-text-field-alternative-border-color);
+  border-radius: 0;
+  border-left-width: 0;
+  border-right-width: 0;
+  padding-left: var(--scout-text-field-alternative-padding-left);
+  padding-right: var(--scout-text-field-alternative-padding-right);
+}
+
+.input-field.alternative.disabled {
+  color: var(--scout-text-disabled-color);
+  border-bottom-style: dashed;
+  border-bottom-color: var(--scout-text-field-alternative-disabled-border-color);
+  border-bottom-width: 1px;
+}
+
+.form-field.has-error > .field .input-field.alternative,
+.form-field.has-error .input-field.alternative {
+  background-color: transparent;
+  border-color: transparent;
+  border-bottom-color: var(--scout-error-border-color);
+  color: var(--scout-error-color);
+}
+
+.form-field.read-only .input-field.alternative {
+  color: var(--scout-text-color);
+  border-bottom-color: transparent;
+}
+
 .input-field.multiline {
   align-items: flex-start;
   padding: var(--scout-text-field-padding-y) var(--scout-text-field-padding-x);
   white-space: pre-wrap;
   overflow: auto;
+}
+
+/*
+ * A multiline field is a <textarea> in Scout, and TextArea.less keeps the full
+ * box in the alternative style - only the background turns transparent.
+ */
+.input-field.multiline.alternative {
+  border: 1px solid var(--scout-control-border-color);
+  border-radius: var(--scout-border-radius);
+  background-color: transparent;
+  padding: var(--scout-text-field-padding-y) var(--scout-text-field-padding-x);
 }
 
 .input-field.halign-right { justify-content: flex-end; text-align: right; }
@@ -820,14 +1152,6 @@
   background-color: var(--scout-control-disabled-background-color);
 }
 
-.input-field.alternative {
-  border: 0;
-  border-bottom: 1px solid var(--scout-text-field-alternative-border-color);
-  border-radius: 0;
-  padding-left: 0;
-  padding-right: 0;
-}
-
 .has-error > .field .input-field,
 .form-field.has-error .input-field {
   background-color: var(--scout-error-background-color);
@@ -836,6 +1160,15 @@
 
 .input-field.has-icon {
   padding-right: var(--scout-text-field-icon-outer-width);
+}
+
+.input-field.alternative.has-icon {
+  padding-right: var(--scout-text-field-alternative-icon-outer-width);
+}
+
+.field-container:has(> .input-field.alternative) > .field-icon {
+  width: var(--scout-text-field-alternative-icon-outer-width);
+  justify-content: flex-end;
 }
 
 .field-container > .field-icon {
@@ -874,9 +1207,9 @@
   z-index: 10;
   margin-top: 2px;
   background-color: var(--scout-background-color);
-  border: 1px solid var(--scout-border-color);
-  border-radius: var(--scout-control-popup-border-radius);
-  box-shadow: 0 var(--scout-drop-shadow-y) var(--scout-drop-shadow-blur) rgba(0, 0, 0, 0.2);
+  border: 0 solid var(--scout-border-color);
+  border-radius: var(--scout-border-radius-medium);
+  box-shadow: 0 var(--scout-drop-shadow-large-y) var(--scout-drop-shadow-large-blur) rgba(0, 0, 0, var(--scout-drop-shadow-large-alpha));
   overflow: hidden;
 }
 
@@ -986,6 +1319,18 @@
 
 .color-field-container .input-field {
   padding-left: 32px;
+}
+
+.alternative > .tag-field-box,
+.tag-field-box.alternative {
+  background-color: transparent;
+  border-color: transparent;
+  border-bottom-color: var(--scout-text-field-alternative-border-color);
+  border-radius: 0;
+  border-left-width: 0;
+  border-right-width: 0;
+  padding-left: 0;
+  padding-right: 0;
 }
 
 .tag-field-box {
@@ -1172,34 +1517,112 @@
   text-overflow: ellipsis;
 }
 
+/*
+ * Switch.less - the geometry is driven by the same custom properties Scout
+ * uses, so the DEFAULT and SLIDER display styles only override a few values.
+ */
 .switch {
+  --width: 36px;
+  --height: 22px;
+  --border-radius: 11px;
+  --handle-size: 16px;
+  --handle-top: 2px;
+  --handle-left: 2px;
+  --handle-left-activated: calc(var(--width) - 2px - var(--handle-size) - var(--handle-left));
+  --background-color: var(--scout-switch-background-color);
+  --border-color: var(--scout-switch-border-color);
+  --activated-background-color: var(--scout-switch-activated-background-color);
+  --handle-background-color: var(--scout-switch-handle-background-color);
+  --handle-border-color: var(--scout-switch-handle-border-color);
+  --icon-content: '\E045';
+  --icon-activated-content: '\E005';
+  --icon-color: var(--scout-switch-icon-color);
+  --icon-activated-color: var(--scout-switch-icon-activated-color);
+
   position: relative;
+  display: flex;
+  align-items: center;
   align-self: center;
-  width: 40px;
-  height: 22px;
-  border-radius: 11px;
-  background-color: var(--scout-switch-background-color);
+  min-height: var(--es-grid-row-height);
+}
+
+.switch-label {
+  margin-right: 8px;
+}
+
+.switch-button {
+  position: relative;
+  width: var(--width);
+  height: var(--height);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  background-color: var(--background-color);
   transition: background-color 150ms;
 }
 
-.switch.activated {
-  background-color: var(--scout-switch-activated-background-color);
-}
-
-.switch-slider {
+.switch-button::before {
+  content: '';
   position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 18px;
-  height: 18px;
+  width: var(--handle-size);
+  height: var(--handle-size);
+  top: var(--handle-top);
+  left: var(--handle-left);
   border-radius: 50%;
-  background-color: var(--scout-switch-handle-background-color);
-  border: 1px solid var(--scout-switch-handle-border-color);
-  transition: left 150ms;
+  border: 1px solid var(--handle-border-color);
+  background-color: var(--handle-background-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--icon-color);
+  font-size: 9px;
+  transition: left 250ms;
 }
 
-.switch.activated .switch-slider {
-  left: 20px;
+.switch-button.icon-visible::before {
+  font-family: scoutIcons, Arial, sans-serif;
+  content: var(--icon-content);
+}
+
+.switch-button.activated {
+  background-color: var(--activated-background-color);
+  border-color: transparent;
+}
+
+.switch-button.activated::before {
+  left: var(--handle-left-activated);
+  color: var(--icon-activated-color);
+  font-size: 8px;
+}
+
+.switch-button.icon-visible.activated::before {
+  content: var(--icon-activated-content);
+}
+
+.switch.style-default {
+  --handle-border-color: transparent;
+}
+
+.switch.style-slider {
+  --width: 40px;
+  --height: 6px;
+  --border-radius: 3px;
+  --handle-size: 18px;
+  --handle-top: -7px;
+  --handle-left: -1px;
+  --handle-left-activated: calc(var(--width) - var(--handle-size) - 1px);
+  --background-color: var(--scout-switch-style-slider-background-color);
+  --border-color: transparent;
+}
+
+.switch.style-slider .switch-button::before {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.switch.disabled {
+  --background-color: var(--scout-switch-disabled-background-color);
+  --border-color: var(--scout-switch-disabled-border-color);
+  --activated-background-color: var(--scout-switch-disabled-activated-background-color);
+  --handle-background-color: var(--scout-switch-handle-disabled-background-color);
 }
 
 .mode-selector-container {
@@ -1228,6 +1651,19 @@
   background-color: var(--scout-background-color);
   color: var(--scout-accent-color-3);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+
+/*
+ * Containers keep their box in the alternative style; only the corner radius
+ * changes (LookupBox.less, TableField.less, TreeField.less, PlannerField.less).
+ */
+.list-box-body.alternative,
+.tree-box-body.alternative,
+.tree.alternative,
+.table.alternative,
+.browser-field-box.alternative,
+.planner.alternative {
+  border-radius: var(--scout-border-radius);
 }
 
 .list-box-body,
@@ -1289,11 +1725,12 @@
 }
 
 .tab-item {
+  position: relative;
   display: inline-flex;
   align-items: center;
   padding: 0 var(--scout-tab-item-padding-x);
   cursor: pointer;
-  color: var(--scout-text-color);
+  color: var(--scout-tab-item-color);
   white-space: nowrap;
 }
 
@@ -1313,8 +1750,25 @@
 }
 
 .tab-item.selected {
-  box-shadow: inset 0 -2px 0 var(--scout-tab-item-selection-marker-color);
   font-weight: bold;
+  color: var(--scout-tab-item-selected-color);
+}
+
+/* TabArea.less draws a rounded 3px marker under the selected tab. */
+.tab-item.selected::after {
+  content: '';
+  display: block;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 3px;
+  border-radius: 1.5px;
+  background-color: var(--scout-tab-item-selection-marker-color);
+}
+
+.tab-item.first.selected::after {
+  right: var(--scout-tab-item-padding-x);
 }
 
 .tab-item.disabled { color: var(--scout-disabled-color); }
@@ -1431,10 +1885,18 @@
 .menubar-box {
   display: flex;
   align-items: center;
-  gap: 2px;
+  height: 100%;
   flex: 1 1 auto;
   flex-wrap: wrap;
-  padding: 2px 0;
+}
+
+.menubar-box > .menu-item {
+  margin: var(--scout-menubar-item-margin-y) var(--scout-menubar-item-margin-x);
+  min-height: var(--es-grid-row-height);
+}
+
+.menubar-box > .menu-item.menu-icononly {
+  min-width: var(--es-grid-row-height);
 }
 
 .menu-item {
@@ -1470,8 +1932,9 @@
 
 .menu-separator {
   width: 1px;
-  align-self: stretch;
-  margin: 6px 6px;
+  height: 15px;
+  align-self: center;
+  margin: 0 10px;
   background-color: var(--scout-border-color);
 }
 
@@ -1485,9 +1948,10 @@
   min-width: 180px;
   padding: 6px 0;
   background-color: var(--scout-background-color);
-  border: 1px solid var(--scout-border-color);
-  border-radius: var(--scout-control-popup-border-radius);
-  box-shadow: 0 var(--scout-drop-shadow-y) var(--scout-drop-shadow-blur) rgba(0, 0, 0, 0.2);
+  border: 0 solid var(--scout-border-color);
+  border-radius: var(--scout-border-radius-medium);
+  box-shadow: 0 var(--scout-drop-shadow-large-y) var(--scout-drop-shadow-large-blur) rgba(0, 0, 0, var(--scout-drop-shadow-large-alpha));
+  overflow: hidden;
 }
 
 .context-menu-popup .menu-item {
@@ -1561,7 +2025,7 @@
   align-items: stretch;
   flex: none;
   background-color: var(--scout-table-header-background-color);
-  border-bottom: 1px solid var(--scout-table-header-border-color);
+  border-bottom: 2px solid var(--scout-table-header-border-color);
 }
 
 .table-header-item {
@@ -1675,58 +2139,88 @@
  * ------------------------------------------------------------------------- */
 .tile-grid {
   display: grid;
-  gap: 10px;
+  gap: 15px;
   align-content: start;
   padding: 6px 0;
   height: 100%;
   overflow: auto;
 }
 
+/*
+ * Dashboard tiles (Tile.less `.tile.dashboard`): no border, 12px radius and a
+ * 1px ring drawn as a box-shadow, which is the Scout 22+ dashboard look.
+ */
 .tile {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 14px 16px;
+  gap: 5px;
+  padding: 16px 20px 20px;
   min-height: 90px;
-  background-color: var(--scout-tile-background-color);
-  border: 1px solid var(--scout-tile-border-color);
-  border-radius: var(--scout-border-radius-medium);
+  border: none;
+  border-radius: var(--scout-border-radius-large);
+  background-color: var(--scout-tile-default-background-color);
+  color: var(--scout-tile-default-color);
+  box-shadow: 0 0 0 1px var(--es-tile-ring, #e2e2e2);
   overflow: hidden;
 }
 
 .tile.color-scheme-alternative {
-  background-color: var(--scout-accent-color-0);
-  border-color: var(--scout-accent-color-1);
+  background-color: var(--scout-tile-alternative-background-color);
+  color: var(--scout-tile-alternative-color);
 }
 
-.tile.color-scheme-inverted {
-  background-color: var(--scout-accent-color-3);
-  border-color: var(--scout-accent-color-3);
-  color: var(--scout-palette-white);
+.tile.color-scheme-default-inverted {
+  background-color: var(--scout-tile-default-inverted-background-color);
+  color: var(--scout-tile-default-inverted-color);
+  --es-tile-ring: var(--scout-tile-default-inverted-background-color);
 }
 
-.tile.color-scheme-ranking {
-  background-color: var(--scout-palette-green-0);
-  border-color: var(--scout-palette-green-1);
+.tile.color-scheme-alternative-inverted {
+  background-color: var(--scout-tile-alternative-inverted-background-color);
+  color: var(--scout-tile-alternative-inverted-color);
+  --es-tile-ring: var(--scout-tile-alternative-inverted-background-color);
 }
 
 .tile.selected {
-  border-color: var(--scout-item-selection-border-color);
-  box-shadow: inset 0 0 0 1px var(--scout-item-selection-border-color);
+  box-shadow: 0 0 0 2px var(--scout-tile-selection-border-color);
+}
+
+.tile[class*="color-scheme-"][class*="-inverted"].selected {
+  box-shadow: 0 0 0 3px var(--scout-accent-color-5);
 }
 
 .tile-title {
+  font-size: var(--scout-font-size-smaller);
   font-weight: bold;
+  color: var(--scout-tile-default-label-color);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.tile[class*="-inverted"] > .tile-title {
+  color: inherit;
+}
+
+.tile > .font-icon {
+  font-size: 22px;
+  color: var(--scout-tile-button-default-icon-color);
+}
+
+.tile[class*="-inverted"] > .font-icon {
+  color: inherit;
+}
+
 .tile-content {
   flex: 1 1 auto;
-  color: inherit;
+  color: var(--scout-text-color);
+  font-size: var(--scout-font-size-large);
   white-space: pre-wrap;
   overflow: hidden;
+}
+
+.tile[class*="-inverted"] > .tile-content {
+  color: inherit;
 }
 
 .tile.form-field-tile {
@@ -1816,44 +2310,80 @@
 /* ----------------------------------------------------------------------------
  * Notification, message box, wizard
  * ------------------------------------------------------------------------- */
+/*
+ * Notification.less: 8px radius, a 1px border in the severity colour and a
+ * round 32px icon badge filled with that colour.
+ */
 .notification {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: var(--scout-desktop-notification-no-icon-padding-y) 16px;
-  border-radius: var(--scout-border-radius);
-  border-left: 4px solid var(--scout-notification-info-border-color);
+  padding: 8px;
+  border: 1px solid var(--scout-notification-info-border-color);
+  border-radius: var(--scout-border-radius-medium);
   background-color: var(--scout-notification-alternative-info-background-color);
-  color: var(--scout-notification-alternative-info-color);
+  color: var(--scout-text-color);
+  font-weight: bold;
+  --es-notification-color: var(--scout-notification-info-border-color);
 }
 
+.notification.info { font-weight: normal; }
+
 .notification.ok {
-  border-left-color: var(--scout-notification-ok-border-color);
+  border-color: var(--scout-notification-ok-border-color);
   background-color: var(--scout-notification-alternative-ok-background-color);
   color: var(--scout-notification-alternative-ok-color);
+  --es-notification-color: var(--scout-notification-ok-border-color);
 }
 
 .notification.warning {
-  border-left-color: var(--scout-notification-warning-border-color);
+  border-color: var(--scout-notification-warning-border-color);
   background-color: var(--scout-notification-alternative-warning-background-color);
   color: var(--scout-notification-alternative-warning-color);
+  --es-notification-color: var(--scout-notification-warning-border-color);
 }
 
 .notification.error {
-  border-left-color: var(--scout-notification-error-border-color);
+  border-color: var(--scout-notification-error-border-color);
   background-color: var(--scout-notification-alternative-error-background-color);
   color: var(--scout-notification-alternative-error-color);
+  --es-notification-color: var(--scout-notification-error-border-color);
 }
 
-.notification-message { flex: 1 1 auto; }
-.notification .closer { cursor: pointer; opacity: 0.7; }
+.notification-icon {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background-color: var(--es-notification-color);
+  color: var(--scout-palette-white);
+  font-size: var(--scout-font-size-icon-small);
+}
+
+.notification-message {
+  flex: 1 1 auto;
+  padding-right: 12px;
+}
+
+.notification .closer {
+  position: absolute;
+  right: 6px;
+  top: 6px;
+  padding: 6px;
+  cursor: pointer;
+  opacity: 0.7;
+}
 
 .messagebox {
   min-width: 380px;
   max-width: 560px;
   padding: 24px;
   background-color: var(--scout-background-color);
-  border-radius: var(--scout-border-radius-medium);
+  border-radius: var(--scout-border-radius-large);
   box-shadow: 0 var(--scout-drop-shadow-large-y) var(--scout-drop-shadow-large-blur) rgba(0, 0, 0, 0.2);
 }
 
@@ -2124,9 +2654,11 @@
 .chart-legend-item { display: flex; align-items: center; gap: 6px; }
 
 .chart-legend-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  background-clip: padding-box;
   flex: none;
 }
 

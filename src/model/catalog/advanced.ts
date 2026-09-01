@@ -208,6 +208,7 @@ const defs: WidgetDef[] = [
           const item = div('chart-legend-item');
           const dot = span('chart-legend-dot');
           dot.style.backgroundColor = CHART_COLORS[i % CHART_COLORS.length];
+          dot.style.borderColor = CHART_COLORS[i % CHART_COLORS.length];
           item.appendChild(dot);
           item.appendChild(span('chart-legend-label', label));
           legend.appendChild(item);
@@ -263,7 +264,7 @@ const defs: WidgetDef[] = [
     description: 'Inline notification bar with a severity.',
     jsClass: 'Notification',
     isFormField: false,
-    defaults: {...WIDGET_DEFAULTS, severity: 'info', message: 'The data was saved successfully.', closable: true},
+    defaults: {...WIDGET_DEFAULTS, severity: 'info', message: 'The data was saved successfully.', closable: true, iconVisible: true},
     props: [
       ...WIDGET_PROPS,
       {name: 'message', label: 'Message', type: 'text', group: GROUP_CONTENT},
@@ -273,14 +274,19 @@ const defs: WidgetDef[] = [
         {value: 'warning', label: 'WARNING'},
         {value: 'error', label: 'ERROR'}
       ]},
+      {name: 'iconVisible', label: 'Icon visible', type: 'boolean', group: GROUP_STYLE},
       {name: 'closable', label: 'Closable', type: 'boolean', group: GROUP_CONTENT}
     ],
     slots: [],
     render(ctx, node) {
       const severity = ctx.prop<string>(node, 'severity', 'info');
       const root = div(`notification ${severity}`);
-      const icon = renderIcon(severity === 'ok' ? 'checked-bold' : severity === 'info' ? 'info' : 'exclamation-mark-circle');
-      if (icon) root.appendChild(icon);
+      if (ctx.prop<boolean>(node, 'iconVisible', true)) {
+        const badge = div('notification-icon');
+        const icon = renderIcon(severity === 'ok' ? 'checked-bold' : severity === 'info' ? 'info' : 'exclamation-mark-bold');
+        if (icon) badge.appendChild(icon);
+        root.appendChild(badge);
+      }
       root.appendChild(span('notification-message', ctx.prop<string>(node, 'message', '')));
       if (ctx.prop<boolean>(node, 'closable', true)) {
         const closer = renderIcon('remove', 'closer');

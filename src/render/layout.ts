@@ -191,6 +191,10 @@ export function renderLogicalGrid(
   const template = gridTemplate(placement, rowHeight);
 
   container.classList.add('logical-grid');
+  // Drives the responsive container queries in scout-render.css: Scout's
+  // ResponsiveManager switches a group box to CONDENSED (labels on top) as soon
+  // as a logical column is narrower than formColumnWidth (420px).
+  container.dataset.columns = String(placement.columnCount);
   container.style.gridTemplateColumns = template.columns;
   container.style.gridTemplateRows = template.rows;
   container.style.alignContent = template.stretchRows ? 'stretch' : 'start';

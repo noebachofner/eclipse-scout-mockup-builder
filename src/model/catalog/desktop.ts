@@ -67,7 +67,9 @@ const defs: WidgetDef[] = [
       benchContent: 'views',
       logoText: 'ES',
       logoUrl: '',
-      displayStyle: 'default'
+      displayStyle: 'default',
+      navigationInBackground: false,
+      outlineIconId: 'folder'
     },
     props: [
       {name: 'title', label: 'Application title', type: 'string', group: GROUP_CONTENT},
@@ -85,6 +87,14 @@ const defs: WidgetDef[] = [
         {value: 'outlineDetail', label: "Selected outline's detail"}
       ]},
       {name: 'selectedView', label: 'Selected view index', type: 'number', group: GROUP_CONTENT, min: 0, visibleWhen: p => p.benchContent !== 'outlineDetail'},
+      {name: 'outlineIconId', label: 'Outline switcher icon', type: 'icon', group: GROUP_STYLE, description: "Icon of the white outline switcher on the header. Falls back to the selected outline's icon."},
+      {
+        name: 'navigationInBackground',
+        label: 'Navigation in background',
+        type: 'boolean',
+        group: GROUP_STYLE,
+        description: 'Scout dims the navigation while a dialog or a view has the focus: the selected page turns grey instead of accent coloured.'
+      },
       {name: 'logoText', label: 'Logo text', type: 'string', group: GROUP_STYLE, description: 'Shown when no logo URL is set.'},
       {name: 'logoUrl', label: 'Logo URL or data URI', type: 'string', group: GROUP_STYLE}
     ],
@@ -109,23 +119,43 @@ const defs: WidgetDef[] = [
       const selectedOutlineIndex = Math.min(Math.max(0, Number(ctx.prop<number>(node, 'selectedOutline', 0))), Math.max(0, outlines.length - 1));
       const selectedOutline: MockupNode | undefined = outlines[selectedOutlineIndex];
 
+      const inBackground = ctx.prop<boolean>(node, 'navigationInBackground', false);
+
       if (navigationVisible) {
         const navigation = div('desktop-navigation');
         navigation.style.width = `${navigationWidth}px`;
+        if (inBackground) navigation.classList.add('in-background');
 
-        // Top-left: outline switcher, exactly where Scout puts the view button box.
+        // Top-left: the outline switcher, exactly where Scout puts the view
+        // button box. `selected` is the state Scout shows while the navigation
+        // holds the active outline - the white card on the blue header.
         const viewButtonBox = div('view-button-box');
-        const viewMenuTab = div('view-menu-tab');
+        const viewMenuTab = div('view-menu-tab selected');
         const viewButton = div('view-button');
-        const viewButtonIcon = renderIcon('ellipsis-v');
-        if (viewButtonIcon) viewButton.appendChild(viewButtonIcon);
+        const outlineIcon = renderIcon(
+          (selectedOutline && String(selectedOutline.properties.iconId ?? '')) || ctx.prop<string>(node, 'outlineIconId', 'folder')
+        );
+        if (outlineIcon) viewButton.appendChild(outlineIcon);
         viewMenuTab.appendChild(viewButton);
         const viewMenu = div('view-menu');
-        viewMenu.appendChild(span('view-menu-text', selectedOutline ? String(selectedOutline.properties.title ?? 'Outline') : 'Outline'));
         const caret = renderIcon('angle-down');
         if (caret) viewMenu.appendChild(caret);
         viewMenuTab.appendChild(viewMenu);
         viewButtonBox.appendChild(viewMenuTab);
+
+        // Further outlines appear as small buttons next to the switcher.
+        if (outlines.length > 1) {
+          const wrapper = div('view-tab-wrapper');
+          outlines.forEach((outline, i) => {
+            if (i === selectedOutlineIndex) return;
+            const tab = div('view-tab');
+            const icon = renderIcon(String(outline.properties.iconId ?? '') || 'star');
+            if (icon) tab.appendChild(icon);
+            tab.dataset.nodeId = outline.id;
+            wrapper.appendChild(tab);
+          });
+          if (wrapper.childElementCount) viewButtonBox.appendChild(wrapper);
+        }
         navigation.appendChild(viewButtonBox);
 
         const body = div('navigation-body');
@@ -146,6 +176,7 @@ const defs: WidgetDef[] = [
       if (headerVisible) {
         const header = div('desktop-header');
         header.style.left = `${navigationWidth}px`;
+        if (inBackground) header.classList.add('in-background');
 
         if (showViewTabs) {
           const tabArea = div('simple-tab-area');
@@ -269,7 +300,7 @@ const defs: WidgetDef[] = [
       {name: 'menus', label: 'Title menus', accepts: ['Menu'], layout: 'inline'}
     ],
     render(ctx, node) {
-      const outline = div('outline');
+      const outline = div('outline tree');
       if (ctx.prop<boolean>(node, 'titleVisible', true)) {
         const title = div('outline-title');
         const icon = renderIcon(ctx.prop<string>(node, 'iconId', ''));

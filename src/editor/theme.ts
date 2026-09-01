@@ -26,6 +26,7 @@ export function applyTheme(host: HTMLElement, theme: ThemeSettings): void {
   }
   if (theme.fontFamily) host.style.setProperty('--es-font-family', theme.fontFamily);
   host.classList.toggle('dense', !!theme.dense);
+  host.classList.toggle('no-responsive', theme.responsive === false);
 }
 
 /** Colour presets offered in the theme editor; each overrides the accent chain. */

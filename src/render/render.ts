@@ -94,9 +94,13 @@ export function renderFormField(ctx: RenderContext, node: MockupNode, def: Widge
     'label-position-right', 'label-position-top', 'label-position-bottom'][labelPosition] ?? 'label-position-default';
 
   const root = div(`form-field scout-${slug(def.objectType)} ${positionClass}`);
+  // Scout puts the field style on the container as well as on the field itself.
+  const fieldStyle = ctx.prop<string>(node, 'fieldStyle', 'alternative') === 'classic' ? 'classic' : 'alternative';
+  root.classList.add(fieldStyle);
   if (def.ownsLabel) root.classList.add('owns-label');
   if (mandatory) root.classList.add('mandatory');
   if (!enabled) root.classList.add('disabled');
+  if (ctx.prop<boolean>(node, 'readOnly', false)) root.classList.add('read-only');
   if (severity && severity !== 'none') root.classList.add('has-' + severity);
   if (!labelVisible || labelPosition === 2) root.classList.add('label-hidden');
 
@@ -122,6 +126,7 @@ export function renderFormField(ctx: RenderContext, node: MockupNode, def: Widge
 
   const fieldContent = def.render(ctx, node);
   fieldContent.classList.add('field');
+  fieldContent.classList.add(fieldStyle);
   if (labelPosition === 2 && label && !fieldContent.dataset.placeholderApplied) {
     const input = fieldContent.querySelector('.input-field, input, textarea');
     if (input && !input.textContent) input.textContent = label;
@@ -164,6 +169,7 @@ export function renderDocument(doc: MockupDocument, options: RenderOptions = {})
   const root = ctx.renderNode(doc.root, null);
   const host = div('scout es-mockup-root');
   if (doc.theme.dense) host.classList.add('dense');
+  if (doc.theme.responsive === false) host.classList.add('no-responsive');
   host.style.setProperty('--es-font-family', doc.theme.fontFamily || 'Arial, sans-serif');
   append(host, root);
   return host;

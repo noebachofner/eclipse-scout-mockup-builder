@@ -41,6 +41,7 @@ silently mis-rendered.
 | `base` | `"default"` \| `"dark"` | Which Scout theme the colors start from. |
 | `colors` | object | Overrides for Scout LESS colour variables, keyed **without** the leading `@`, e.g. `{"accent-color-3": "#7A2E96"}`. |
 | `dense` | boolean | Scout's compact display style. |
+| `responsive` | boolean | Mirrors Scout's `ResponsiveManager`: when a logical grid is narrower than the group box needs, the labels move on top (CONDENSED state). Default `true`. |
 | `fontFamily` | string | CSS font stack; Scout's default is `Arial, sans-serif`. |
 
 Only the variables the user actually changed are stored. Everything else is
