@@ -1,0 +1,40 @@
+/** Browser file helpers used by save / load / export. */
+
+export function downloadBlob(blob: Blob, fileName: string): void {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  // Give the browser a tick to start the download before revoking.
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export function downloadText(text: string, fileName: string, mimeType = 'text/plain'): void {
+  downloadBlob(new Blob([text], {type: `${mimeType};charset=utf-8`}), fileName);
+}
+
+export function pickFile(accept: string): Promise<File | null> {
+  return new Promise(resolve => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = accept;
+    input.addEventListener('change', () => resolve(input.files?.[0] ?? null), {once: true});
+    // Safari needs the input in the DOM.
+    input.style.display = 'none';
+    document.body.appendChild(input);
+    input.click();
+    setTimeout(() => input.remove(), 60_000);
+  });
+}
+
+export function sanitizeFileName(name: string, extension: string): string {
+  const base = (name || 'mockup')
+    .trim()
+    .replace(/[^\w\- ]+/g, '')
+    .replace(/\s+/g, '-')
+    .toLowerCase() || 'mockup';
+  return `${base}.${extension}`;
+}

@@ -1,0 +1,372 @@
+import {registerWidgets, type WidgetDef} from './registry';
+import {formFieldDefaults, formFieldProps, GROUP_CONTENT, GROUP_LAYOUT, GROUP_STYLE} from './common';
+import {div, span} from '../../render/dom';
+import {cells, checkBox, lines} from '../../render/parts';
+import {renderIcon} from '../../render/icons';
+import type {RenderContext} from './registry';
+import type {MockupNode, PropertyValue} from '../types';
+
+const DEFAULT_COLUMNS = 'Name|left|200\nCity|left|140\nAmount|right|100';
+const DEFAULT_ROWS = 'Ada Lovelace|London|1 250.00\nAlan Turing|Manchester|980.50\nGrace Hopper|New York|3 400.00';
+
+interface ColumnSpec {
+  text: string;
+  align: 'left' | 'center' | 'right';
+  width: number;
+}
+
+function parseColumns(raw: unknown): ColumnSpec[] {
+  return lines(raw, cells(DEFAULT_COLUMNS)).map(line => {
+    const parts = line.split('|').map(p => p.trim());
+    const align = (parts[1] || 'left') as ColumnSpec['align'];
+    return {
+      text: parts[0] ?? '',
+      align: align === 'right' || align === 'center' ? align : 'left',
+      width: Number(parts[2]) > 0 ? Number(parts[2]) : 0
+    };
+  });
+}
+
+function renderTable(ctx: RenderContext, node: MockupNode): HTMLElement {
+  const columns = parseColumns(ctx.prop<string>(node, 'columns', DEFAULT_COLUMNS));
+  const rows = lines(ctx.prop<string>(node, 'rows', DEFAULT_ROWS), DEFAULT_ROWS.split('\n')).map(line => line.split('|').map(c => c.trim()));
+  const checkable = ctx.prop<boolean>(node, 'checkable', false);
+  const checkedRows = new Set(lines(ctx.prop<string>(node, 'checkedRows', ''), []).map(Number));
+  const selectedRow = Number(ctx.prop<number>(node, 'selectedRow', -1));
+  const headerVisible = ctx.prop<boolean>(node, 'headerVisible', true);
+  const footerVisible = ctx.prop<boolean>(node, 'footerVisible', false);
+  const groupedColumn = Number(ctx.prop<number>(node, 'sortedColumn', -1));
+
+  const root = div('table');
+  const menus = ctx.renderSlot(node, 'menus');
+  if (menus.length) {
+    const bar = div('menubar menubar-top');
+    const box = div('menubar-box');
+    menus.forEach(m => box.appendChild(m));
+    bar.appendChild(box);
+    root.appendChild(bar);
+  }
+
+  const grid = div('table-grid');
+  // Scout's table layout distributes the remaining width; if every column has a
+  // fixed width, a trailing filler keeps the header, rows and footer aligned.
+  const hasFlexible = columns.some(c => !c.width);
+  const template = [
+    checkable ? '34px' : '',
+    ...columns.map(c => (c.width ? `${c.width}px` : 'minmax(0, 1fr)')),
+    hasFlexible ? '' : 'minmax(0, 1fr)'
+  ].filter(Boolean).join(' ');
+  grid.style.gridTemplateColumns = template;
+
+  if (headerVisible) {
+    const header = div('table-header');
+    header.style.gridTemplateColumns = template;
+    if (checkable) header.appendChild(div('table-header-item check'));
+    columns.forEach((column, i) => {
+      const item = div(`table-header-item halign-${column.align}`);
+      item.appendChild(span('text', column.text));
+      if (i === groupedColumn) {
+        const icon = renderIcon('long-arrow-up', 'sort-icon');
+        if (icon) item.appendChild(icon);
+        item.classList.add('sorted');
+      }
+      header.appendChild(item);
+    });
+    if (!hasFlexible) header.appendChild(div('table-header-item filler'));
+    root.appendChild(header);
+  }
+
+  rows.forEach((row, rowIndex) => {
+    const tr = div('table-row');
+    tr.style.gridTemplateColumns = template;
+    if (rowIndex === selectedRow) tr.classList.add('selected');
+    if (checkable) {
+      const cell = div('table-cell check');
+      cell.appendChild(checkBox(checkedRows.has(rowIndex)));
+      tr.appendChild(cell);
+    }
+    columns.forEach((column, colIndex) => {
+      const cell = div(`table-cell halign-${column.align}`, row[colIndex] ?? '');
+      tr.appendChild(cell);
+    });
+    if (!hasFlexible) tr.appendChild(div('table-cell filler'));
+    grid.appendChild(tr);
+  });
+  if (!rows.length) grid.appendChild(div('table-empty', 'No data'));
+  root.appendChild(grid);
+
+  if (footerVisible) {
+    const footer = div('table-footer');
+    const info = div('table-info');
+    info.appendChild(span('table-info-item', `${rows.length} rows`));
+    footer.appendChild(info);
+    const control = div('table-control');
+    const icon = renderIcon('chart');
+    if (icon) control.appendChild(icon);
+    footer.appendChild(control);
+    root.appendChild(footer);
+  }
+  return root;
+}
+
+const TABLE_PROPS = [
+  {name: 'columns', label: 'Columns (Text|align|width per line)', type: 'lines' as const, group: GROUP_CONTENT, description: 'align = left | center | right. Width in pixels, empty = flexible.'},
+  {name: 'rows', label: 'Rows (cells separated by |)', type: 'lines' as const, group: GROUP_CONTENT},
+  {name: 'selectedRow', label: 'Selected row index', type: 'number' as const, group: GROUP_CONTENT, min: -1},
+  {name: 'sortedColumn', label: 'Sorted column index', type: 'number' as const, group: GROUP_CONTENT, min: -1},
+  {name: 'checkable', label: 'Checkable', type: 'boolean' as const, group: GROUP_CONTENT},
+  {name: 'checkedRows', label: 'Checked row indexes (one per line)', type: 'lines' as const, group: GROUP_CONTENT, visibleWhen: (p: Record<string, PropertyValue>) => p.checkable === true},
+  {name: 'headerVisible', label: 'Header visible', type: 'boolean' as const, group: GROUP_STYLE},
+  {name: 'footerVisible', label: 'Footer visible', type: 'boolean' as const, group: GROUP_STYLE}
+];
+
+const TABLE_DEFAULTS = {
+  columns: DEFAULT_COLUMNS,
+  rows: DEFAULT_ROWS,
+  selectedRow: -1,
+  sortedColumn: -1,
+  checkable: false,
+  headerVisible: true,
+  footerVisible: false
+};
+
+function parseTreeNodes(raw: unknown): {level: number; text: string; expanded: boolean}[] {
+  const text = String(raw ?? '');
+  return text.split(/\r?\n/).filter(l => l.trim()).map(line => {
+    const indent = line.length - line.trimStart().length;
+    const body = line.trim();
+    return {
+      level: Math.floor(indent / 2),
+      text: body.replace(/^[-+]\s*/, ''),
+      expanded: !body.startsWith('+')
+    };
+  });
+}
+
+const DEFAULT_TREE = 'Documents\n  Invoices\n  Contracts\n+ Archive\nSettings';
+
+const defs: WidgetDef[] = [
+  {
+    objectType: 'TableField',
+    label: 'Table field',
+    category: 'Tables & Trees',
+    icon: 'list',
+    description: 'Form field containing a Scout table.',
+    javaClass: 'org.eclipse.scout.rt.client.ui.form.fields.tablefield.AbstractTableField',
+    jsClass: 'TableField',
+    isFormField: true,
+    defaults: formFieldDefaults({
+      label: 'Table',
+      labelVisible: false,
+      'gridDataHints.w': 2,
+      'gridDataHints.h': 6,
+      ...TABLE_DEFAULTS
+    }),
+    props: formFieldProps(...TABLE_PROPS),
+    slots: [{name: 'menus', label: 'Menus', accepts: ['Menu'], layout: 'inline'}],
+    defaultGridH: 6,
+    render: renderTable
+  },
+  {
+    objectType: 'Table',
+    label: 'Table',
+    category: 'Tables & Trees',
+    icon: 'list',
+    description: 'Standalone table, e.g. as the detail table of an outline page.',
+    javaClass: 'org.eclipse.scout.rt.client.ui.basic.table.AbstractTable',
+    jsClass: 'Table',
+    isFormField: false,
+    defaults: {visible: true, enabled: true, ...TABLE_DEFAULTS},
+    props: [...TABLE_PROPS],
+    slots: [{name: 'menus', label: 'Menus', accepts: ['Menu'], layout: 'inline'}],
+    render: renderTable
+  },
+  {
+    objectType: 'TreeField',
+    label: 'Tree field',
+    category: 'Tables & Trees',
+    icon: 'folder',
+    description: 'Form field containing a Scout tree.',
+    javaClass: 'org.eclipse.scout.rt.client.ui.form.fields.treefield.AbstractTreeField',
+    jsClass: 'TreeField',
+    isFormField: true,
+    defaults: formFieldDefaults({
+      label: 'Tree',
+      labelVisible: false,
+      'gridDataHints.h': 6,
+      nodes: DEFAULT_TREE,
+      selectedNode: 1,
+      checkable: false
+    }),
+    props: formFieldProps(
+      {name: 'nodes', label: 'Nodes (two spaces per level, "+" = collapsed)', type: 'lines', group: GROUP_CONTENT},
+      {name: 'selectedNode', label: 'Selected node index', type: 'number', group: GROUP_CONTENT, min: -1},
+      {name: 'checkable', label: 'Checkable', type: 'boolean', group: GROUP_CONTENT}
+    ),
+    slots: [{name: 'menus', label: 'Menus', accepts: ['Menu'], layout: 'inline'}],
+    defaultGridH: 6,
+    render(ctx, node) {
+      const nodes = parseTreeNodes(ctx.prop<string>(node, 'nodes', DEFAULT_TREE));
+      const selected = Number(ctx.prop<number>(node, 'selectedNode', 1));
+      const checkable = ctx.prop<boolean>(node, 'checkable', false);
+      const root = div('tree');
+      const data = div('tree-data');
+      nodes.forEach((entry, i) => {
+        const row = div('tree-node');
+        row.style.paddingLeft = `${28 + entry.level * 17}px`;
+        const hasChildren = nodes[i + 1] ? nodes[i + 1].level > entry.level : false;
+        const control = span('tree-node-control');
+        control.classList.toggle('expanded', hasChildren && entry.expanded);
+        control.classList.toggle('empty', !hasChildren);
+        row.appendChild(control);
+        if (checkable) row.appendChild(checkBox(i === selected));
+        row.appendChild(span('text', entry.text));
+        if (i === selected) row.classList.add('selected');
+        data.appendChild(row);
+      });
+      root.appendChild(data);
+      return root;
+    }
+  },
+  {
+    objectType: 'CalendarField',
+    label: 'Calendar field',
+    category: 'Tables & Trees',
+    icon: 'calendar',
+    description: 'Form field containing a Scout calendar.',
+    javaClass: 'org.eclipse.scout.rt.client.ui.form.fields.calendarfield.AbstractCalendarField',
+    jsClass: 'CalendarField',
+    isFormField: true,
+    defaults: formFieldDefaults({
+      label: 'Calendar',
+      labelVisible: false,
+      'gridDataHints.w': 2,
+      'gridDataHints.h': 8,
+      displayMode: 'week',
+      title: 'September 2026',
+      appointments: 'Mon|09:00|Sprint planning\nTue|14:00|Design review\nThu|11:30|Customer call'
+    }),
+    props: formFieldProps(
+      {name: 'title', label: 'Title', type: 'string', group: GROUP_CONTENT},
+      {name: 'displayMode', label: 'Display mode', type: 'enum', group: GROUP_LAYOUT, options: [
+        {value: 'day', label: 'DAY'},
+        {value: 'week', label: 'WEEK'},
+        {value: 'workWeek', label: 'WORK_WEEK'},
+        {value: 'month', label: 'MONTH'}
+      ]},
+      {name: 'appointments', label: 'Appointments (Day|Time|Title)', type: 'lines', group: GROUP_CONTENT}
+    ),
+    slots: [],
+    defaultGridH: 8,
+    render(ctx, node) {
+      const mode = ctx.prop<string>(node, 'displayMode', 'week');
+      const dayNames = mode === 'workWeek'
+        ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
+        : mode === 'day'
+          ? ['Mon']
+          : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      const root = div('calendar');
+      const header = div('calendar-header');
+      header.appendChild(div('calendar-title', ctx.prop<string>(node, 'title', '')));
+      const modeSelector = div('mode-selector');
+      for (const m of ['Day', 'Week', 'Work week', 'Month']) {
+        const item = div('mode', m);
+        if (m.toLowerCase().replace(/\s/g, '') === mode.toLowerCase()) item.classList.add('selected');
+        modeSelector.appendChild(item);
+      }
+      header.appendChild(modeSelector);
+      root.appendChild(header);
+
+      if (mode === 'month') {
+        const grid = div('calendar-month-grid');
+        for (let i = 0; i < 35; i++) {
+          const cell = div('calendar-month-day');
+          cell.appendChild(span('calendar-day-number', String(((i + 30) % 31) + 1)));
+          if (i % 7 >= 5) cell.classList.add('weekend');
+          grid.appendChild(cell);
+        }
+        root.appendChild(grid);
+        return root;
+      }
+
+      const body = div('calendar-week');
+      body.style.gridTemplateColumns = `48px repeat(${dayNames.length}, minmax(0, 1fr))`;
+      body.appendChild(div('calendar-corner'));
+      dayNames.forEach(name => body.appendChild(div('calendar-day-head', name)));
+      for (let hour = 8; hour <= 17; hour++) {
+        body.appendChild(div('calendar-hour', `${String(hour).padStart(2, '0')}:00`));
+        dayNames.forEach(name => {
+          const cell = div('calendar-slot');
+          cell.dataset.day = name;
+          cell.dataset.hour = String(hour);
+          body.appendChild(cell);
+        });
+      }
+      root.appendChild(body);
+
+      for (const line of lines(ctx.prop<string>(node, 'appointments', ''), [])) {
+        const [day, time, title] = line.split('|').map(p => p.trim());
+        const hour = parseInt(time ?? '', 10);
+        const slot = body.querySelector<HTMLElement>(`.calendar-slot[data-day="${day}"][data-hour="${hour}"]`);
+        if (slot) {
+          const item = div('calendar-component');
+          item.appendChild(span('calendar-component-time', time ?? ''));
+          item.appendChild(span('calendar-component-title', title ?? ''));
+          slot.appendChild(item);
+        }
+      }
+      return root;
+    }
+  },
+  {
+    objectType: 'PlannerField',
+    label: 'Planner field',
+    category: 'Tables & Trees',
+    icon: 'chart',
+    description: 'Resource/time planner with activities on a timeline.',
+    javaClass: 'org.eclipse.scout.rt.client.ui.form.fields.plannerfield.AbstractPlannerField',
+    jsClass: 'PlannerField',
+    isFormField: true,
+    defaults: formFieldDefaults({
+      label: 'Planner',
+      labelVisible: false,
+      'gridDataHints.w': 2,
+      'gridDataHints.h': 8,
+      resources: 'Team A|2|4|Kick-off\nTeam B|5|3|Implementation\nTeam C|1|2|Analysis',
+      columnCount: 12
+    }),
+    props: formFieldProps(
+      {name: 'resources', label: 'Resources (Name|start|length|activity)', type: 'lines', group: GROUP_CONTENT},
+      {name: 'columnCount', label: 'Timeline columns', type: 'number', group: GROUP_LAYOUT, min: 4, max: 40}
+    ),
+    slots: [],
+    defaultGridH: 8,
+    render(ctx, node) {
+      const columnCount = Math.max(4, Number(ctx.prop<number>(node, 'columnCount', 12)));
+      const root = div('planner');
+      const scale = div('planner-scale');
+      scale.style.gridTemplateColumns = `160px repeat(${columnCount}, minmax(0, 1fr))`;
+      scale.appendChild(div('planner-corner', 'Resource'));
+      for (let i = 1; i <= columnCount; i++) scale.appendChild(div('planner-scale-item', String(i)));
+      root.appendChild(scale);
+
+      for (const line of lines(ctx.prop<string>(node, 'resources', ''), [])) {
+        const [name, start, length, activity] = line.split('|').map(p => p.trim());
+        const row = div('planner-row');
+        row.style.gridTemplateColumns = `160px repeat(${columnCount}, minmax(0, 1fr))`;
+        row.appendChild(div('planner-resource', name ?? ''));
+        for (let i = 1; i <= columnCount; i++) row.appendChild(div('planner-cell'));
+        const bar = div('planner-activity', activity ?? '');
+        const startIndex = Math.max(1, Number(start) || 1);
+        const len = Math.max(1, Number(length) || 1);
+        bar.style.gridColumn = `${startIndex + 1} / span ${len}`;
+        bar.style.gridRow = '1';
+        row.appendChild(bar);
+        root.appendChild(row);
+      }
+      return root;
+    }
+  }
+];
+
+registerWidgets(defs);
