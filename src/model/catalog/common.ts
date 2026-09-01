@@ -34,9 +34,13 @@ export const ALIGNMENT_OPTIONS = [
   {value: 1, label: 'RIGHT / BOTTOM (1)'}
 ];
 
+/**
+ * `FormField.FieldStyle`. Scout's `DEFAULT_FIELD_STYLE` is ALTERNATIVE - the
+ * underlined look of Scout 22+ - so that is what a new field gets here too.
+ */
 export const FIELD_STYLE_OPTIONS = [
-  {value: 'classic', label: 'CLASSIC (bordered)'},
-  {value: 'alternative', label: 'ALTERNATIVE (underlined)'}
+  {value: 'alternative', label: 'ALTERNATIVE (underlined)'},
+  {value: 'classic', label: 'CLASSIC (bordered)'}
 ];
 
 /** Properties every Scout widget has. */
@@ -59,6 +63,7 @@ export const FORM_FIELD_PROPS: PropDef[] = [
   {name: 'errorStatus', label: 'Status severity', type: 'enum', group: GROUP_STATE, options: SEVERITY_OPTIONS},
   {name: 'errorStatusMessage', label: 'Status message', type: 'string', group: GROUP_STATE, visibleWhen: p => p.errorStatus !== 'none' && p.errorStatus !== undefined},
   {name: 'statusVisible', label: 'Status visible', type: 'boolean', group: GROUP_STATE},
+  {name: 'fieldStyle', label: 'Field style', type: 'enum', group: GROUP_STYLE, options: FIELD_STYLE_OPTIONS, description: "Scout's FormField.fieldStyle. ALTERNATIVE draws only an underline and is the framework default."},
   {name: 'fontColor', label: 'Font color', type: 'color', group: GROUP_STYLE},
   {name: 'backgroundColor', label: 'Background color', type: 'color', group: GROUP_STYLE},
   {name: 'fontBold', label: 'Bold', type: 'boolean', group: GROUP_STYLE}
@@ -87,6 +92,7 @@ export const FORM_FIELD_DEFAULTS: Record<string, PropertyValue> = {
   mandatory: false,
   statusVisible: true,
   errorStatus: 'none',
+  fieldStyle: 'alternative',
   'gridDataHints.w': 1,
   'gridDataHints.h': 1,
   'gridDataHints.weightX': -1,

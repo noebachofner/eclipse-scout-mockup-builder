@@ -1,5 +1,5 @@
 import {registerWidgets, type WidgetDef} from './registry';
-import {formFieldDefaults, formFieldProps, GROUP_CONTENT, GROUP_STYLE, FIELD_STYLE_OPTIONS} from './common';
+import {formFieldDefaults, formFieldProps, GROUP_CONTENT, GROUP_STYLE} from './common';
 import {div, span} from '../../render/dom';
 import {inputField, lines} from '../../render/parts';
 import {renderIcon} from '../../render/icons';
@@ -14,12 +14,11 @@ const ALIGN_OPTIONS = [
 const valueProps = [
   {name: 'displayText', label: 'Display text', type: 'string' as const, group: GROUP_CONTENT, description: 'The value shown in the mockup.'},
   {name: 'placeholder', label: 'Placeholder', type: 'string' as const, group: GROUP_CONTENT},
-  {name: 'fieldStyle', label: 'Field style', type: 'enum' as const, group: GROUP_STYLE, options: FIELD_STYLE_OPTIONS},
   {name: 'readOnly', label: 'Read only', type: 'boolean' as const, group: GROUP_CONTENT}
 ];
 
 function styleClass(fieldStyle: string): string {
-  return fieldStyle === 'alternative' ? 'alternative' : 'classic';
+  return fieldStyle === 'classic' ? 'classic' : 'alternative';
 }
 
 const defs: WidgetDef[] = [
@@ -32,7 +31,7 @@ const defs: WidgetDef[] = [
     javaClass: 'org.eclipse.scout.rt.client.ui.form.fields.stringfield.AbstractStringField',
     jsClass: 'StringField',
     isFormField: true,
-    defaults: formFieldDefaults({label: 'String field', displayText: '', multilineText: false, inputMasked: false, fieldStyle: 'classic', format: 'none', maxLength: 4000}),
+    defaults: formFieldDefaults({label: 'String field', displayText: '', multilineText: false, inputMasked: false, format: 'none', maxLength: 4000}),
     props: formFieldProps(
       ...valueProps,
       {name: 'multilineText', label: 'Multiline', type: 'boolean', group: GROUP_CONTENT},
@@ -58,7 +57,7 @@ const defs: WidgetDef[] = [
         multiline,
         alignment: ctx.prop<'left' | 'center' | 'right'>(node, 'alignment', 'left'),
         disabled: !ctx.prop<boolean>(node, 'enabled', true),
-        extraClass: styleClass(ctx.prop<string>(node, 'fieldStyle', 'classic'))
+        extraClass: styleClass(ctx.prop<string>(node, 'fieldStyle', 'alternative'))
       });
     }
   },
@@ -71,7 +70,7 @@ const defs: WidgetDef[] = [
     javaClass: 'org.eclipse.scout.rt.client.ui.form.fields.numberfield.AbstractNumberField',
     jsClass: 'NumberField',
     isFormField: true,
-    defaults: formFieldDefaults({label: 'Number field', displayText: '', alignment: 'right', fieldStyle: 'classic', decimalFormat: "#,##0.00"}),
+    defaults: formFieldDefaults({label: 'Number field', displayText: '', alignment: 'right', decimalFormat: "#,##0.00"}),
     props: formFieldProps(
       ...valueProps,
       {name: 'decimalFormat', label: 'Decimal format', type: 'string', group: GROUP_CONTENT, placeholder: '#,##0.00'},
@@ -83,7 +82,7 @@ const defs: WidgetDef[] = [
         placeholder: ctx.prop<string>(node, 'placeholder', ''),
         alignment: ctx.prop<'left' | 'center' | 'right'>(node, 'alignment', 'right'),
         disabled: !ctx.prop<boolean>(node, 'enabled', true),
-        extraClass: styleClass(ctx.prop<string>(node, 'fieldStyle', 'classic'))
+        extraClass: styleClass(ctx.prop<string>(node, 'fieldStyle', 'alternative'))
       });
     }
   },
@@ -96,7 +95,7 @@ const defs: WidgetDef[] = [
     javaClass: 'org.eclipse.scout.rt.client.ui.form.fields.integerfield.AbstractIntegerField',
     jsClass: 'IntegerField',
     isFormField: true,
-    defaults: formFieldDefaults({label: 'Integer field', displayText: '', alignment: 'right', fieldStyle: 'classic'}),
+    defaults: formFieldDefaults({label: 'Integer field', displayText: '', alignment: 'right'}),
     props: formFieldProps(...valueProps, {name: 'alignment', label: 'Text alignment', type: 'enum', group: GROUP_STYLE, options: ALIGN_OPTIONS}),
     slots: [],
     render(ctx, node) {
@@ -104,7 +103,7 @@ const defs: WidgetDef[] = [
         placeholder: ctx.prop<string>(node, 'placeholder', ''),
         alignment: 'right',
         disabled: !ctx.prop<boolean>(node, 'enabled', true),
-        extraClass: styleClass(ctx.prop<string>(node, 'fieldStyle', 'classic'))
+        extraClass: styleClass(ctx.prop<string>(node, 'fieldStyle', 'alternative'))
       });
     }
   },
@@ -117,7 +116,7 @@ const defs: WidgetDef[] = [
     javaClass: 'org.eclipse.scout.rt.client.ui.form.fields.datefield.AbstractDateField',
     jsClass: 'DateField',
     isFormField: true,
-    defaults: formFieldDefaults({label: 'Date field', displayText: '', hasDate: true, hasTime: false, fieldStyle: 'classic'}),
+    defaults: formFieldDefaults({label: 'Date field', displayText: '', hasDate: true, hasTime: false}),
     props: formFieldProps(
       ...valueProps,
       {name: 'hasDate', label: 'Has date', type: 'boolean', group: GROUP_CONTENT},
@@ -128,7 +127,7 @@ const defs: WidgetDef[] = [
     render(ctx, node) {
       const hasDate = ctx.prop<boolean>(node, 'hasDate', true);
       const hasTime = ctx.prop<boolean>(node, 'hasTime', false);
-      const style = styleClass(ctx.prop<string>(node, 'fieldStyle', 'classic'));
+      const style = styleClass(ctx.prop<string>(node, 'fieldStyle', 'alternative'));
       const root = div('date-time-container');
       if (hasDate) {
         const part = inputField(ctx.prop<string>(node, 'displayText', ''), {
@@ -161,7 +160,7 @@ const defs: WidgetDef[] = [
     javaClass: 'org.eclipse.scout.rt.client.ui.form.fields.smartfield.AbstractSmartField',
     jsClass: 'SmartField',
     isFormField: true,
-    defaults: formFieldDefaults({label: 'Smart field', displayText: '', browseAutoExpandAll: true, fieldStyle: 'classic', displayStyle: 'default'}),
+    defaults: formFieldDefaults({label: 'Smart field', displayText: '', browseAutoExpandAll: true, displayStyle: 'default'}),
     props: formFieldProps(
       ...valueProps,
       {name: 'displayStyle', label: 'Display style', type: 'enum', group: GROUP_STYLE, options: [
@@ -179,7 +178,7 @@ const defs: WidgetDef[] = [
         placeholder: ctx.prop<string>(node, 'placeholder', ''),
         icon: dropdown ? 'angle-down' : 'angle-down',
         disabled: !ctx.prop<boolean>(node, 'enabled', true),
-        extraClass: styleClass(ctx.prop<string>(node, 'fieldStyle', 'classic'))
+        extraClass: styleClass(ctx.prop<string>(node, 'fieldStyle', 'alternative'))
       });
       root.appendChild(field);
       if (ctx.prop<boolean>(node, 'popupOpen', false)) {
@@ -203,7 +202,7 @@ const defs: WidgetDef[] = [
     javaClass: 'org.eclipse.scout.rt.client.ui.form.fields.smartfield.AbstractProposalField',
     jsClass: 'ProposalField',
     isFormField: true,
-    defaults: formFieldDefaults({label: 'Proposal field', displayText: '', fieldStyle: 'classic'}),
+    defaults: formFieldDefaults({label: 'Proposal field', displayText: ''}),
     props: formFieldProps(...valueProps),
     slots: [],
     render(ctx, node) {
@@ -211,7 +210,7 @@ const defs: WidgetDef[] = [
         placeholder: ctx.prop<string>(node, 'placeholder', ''),
         icon: 'angle-down',
         disabled: !ctx.prop<boolean>(node, 'enabled', true),
-        extraClass: styleClass(ctx.prop<string>(node, 'fieldStyle', 'classic'))
+        extraClass: styleClass(ctx.prop<string>(node, 'fieldStyle', 'alternative'))
       });
     }
   },
@@ -250,7 +249,7 @@ const defs: WidgetDef[] = [
     slots: [],
     render(ctx, node) {
       const color = ctx.prop<string>(node, 'value', '#1561A7');
-      const wrapper = inputField(color, {extraClass: 'classic'});
+      const wrapper = inputField(color, {extraClass: styleClass(ctx.prop<string>(node, 'fieldStyle', 'alternative'))});
       const swatch = span('color-swatch');
       swatch.style.backgroundColor = color;
       wrapper.insertBefore(swatch, wrapper.firstChild);
@@ -274,7 +273,7 @@ const defs: WidgetDef[] = [
       return inputField(ctx.prop<string>(node, 'displayText', ''), {
         placeholder: ctx.prop<string>(node, 'placeholder', 'No file selected'),
         icon: 'folder',
-        extraClass: 'classic'
+        extraClass: styleClass(ctx.prop<string>(node, 'fieldStyle', 'alternative'))
       });
     }
   },

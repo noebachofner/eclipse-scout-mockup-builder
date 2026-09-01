@@ -72,6 +72,7 @@ const defs: WidgetDef[] = [
       iconId: '',
       separator: false,
       selected: false,
+      displayStyle: 'default',
       horizontalAlignment: -1,
       keyStroke: ''
     },
@@ -80,6 +81,10 @@ const defs: WidgetDef[] = [
       {name: 'text', label: 'Text', type: 'string', group: GROUP_CONTENT},
       {name: 'iconId', label: 'Icon', type: 'icon', group: GROUP_CONTENT},
       {name: 'keyStroke', label: 'Key stroke', type: 'string', group: GROUP_CONTENT, placeholder: 'ctrl-n'},
+      {name: 'displayStyle', label: 'Display style', type: 'enum', group: GROUP_STYLE, options: [
+        {value: 'default', label: 'DEFAULT'},
+        {value: 'avatar', label: 'AVATAR (round icon, e.g. the user menu)'}
+      ]},
       {name: 'separator', label: 'Separator', type: 'boolean', group: GROUP_STYLE},
       {name: 'selected', label: 'Selected', type: 'boolean', group: GROUP_STYLE},
       {name: 'horizontalAlignment', label: 'Horizontal alignment', type: 'enum', group: GROUP_STYLE, options: [
@@ -93,13 +98,19 @@ const defs: WidgetDef[] = [
       if (ctx.prop<boolean>(node, 'separator', false)) {
         return div('menu-separator');
       }
+      const displayStyle = ctx.prop<string>(node, 'displayStyle', 'default');
       const item = div('menu-item');
+      if (displayStyle === 'avatar') item.classList.add('avatar-menu');
       if (ctx.prop<boolean>(node, 'selected', false)) item.classList.add('selected');
       if (!ctx.prop<boolean>(node, 'enabled', true)) item.classList.add('disabled');
       if (Number(ctx.prop<number>(node, 'horizontalAlignment', -1)) === 1) item.classList.add('right-aligned');
       const icon = renderIcon(ctx.prop<string>(node, 'iconId', ''));
       const text = ctx.prop<string>(node, 'text', '');
-      if (icon) {
+      if (icon && displayStyle === 'avatar') {
+        const avatar = div('menu-avatar');
+        avatar.appendChild(icon);
+        item.appendChild(avatar);
+      } else if (icon) {
         if (text) icon.classList.add('with-label');
         item.appendChild(icon);
       } else if (!text) {

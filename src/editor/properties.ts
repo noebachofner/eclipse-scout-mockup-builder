@@ -340,6 +340,22 @@ export class PropertyPanel {
     denseWrapper.appendChild(denseInput);
     denseRow.appendChild(denseWrapper);
     typography.appendChild(denseRow);
+
+    const responsiveRow = div('es-property-row');
+    const responsiveLabel = h('label', 'es-property-label');
+    responsiveLabel.textContent = 'Responsive labels';
+    responsiveRow.appendChild(responsiveLabel);
+    const responsiveInput = h('input', 'es-checkbox');
+    responsiveInput.type = 'checkbox';
+    responsiveInput.checked = theme.responsive !== false;
+    responsiveInput.addEventListener('change', () => this.store.updateTheme({responsive: responsiveInput.checked}));
+    const responsiveWrapper = div('es-property-control');
+    responsiveWrapper.appendChild(responsiveInput);
+    responsiveRow.appendChild(responsiveWrapper);
+    responsiveRow.appendChild(div('es-property-hint',
+      "Like Scout's ResponsiveManager: when a logical grid is narrower than the group box needs, the labels move on top (CONDENSED state)."));
+    typography.appendChild(responsiveRow);
+
     this.body.appendChild(typography);
   }
 

@@ -63,10 +63,10 @@ const defs: WidgetDef[] = [
       {name: 'iconId', label: 'Icon', type: 'icon', group: GROUP_CONTENT},
       {name: 'colorScheme', label: 'Color scheme', type: 'enum', group: GROUP_STYLE, options: [
         {value: 'default', label: 'DEFAULT'},
+        {value: 'default-inverted', label: 'DEFAULT_INVERTED'},
         {value: 'alternative', label: 'ALTERNATIVE'},
-        {value: 'ranking', label: 'RANKING'},
-        {value: 'inverted', label: 'INVERTED'}
-      ]},
+        {value: 'alternative-inverted', label: 'ALTERNATIVE_INVERTED'}
+      ], description: "Scout's colorSchemes: a scheme plus an optional `-inverted` suffix."},
       {name: 'backgroundColor', label: 'Background color', type: 'color', group: GROUP_STYLE},
       {name: 'gridSpanX', label: 'Column span', type: 'number', group: GROUP_LAYOUT, min: 1, max: 8},
       {name: 'gridSpanY', label: 'Row span', type: 'number', group: GROUP_LAYOUT, min: 1, max: 8},
