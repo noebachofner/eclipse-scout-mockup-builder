@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.scout/
+*.tgz
+.DS_Store
+*.local
+
+e2e-out/
+gallery/
+screenshot*.png

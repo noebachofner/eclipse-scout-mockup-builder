@@ -1,0 +1,28 @@
+{
+  "name": "es-mockup",
+  "version": "1.0.0",
+  "description": "ES Mockup - a web based mockup builder for the Eclipse Scout Framework",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "scout:fetch": "node tools/fetch-scout-assets.mjs",
+    "scout:tokens": "node tools/extract-scout-tokens.mjs .scout/package src/styles/scout-tokens.generated.css",
+    "scout:icons": "node tools/extract-scout-icons.mjs .scout/package src/model/scoutIcons.generated.ts",
+    "scout:colors": "node tools/extract-scout-colors.mjs .scout/package src/model/scoutColors.generated.ts",
+    "test": "node tools/verify-colors.mjs",
+    "e2e": "node tools/dev/e2e.mjs e2e-out",
+    "gallery": "node tools/dev/gallery.mjs gallery",
+    "screenshot": "node tools/dev/screenshot.mjs screenshot.png",
+    "verify": "npm run typecheck && npm test && npm run build && npm run e2e"
+  },
+  "devDependencies": {
+    "less": "^4.2.0",
+    "playwright": "^1.62.1",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10"
+  }
+}
