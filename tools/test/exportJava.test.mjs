@@ -159,7 +159,7 @@ test('a column name cannot collide with a field name', () => {
   const doc = docModule.node({objectType: 'Form', properties: {title: 'Order'}, children: [
     {objectType: 'GroupBox', slot: 'fields', properties: {label: 'Main'}, children: [
       {objectType: 'StringField', slot: 'fields', properties: {label: 'Status'}},
-      {objectType: 'TableField', slot: 'fields', properties: {label: 'Rows', columns: 'Status|left|100', rows: 'Open'}}
+      {objectType: 'TableField', slot: 'fields', properties: {label: 'Rows', columns: [['Status', 'left', '100']], rows: [['Open']]}}
     ]}
   ]});
   const {code} = generate(doc, {className: 'OrderForm'});

@@ -83,12 +83,17 @@ export function defaultDesktopTemplate(name = 'New mockup'): MockupDocument {
                       properties: {
                         labelVisible: false,
                         'gridDataHints.h': 6,
-                        columns: 'Order no.|left|110\nDate|left|110\nStatus|left|\nAmount|right|110',
+                        columns: [
+                          ['Order no.', 'left', '110'],
+                          ['Date', 'left', '110'],
+                          ['Status', 'left', ''],
+                          ['Amount', 'right', '110']
+                        ],
                         rows: [
-                          'ORD-1042|03.08.2026|Shipped|1 250.00',
-                          'ORD-1043|17.08.2026|Open|980.50',
-                          'ORD-1051|29.08.2026|Open|3 400.00'
-                        ].join('\n'),
+                          ['ORD-1042', '03.08.2026', 'Shipped', "1 250.00"],
+                          ['ORD-1043', '17.08.2026', 'Open', '980.50'],
+                          ['ORD-1051', '29.08.2026', 'Open', "3 400.00"]
+                        ],
                         selectedRow: 1,
                         footerVisible: true
                       },

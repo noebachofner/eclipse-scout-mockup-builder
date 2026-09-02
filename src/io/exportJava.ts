@@ -529,15 +529,18 @@ function columnType(cells: string[], align: string): {base: string; fqn: string}
 }
 
 function parseColumnSpecs(node: MockupNode): ColumnSpec[] {
-  const columnLines = String(node.properties.columns ?? '').split('\n').map(line => line.trim()).filter(Boolean);
-  const rowLines = String(node.properties.rows ?? '').split('\n').map(line => line.trim()).filter(Boolean);
-  const cellsAt = (index: number): string[] => rowLines.map(row => (row.split('|')[index] ?? '').trim());
+  const asGrid = (value: unknown): string[][] =>
+    Array.isArray(value) ? value.filter(Array.isArray).map(row => row.map(cell => String(cell ?? ''))) : [];
+  const columns = asGrid(node.properties.columns);
+  const rows = asGrid(node.properties.rows);
+  const cellsAt = (index: number): string[] => rows.map(row => (row[index] ?? '').trim());
 
-  return columnLines.map((line, index) => {
-    const [header = '', align = 'left', width = ''] = line.split('|').map(part => part.trim());
-    const type = columnType(cellsAt(index), align);
-    return {header, align, width: Number(width) || 0, ...type};
-  });
+  return columns.map(([header = '', align = 'left', width = ''], index) => ({
+    header,
+    align,
+    width: Number(width) || 0,
+    ...columnType(cellsAt(index), align)
+  }));
 }
 
 interface Getter {

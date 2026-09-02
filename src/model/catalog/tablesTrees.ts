@@ -1,13 +1,22 @@
 import {registerWidgets, type WidgetDef} from './registry';
 import {formFieldDefaults, formFieldProps, GROUP_CONTENT, GROUP_LAYOUT, GROUP_STYLE} from './common';
 import {div, span} from '../../render/dom';
-import {cells, checkBox, lines} from '../../render/parts';
+import {checkBox, lines} from '../../render/parts';
 import {renderIcon} from '../../render/icons';
 import type {RenderContext} from './registry';
 import type {MockupNode, PropertyValue} from '../types';
 
-const DEFAULT_COLUMNS = 'Name|left|200\nCity|left|140\nAmount|right|100';
-const DEFAULT_ROWS = 'Ada Lovelace|London|1 250.00\nAlan Turing|Manchester|980.50\nGrace Hopper|New York|3 400.00';
+/** Columns are `[header, alignment, width]`; a width of `''` means flexible. */
+const DEFAULT_COLUMNS: string[][] = [
+  ['Name', 'left', '200'],
+  ['City', 'left', '140'],
+  ['Amount', 'right', '100']
+];
+const DEFAULT_ROWS: string[][] = [
+  ['Ada Lovelace', 'London', "1 250.00"],
+  ['Alan Turing', 'Manchester', '980.50'],
+  ['Grace Hopper', 'New York', "3 400.00"]
+];
 
 interface ColumnSpec {
   text: string;
@@ -15,21 +24,23 @@ interface ColumnSpec {
   width: number;
 }
 
+/** Reads a `string[][]` property, falling back to `fallback` when it is absent. */
+function cellGrid(raw: unknown, fallback: string[][]): string[][] {
+  if (!Array.isArray(raw)) return fallback;
+  return raw.filter(Array.isArray).map(row => row.map(cell => String(cell ?? '')));
+}
+
 function parseColumns(raw: unknown): ColumnSpec[] {
-  return lines(raw, cells(DEFAULT_COLUMNS)).map(line => {
-    const parts = line.split('|').map(p => p.trim());
-    const align = (parts[1] || 'left') as ColumnSpec['align'];
-    return {
-      text: parts[0] ?? '',
-      align: align === 'right' || align === 'center' ? align : 'left',
-      width: Number(parts[2]) > 0 ? Number(parts[2]) : 0
-    };
-  });
+  return cellGrid(raw, DEFAULT_COLUMNS).map(([text = '', align = 'left', width = '']) => ({
+    text,
+    align: align === 'right' || align === 'center' ? align : 'left',
+    width: Number(width) > 0 ? Number(width) : 0
+  }));
 }
 
 function renderTable(ctx: RenderContext, node: MockupNode): HTMLElement {
-  const columns = parseColumns(ctx.prop<string>(node, 'columns', DEFAULT_COLUMNS));
-  const rows = lines(ctx.prop<string>(node, 'rows', DEFAULT_ROWS), DEFAULT_ROWS.split('\n')).map(line => line.split('|').map(c => c.trim()));
+  const columns = parseColumns(ctx.prop<string[][]>(node, 'columns', DEFAULT_COLUMNS));
+  const rows = cellGrid(ctx.prop<string[][]>(node, 'rows', DEFAULT_ROWS), DEFAULT_ROWS);
   const checkable = ctx.prop<boolean>(node, 'checkable', false);
   const checkedRows = new Set(lines(ctx.prop<string>(node, 'checkedRows', ''), []).map(Number));
   const selectedRow = Number(ctx.prop<number>(node, 'selectedRow', -1));
@@ -107,12 +118,14 @@ function renderTable(ctx: RenderContext, node: MockupNode): HTMLElement {
   });
   if (!rows.length) grid.appendChild(div('table-empty', 'No data'));
 
-  const aggregate = ctx.prop<string>(node, 'aggregateRow', '');
-  if (aggregate) {
+  // An empty array is truthy, so the emptiness has to be asked about directly -
+  // this used to be a string, where `if (aggregate)` did the right thing.
+  const aggregate = ctx.prop<string[]>(node, 'aggregateRow', []);
+  if (Array.isArray(aggregate) && aggregate.some(cell => String(cell).trim())) {
     const aggregateRow = div('table-aggregate-row');
     aggregateRow.style.gridTemplateColumns = template;
     if (showCheckColumn) aggregateRow.appendChild(div('table-cell'));
-    const values = aggregate.split('|').map(c => c.trim());
+    const values = Array.isArray(aggregate) ? aggregate.map(cell => String(cell)) : [];
     columns.forEach((column, i) => aggregateRow.appendChild(div(`table-cell halign-${column.align}`, values[i] ?? '')));
     if (!hasFlexible) aggregateRow.appendChild(div('table-cell filler'));
     if (ctx.prop<string>(node, 'groupingStyle', 'bottom') === 'top') {
@@ -171,7 +184,7 @@ const TABLE_PROPS = [
     {value: 'bottom', label: 'BOTTOM'},
     {value: 'top', label: 'TOP'}
   ]},
-  {name: 'aggregateRow', label: 'Aggregate row (cells separated by |)', type: 'string' as const, group: GROUP_CONTENT,
+  {name: 'aggregateRow', label: 'Aggregate row (one cell per line)', type: 'lines' as const, group: GROUP_CONTENT,
     description: 'Shown as the aggregate row of the grouped column.'}
 ];
 

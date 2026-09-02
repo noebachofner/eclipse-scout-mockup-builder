@@ -366,8 +366,9 @@ export class PropertyPanel {
         return renderTableEditor(node, {
           read: (target, name) => {
             const own = target.properties[name];
-            if (own !== undefined && own !== null) return String(own);
-            return String(getWidget(target.objectType)?.defaults[name] ?? '');
+            const value = own !== undefined && own !== null ? own : getWidget(target.objectType)?.defaults[name];
+            if (!Array.isArray(value)) return [];
+            return value.filter(Array.isArray).map(row => row.map(cell => String(cell ?? '')));
           },
           write: (target, values) => this.store.setProperties(target.id, values)
         });

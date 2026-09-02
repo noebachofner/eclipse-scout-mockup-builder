@@ -8,7 +8,14 @@
  * the widget catalog.
  */
 
-export type PropertyValue = string | number | boolean | string[] | null;
+/**
+ * A property value as it is stored in the document.
+ *
+ * `string[][]` carries tabular data - a table's columns and its rows - which
+ * used to be squeezed into one string with `|` between the cells. That meant a
+ * cell could never contain a `|`, and the editor had to silently replace it.
+ */
+export type PropertyValue = string | number | boolean | string[] | string[][] | null;
 
 /** One widget in the mockup tree. `objectType` matches Scout's own object types. */
 export interface MockupNode {
