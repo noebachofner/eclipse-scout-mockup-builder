@@ -1,10 +1,3 @@
-/**
- * Scout's logical grid rules, checked directly rather than through the browser.
- *
- * The weight inheritance below is the part that took three sessions and two
- * wrong fixes to get right, so it is worth pinning down here where a failure
- * names the rule instead of showing a screenshot that looks slightly off.
- */
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {importTs} from './_bundle.mjs';
@@ -41,7 +34,6 @@ test('a tall field keeps the rows below it free', () => {
   const placement = placeInGrid([field({'gridDataHints.h': 3}), field(), field()], 2);
   assert.deepEqual(at(placement, 0), {x: 0, y: 0, w: 1, h: 3});
   assert.deepEqual(at(placement, 1), {x: 1, y: 0, w: 1, h: 1});
-  // The next field wraps into column 1 of row 1, because column 0 is taken.
   assert.deepEqual(at(placement, 2), {x: 1, y: 1, w: 1, h: 1});
 });
 
@@ -51,14 +43,12 @@ test('explicit x and y pin a field', () => {
 });
 
 test('weightX defaults to max(1, w)', () => {
-  // LogicalGridData.validate: a negative weightX inherits max(1, w).
   const placement = placeInGrid([field(), field({'gridDataHints.w': 2})], 2);
   assert.equal(placement.cells[0].weightX, 1);
   assert.equal(placement.cells[1].weightX, 2);
 });
 
 test('weightY defaults to h when the field spans rows, and to 0 otherwise', () => {
-  // LogicalGridData._inheritWeightY: h >= 2 ? h : 0.
   const placement = placeInGrid([field(), field({'gridDataHints.h': 3})], 2);
   assert.equal(placement.cells[0].weightY, 0);
   assert.equal(placement.cells[1].weightY, 3);
@@ -71,8 +61,6 @@ test('an explicit weight overrides the inherited one', () => {
 
 test('a row with no growing field is sized to its content', () => {
   const template = gridTemplate(placeInGrid([field(), field()], 2), '30px');
-  // Not `minmax(30px, ...)`: a fixed minimum stops the track from growing and
-  // was what let tall content spill into the row below.
   assert.equal(template.rows, 'minmax(auto, max-content)');
   assert.equal(template.stretchRows, false);
 });
@@ -90,6 +78,5 @@ test('columns without weight are sized to their content', () => {
 
 test('a spanning field spreads its weight over the columns it covers', () => {
   const template = gridTemplate(placeInGrid([field({'gridDataHints.w': 2})], 2), '30px');
-  // weightX 2 over two columns is one share each, so both columns grow evenly.
   assert.equal(template.columns, 'minmax(0, 1fr) minmax(0, 1fr)');
 });

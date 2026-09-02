@@ -2,6 +2,7 @@ import {div, h, span} from '../render/dom';
 import type {MockupDocument} from '../model/types';
 import {validateDocument, type Finding} from '../model/validate';
 import {editorIcon} from './icons';
+import {trapFocus} from './focusTrap';
 
 const SEVERITY_LABEL: Record<Finding['severity'], string> = {
   error: 'Error',
@@ -9,7 +10,6 @@ const SEVERITY_LABEL: Record<Finding['severity'], string> = {
   info: 'Hint'
 };
 
-/** Lists everything in the mockup that standard Scout cannot reproduce. */
 export function showCheckDialog(doc: MockupDocument, select: (nodeId: string) => void): void {
   document.querySelector('.es-modal-backdrop')?.remove();
   const findings = validateDocument(doc);
@@ -63,9 +63,11 @@ export function showCheckDialog(doc: MockupDocument, select: (nodeId: string) =>
   backdrop.appendChild(dialog);
   document.body.appendChild(backdrop);
 
+  const release = trapFocus(dialog);
   const close = (): void => {
     backdrop.remove();
     document.removeEventListener('keydown', onKeyDown, true);
+    release();
   };
   const onKeyDown = (event: KeyboardEvent): void => {
     if (event.key === 'Escape') {

@@ -9,7 +9,6 @@ export const GROUP_STYLE = 'Appearance';
 export const GROUP_CONTENT = 'Content';
 export const GROUP_LAYOUT = 'Layout';
 
-/** Scout `FormField.LabelPosition`. */
 export const LABEL_POSITION_OPTIONS = [
   {value: 0, label: 'DEFAULT (left)'},
   {value: 1, label: 'LEFT'},
@@ -19,7 +18,6 @@ export const LABEL_POSITION_OPTIONS = [
   {value: 5, label: 'BOTTOM'}
 ];
 
-/** Scout `Status.Severity`. */
 export const SEVERITY_OPTIONS = [
   {value: 'none', label: 'none'},
   {value: 'ok', label: 'OK'},
@@ -34,16 +32,11 @@ export const ALIGNMENT_OPTIONS = [
   {value: 1, label: 'RIGHT / BOTTOM (1)'}
 ];
 
-/**
- * `FormField.FieldStyle`. Scout's `DEFAULT_FIELD_STYLE` is ALTERNATIVE - the
- * underlined look of Scout 22+ - so that is what a new field gets here too.
- */
 export const FIELD_STYLE_OPTIONS = [
   {value: 'alternative', label: 'ALTERNATIVE (underlined)'},
   {value: 'classic', label: 'CLASSIC (bordered)'}
 ];
 
-/** Properties every Scout widget has. */
 export const WIDGET_PROPS: PropDef[] = [
   {name: 'id', label: 'Field id', type: 'string', group: GROUP_GENERAL, placeholder: 'MyField', description: 'Identifier used in generated Scout code. Purely informational in the mockup.'},
   {name: 'visible', label: 'Visible', type: 'boolean', group: GROUP_STATE},
@@ -51,7 +44,6 @@ export const WIDGET_PROPS: PropDef[] = [
   {name: 'cssClass', label: 'CSS class', type: 'string', group: GROUP_STYLE, placeholder: 'my-custom-class'}
 ];
 
-/** Properties shared by everything deriving from Scout's `FormField`. */
 export const FORM_FIELD_PROPS: PropDef[] = [
   {name: 'label', label: 'Label', type: 'string', group: GROUP_LABEL},
   {name: 'labelVisible', label: 'Label visible', type: 'boolean', group: GROUP_LABEL},
@@ -89,7 +81,6 @@ export const FORM_FIELD_PROPS: PropDef[] = [
   {name: 'fontBold', label: 'Bold', type: 'boolean', group: GROUP_STYLE}
 ];
 
-/** Scout `GridData` hints, exposed one property per hint. */
 export const GRID_PROPS: PropDef[] = [
   {name: 'gridDataHints.w', label: 'Grid width (w)', type: 'number', group: GROUP_GRID, min: 1, max: 12, description: 'How many logical grid columns the field spans.'},
   {name: 'gridDataHints.h', label: 'Grid height (h)', type: 'number', group: GROUP_GRID, min: 1, max: 20, description: 'How many logical grid rows the field spans.'},
@@ -134,7 +125,6 @@ export const WIDGET_DEFAULTS: Record<string, PropertyValue> = {
   enabled: true
 };
 
-/** Convenience: the full property list of a standard form field. */
 export function formFieldProps(...extra: PropDef[]): PropDef[] {
   return [...WIDGET_PROPS, ...FORM_FIELD_PROPS, ...extra, ...GRID_PROPS];
 }
@@ -143,24 +133,18 @@ export function formFieldDefaults(extra: Record<string, PropertyValue> = {}): Re
   return {...FORM_FIELD_DEFAULTS, ...extra};
 }
 
-/** Scout `ValueField.Clearable`. */
 export const CLEARABLE_OPTIONS = [
   {value: 'focused', label: 'FOCUSED (default)'},
   {value: 'always', label: 'ALWAYS'},
   {value: 'never', label: 'NEVER'}
 ];
 
-/**
- * `GroupBox.responsive` is tri-state in Scout: `null` inherits from the parent
- * form, `true`/`false` force the behaviour for this box and its children.
- */
 export const RESPONSIVE_OPTIONS = [
   {value: 'inherit', label: 'null (inherit)'},
   {value: 'true', label: 'true'},
   {value: 'false', label: 'false'}
 ];
 
-/** Properties every GroupBox-like container adds on top of the form field ones. */
 export const GROUP_BOX_PROPS: PropDef[] = [
   {name: 'subLabel', label: 'Sub label', type: 'string', group: GROUP_LABEL},
   {name: 'menuBarVisible', label: 'Menu bar visible', type: 'boolean', group: GROUP_LAYOUT},

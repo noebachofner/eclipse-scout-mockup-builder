@@ -1,11 +1,6 @@
 import {createDocument, node} from './document';
 import type {MockupDocument} from './types';
 
-/**
- * The template a new mockup starts from: the standard Eclipse Scout desktop
- * with navigation, outline, header (view tabs, tool box, logo) and a form in
- * the bench.
- */
 export function defaultDesktopTemplate(name = 'New mockup'): MockupDocument {
   return createDocument(
     node({
@@ -83,12 +78,17 @@ export function defaultDesktopTemplate(name = 'New mockup'): MockupDocument {
                       properties: {
                         labelVisible: false,
                         'gridDataHints.h': 6,
-                        columns: 'Order no.|left|110\nDate|left|110\nStatus|left|\nAmount|right|110',
+                        columns: [
+                          ['Order no.', 'left', '110'],
+                          ['Date', 'left', '110'],
+                          ['Status', 'left', ''],
+                          ['Amount', 'right', '110']
+                        ],
                         rows: [
-                          'ORD-1042|03.08.2026|Shipped|1 250.00',
-                          'ORD-1043|17.08.2026|Open|980.50',
-                          'ORD-1051|29.08.2026|Open|3 400.00'
-                        ].join('\n'),
+                          ['ORD-1042', '03.08.2026', 'Shipped', "1 250.00"],
+                          ['ORD-1043', '17.08.2026', 'Open', '980.50'],
+                          ['ORD-1051', '29.08.2026', 'Open', "3 400.00"]
+                        ],
                         selectedRow: 1,
                         footerVisible: true
                       },
@@ -113,7 +113,10 @@ export function defaultDesktopTemplate(name = 'New mockup'): MockupDocument {
                         chartType: 'bar',
                         'gridDataHints.h': 6,
                         categories: 'Q1, Q2, Q3, Q4',
-                        series: 'Revenue|120, 190, 150, 220\nCost|80, 110, 95, 130'
+                        series: [
+                          ['Revenue', '120, 190, 150, 220'],
+                          ['Cost', '80, 110, 95, 130']
+                        ]
                       }
                     }
                   ]
@@ -140,7 +143,6 @@ export function defaultDesktopTemplate(name = 'New mockup'): MockupDocument {
   );
 }
 
-/** A blank desktop - navigation and header only, empty bench. */
 export function emptyDesktopTemplate(name = 'Empty mockup'): MockupDocument {
   return createDocument(
     node({
@@ -155,7 +157,6 @@ export function emptyDesktopTemplate(name = 'Empty mockup'): MockupDocument {
   );
 }
 
-/** A single form without the desktop chrome, for quick field sketches. */
 export function formOnlyTemplate(name = 'Form mockup'): MockupDocument {
   const doc = createDocument(
     node({
@@ -180,12 +181,6 @@ export function formOnlyTemplate(name = 'Form mockup'): MockupDocument {
   return doc;
 }
 
-
-/**
- * A mockup containing one instance of (almost) every catalog widget. Handy as a
- * visual reference of what Scout offers, and as a starting point for cherry
- * picking widgets into a real mockup.
- */
 export function widgetGalleryTemplate(name = 'Widget gallery'): MockupDocument {
   const doc = createDocument(
     node({
@@ -301,8 +296,8 @@ export function widgetGalleryTemplate(name = 'Widget gallery'): MockupDocument {
           children: [
             {objectType: 'ChartField', slot: 'fields', properties: {labelVisible: false, chartType: 'bar', 'gridDataHints.h': 6}},
             {objectType: 'ChartField', slot: 'fields', properties: {labelVisible: false, chartType: 'line', 'gridDataHints.h': 6}},
-            {objectType: 'ChartField', slot: 'fields', properties: {labelVisible: false, chartType: 'pie', 'gridDataHints.h': 6, series: 'Share|35, 25, 22, 18', categories: 'North, South, East, West'}},
-            {objectType: 'ChartField', slot: 'fields', properties: {labelVisible: false, chartType: 'doughnut', 'gridDataHints.h': 6, series: 'Share|40, 30, 30', categories: 'Web, Mobile, Desk'}},
+            {objectType: 'ChartField', slot: 'fields', properties: {labelVisible: false, chartType: 'pie', 'gridDataHints.h': 6, series: [['Share', '35, 25, 22, 18']], categories: 'North, South, East, West'}},
+            {objectType: 'ChartField', slot: 'fields', properties: {labelVisible: false, chartType: 'doughnut', 'gridDataHints.h': 6, series: [['Share', '40, 30, 30']], categories: 'Web, Mobile, Desk'}},
             {objectType: 'BrowserField', slot: 'fields', properties: {labelVisible: false, 'gridDataHints.w': 2, 'gridDataHints.h': 4}},
             {objectType: 'ClipboardField', slot: 'fields', properties: {label: 'Clipboard', 'gridDataHints.w': 2, 'gridDataHints.h': 3}},
             {objectType: 'HeatmapField', slot: 'fields', properties: {'gridDataHints.w': 2, 'gridDataHints.h': 8}}
@@ -318,8 +313,6 @@ export function widgetGalleryTemplate(name = 'Widget gallery'): MockupDocument {
     }),
     name
   );
-  // Tall enough for the densest of the five views: the gallery is a catalog, so
-  // nothing in it should need scrolling to be seen.
   doc.canvas.height = 1760;
   return doc;
 }

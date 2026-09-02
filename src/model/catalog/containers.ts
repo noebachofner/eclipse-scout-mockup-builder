@@ -5,7 +5,6 @@ import {renderFreeForm, renderLogicalGrid} from '../../render/layout';
 import type {MockupNode} from '../types';
 import {renderIcon} from '../../render/icons';
 
-/** Object types a container accepts in its `fields` slot. */
 export const FIELD_TYPES = ['*'];
 
 export const LAYOUT_MODE_OPTIONS = [
@@ -25,10 +24,8 @@ const LAYOUT_PROPS = [
   }
 ];
 
-/** Renders the children of a container's `fields` slot, honouring the layout mode. */
 export function renderBody(ctx: RenderContext, node: MockupNode, body: HTMLElement, slot = 'fields'): HTMLElement {
   const children = ctx.childrenOf(node, slot);
-  // GroupBox.responsive is tri-state: null inherits, true/false force it.
   const responsive = ctx.prop<string>(node, 'responsive', 'inherit');
   if (responsive === 'true') body.classList.add('responsive-on');
   if (responsive === 'false') body.classList.add('responsive-off');

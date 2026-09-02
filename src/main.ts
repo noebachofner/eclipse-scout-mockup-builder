@@ -10,7 +10,6 @@ const app = new App(root);
 
 declare global {
   interface Window {
-    /** Debug hook: lets the dev tooling and the console inspect/replace the document. */
     esMockup?: App;
   }
 }

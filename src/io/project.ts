@@ -19,29 +19,18 @@ export async function openProject(): Promise<{doc: MockupDocument; fileName: str
   return {doc: parseDocument(text), fileName: file.name};
 }
 
-/** Reads a dropped file (drag & drop onto the window). */
 export async function readProjectFile(file: File): Promise<{doc: MockupDocument; fileName: string}> {
   const text = await file.text();
   return {doc: parseDocument(text), fileName: file.name};
 }
 
-/**
- * Autosave keeps recent mockups in localStorage so a reload, a crashed tab or
- * an accidental "New mockup" does not lose work. It is a convenience, not the
- * save format - the `.esmockup` file remains the source of truth.
- *
- * Several slots are kept rather than one: starting a new mockup used to wipe
- * the only copy of what came before, which is exactly when you want it back.
- */
 const SLOTS_KEY = 'es-mockup:autosave:v2';
 const MAX_SLOTS = 6;
-/** Slots larger than this are dropped rather than filling up the quota. */
 const MAX_SLOT_BYTES = 1_500_000;
 
 export interface AutosaveSlot {
   id: string;
   name: string;
-  /** ISO timestamp of the last write. */
   savedAt: string;
   text: string;
 }
@@ -53,36 +42,45 @@ function readSlots(): AutosaveSlot[] {
       const parsed = JSON.parse(raw) as AutosaveSlot[];
       if (Array.isArray(parsed)) return parsed.filter(slot => slot && typeof slot.text === 'string');
     }
-    // One-time migration from the single slot the earlier version wrote.
     const legacy = localStorage.getItem(AUTOSAVE_KEY);
     if (legacy) {
       return [{id: 'legacy', name: 'Restored mockup', savedAt: new Date().toISOString(), text: legacy}];
     }
   } catch {
-    // Corrupt or blocked storage simply means no autosave.
   }
   return [];
 }
 
-function writeSlots(slots: AutosaveSlot[]): void {
+export type AutosaveOutcome =
+  | {ok: true}
+  | {ok: false; reason: 'too-large' | 'storage'};
+
+function writeSlots(slots: AutosaveSlot[]): AutosaveOutcome {
   try {
     localStorage.setItem(SLOTS_KEY, JSON.stringify(slots.slice(0, MAX_SLOTS)));
     localStorage.removeItem(AUTOSAVE_KEY);
+    return {ok: true};
   } catch {
-    // Quota exceeded or storage disabled - autosave is best effort.
+    for (let keep = slots.length - 1; keep >= 1; keep--) {
+      try {
+        localStorage.setItem(SLOTS_KEY, JSON.stringify(slots.slice(0, keep)));
+        return {ok: true};
+      } catch {
+        continue;
+      }
+    }
+    return {ok: false, reason: 'storage'};
   }
 }
 
-/** Upserts the slot `slotId`, moving it to the front of the list. */
-export function writeAutosave(doc: MockupDocument, slotId: string): void {
+export function writeAutosave(doc: MockupDocument, slotId: string): AutosaveOutcome {
   const text = serializeDocument(doc);
-  if (text.length > MAX_SLOT_BYTES) return;
+  if (text.length > MAX_SLOT_BYTES) return {ok: false, reason: 'too-large'};
   const slots = readSlots().filter(slot => slot.id !== slotId);
   slots.unshift({id: slotId, name: doc.meta.name, savedAt: new Date().toISOString(), text});
-  writeSlots(slots);
+  return writeSlots(slots);
 }
 
-/** The most recently autosaved document, or null when there is none. */
 export function readAutosave(): {doc: MockupDocument; slotId: string} | null {
   const slot = readSlots()[0];
   if (!slot) return null;
@@ -94,7 +92,6 @@ export function readAutosave(): {doc: MockupDocument; slotId: string} | null {
   }
 }
 
-/** Metadata of every stored slot, newest first. */
 export function listAutosaves(): Array<Omit<AutosaveSlot, 'text'>> {
   return readSlots().map(({id, name, savedAt}) => ({id, name, savedAt}));
 }
@@ -109,16 +106,6 @@ export function restoreAutosave(slotId: string): MockupDocument | null {
   }
 }
 
-export function clearAutosaves(): void {
-  try {
-    localStorage.removeItem(SLOTS_KEY);
-    localStorage.removeItem(AUTOSAVE_KEY);
-  } catch {
-    // ignore
-  }
-}
-
-/** A fresh slot id, so a new or opened mockup does not overwrite the last one. */
 export function newSlotId(): string {
   return `s${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
 }

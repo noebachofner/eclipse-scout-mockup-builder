@@ -489,7 +489,23 @@ body.es-resizing-columns .es-splitter { pointer-events: auto; }
   user-select: none;
 }
 
+.es-palette-item {
+  font: inherit;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  color: var(--es-ui-text);
+}
+
 .es-palette-item:hover { background-color: var(--es-ui-bg-panel); }
+
+/* Focus has to be obvious: these lists are walked with the arrow keys. */
+.es-palette-item:focus-visible,
+.es-structure-row:focus-visible {
+  outline: 2px solid var(--es-ui-accent);
+  outline-offset: -2px;
+}
 .es-palette-item.dragging { opacity: 0.5; }
 .es-palette-item.es-unavailable { opacity: 0.45; }
 
@@ -979,6 +995,134 @@ body.es-dragging * {
   color: var(--es-ui-text);
 }
 
+/* ---------------------------------------------------------- context menu */
+.es-context-menu-separator {
+  height: 1px;
+  margin: 4px 0;
+  background-color: var(--es-ui-border);
+}
+
+.es-context-menu-shortcut {
+  margin-left: auto;
+  padding-left: 16px;
+  color: var(--es-ui-text-dim);
+  font-size: 11px;
+}
+
+.es-context-menu-caret { margin-left: auto; opacity: 0.7; }
+
+.es-context-menu-item:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* The first entry names the widget the menu belongs to. */
+.es-context-menu-item:disabled:first-child {
+  opacity: 1;
+  font-weight: 600;
+  color: var(--es-ui-text-dim);
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.es-context-menu-item:focus-visible {
+  outline: none;
+  background-color: var(--es-ui-accent-dim);
+}
+
+/* ------------------------------------------------ multi select and guides */
+.es-selection-box.secondary {
+  border-style: dashed;
+  opacity: 0.85;
+}
+
+.es-marquee {
+  position: absolute;
+  border: 1px solid var(--es-ui-accent);
+  background-color: var(--es-ui-accent-dim);
+  pointer-events: none;
+}
+
+.es-guide-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 13;
+  pointer-events: none;
+}
+
+/* Magenta rather than the accent colour: a guide has to stand out against a
+   mockup that may well be themed in the accent colour itself. */
+.es-guide {
+  position: absolute;
+  background-color: #ff2d95;
+}
+
+.es-guide.vertical { width: 1px; }
+.es-guide.horizontal { height: 1px; }
+
+/* --------------------------------------------------------- grid inspector */
+.es-grid-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 11;
+  pointer-events: none;
+}
+
+.es-grid-inspector { position: absolute; inset: 0; }
+
+.es-grid-box {
+  position: absolute;
+  border: 1px dashed rgba(88, 166, 255, 0.75);
+  background-color: rgba(88, 166, 255, 0.05);
+}
+
+.es-grid-line {
+  position: absolute;
+  background-color: rgba(88, 166, 255, 0.45);
+}
+
+.es-grid-line.vertical { top: 0; bottom: 0; width: 1px; }
+.es-grid-line.horizontal { left: 0; right: 0; height: 1px; }
+
+.es-grid-caption {
+  position: absolute;
+  top: -9px;
+  left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background-color: #1f6feb;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
+}
+
+.es-grid-badge {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 5px;
+  border-radius: 0 0 5px 0;
+  background-color: rgba(31, 111, 235, 0.92);
+  color: #fff;
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  font-size: 10px;
+  line-height: 14px;
+  white-space: nowrap;
+  pointer-events: auto;
+}
+
+/* The badge sits over the widget's own label, so it stays faint until it is
+   pointed at - the numbers matter, the label underneath matters too. */
+.es-grid-badge { opacity: 0.55; transition: opacity 100ms; }
+.es-grid-badge:hover { opacity: 1; }
+
+.es-grid-badge-pos { font-weight: 700; }
+.es-grid-badge-size { opacity: 0.85; }
+.es-grid-badge-weight { opacity: 0.85; }
+
 /* ------------------------------------------------------- annotation layer */
 .es-annotation-layer {
   position: absolute;
@@ -1003,6 +1147,45 @@ body.es-dragging * {
 }
 
 .es-annotation-row .es-input { padding: 5px 8px; font-size: 11px; }
+
+/* ----------------------------------------------------------- rows editor */
+.es-rows-editor {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.es-rows-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: min-content;
+  overflow-x: auto;
+}
+
+.es-rows-row { display: flex; gap: 3px; align-items: center; }
+
+.es-rows-cell {
+  width: 92px;
+  flex: none;
+  padding: 4px 6px;
+  font-size: 11px;
+}
+
+.es-rows-head {
+  width: 92px;
+  flex: none;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--es-ui-text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.es-rows-head.spacer { width: 20px; }
 
 /* ---------------------------------------------------------- table editor */
 .es-table-editor {

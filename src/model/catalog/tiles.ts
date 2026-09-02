@@ -143,7 +143,6 @@ const defs: WidgetDef[] = [
       const accordion = div('accordion tile-accordion');
       const groups = ctx.childrenOf(node, 'groups');
       groups.forEach(group => {
-        // The columns of the accordion win over the ones of a single group.
         const el = ctx.renderNode(group, node);
         const grid = el.querySelector<HTMLElement>('.tile-grid');
         if (grid) {
@@ -212,7 +211,6 @@ const defs: WidgetDef[] = [
       header.appendChild(titles);
       group.appendChild(header);
       if (!collapsed) {
-        // A Scout group body is either a logical grid of fields or a tile grid.
         const tiles = ctx.childrenOf(node, 'tiles');
         if (tiles.length) {
           const grid = div('tile-grid');

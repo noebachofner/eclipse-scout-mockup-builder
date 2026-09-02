@@ -1,5 +1,6 @@
 import {div, h, span} from '../render/dom';
 import {shortcutLabel} from './icons';
+import {trapFocus} from './focusTrap';
 
 interface ShortcutGroup {
   title: string;
@@ -36,6 +37,9 @@ const GROUPS: ShortcutGroup[] = [
       ['/', 'Jump to the widget search'],
       ['Ctrl+B', 'Show or hide the element palette'],
       ['Ctrl+Shift+B', 'Show or hide the property panel'],
+      ['Ctrl+G', "Show Scout's logical grid over the mockup"],
+      ['Ctrl+M', 'Place review callouts'],
+      ['Right click', 'Widget menu: add, duplicate, reorder, remove'],
       ['Drag a splitter', 'Resize a side panel (double click resets it)']
     ]
   },
@@ -50,6 +54,17 @@ const GROUPS: ShortcutGroup[] = [
     ]
   },
   {
+    title: 'Without a mouse',
+    items: [
+      ['Tab', 'Move between toolbar, palette, structure tree and properties'],
+      ['Arrows on the canvas', 'Walk the widget tree: siblings, parent, first child'],
+      ['↑ ↓ in the palette', 'Walk the widget list, Enter adds the focused one'],
+      ['↑ ↓ in the structure', 'Walk the widget tree, Enter selects'],
+      ['← → in the structure', 'Collapse or expand, or step to parent and child'],
+      ['Menu key', 'Open the widget menu on the focused row']
+    ]
+  },
+  {
     title: 'Adding widgets',
     items: [
       ['Click in Elements', 'Add to the current selection'],
@@ -59,7 +74,6 @@ const GROUPS: ShortcutGroup[] = [
   }
 ];
 
-/** Modal overlay listing every shortcut and interaction of the editor. */
 export function showShortcutsDialog(): void {
   document.querySelector('.es-modal-backdrop')?.remove();
 
@@ -94,9 +108,11 @@ export function showShortcutsDialog(): void {
   backdrop.appendChild(dialog);
   document.body.appendChild(backdrop);
 
+  const release = trapFocus(dialog);
   const close = (): void => {
     backdrop.remove();
     document.removeEventListener('keydown', onKeyDown, true);
+    release();
   };
   const onKeyDown = (event: KeyboardEvent): void => {
     if (event.key === 'Escape') {

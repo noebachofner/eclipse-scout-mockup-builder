@@ -1,25 +1,11 @@
-/**
- * Share links: the whole mockup travels inside the URL fragment.
- *
- * A fragment never reaches a server, so this works on plain static hosting and
- * shares nothing with anyone but the person holding the link. The document is
- * gzipped before it is encoded, which brings a typical mockup down to a couple
- * of kilobytes; `CompressionStream` is used when the browser has it and the
- * plain JSON is encoded otherwise, with a one character marker saying which.
- */
-import type {MockupDocument} from '../model/types';
+import type {MockupDocument, MockupNode} from '../model/types';
 import {parseDocument, serializeDocument} from '../model/document';
 
 const PREFIX = '#m=';
-/**
- * Browsers accept far longer URLs than this, but chat clients and mail
- * gateways start cutting links somewhere above it, so the caller gets warned.
- */
 export const COMFORTABLE_URL_LENGTH = 8000;
 
 function toBase64Url(bytes: Uint8Array): string {
   let binary = '';
-  // Chunked, because a spread of a large array blows the argument limit.
   for (let i = 0; i < bytes.length; i += 0x8000) {
     binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
   }
@@ -52,7 +38,22 @@ async function through(stream: ReadableStream<Uint8Array>): Promise<Uint8Array> 
   return result;
 }
 
-/** Builds the full share URL for `doc`, based on the current location. */
+export function findEmbeddedImages(doc: MockupDocument): Array<{path: string; bytes: number}> {
+  const found: Array<{path: string; bytes: number}> = [];
+  const walk = (node: MockupNode, trail: string[]): void => {
+    const label = String(node.properties.label ?? node.properties.title ?? '') || node.objectType;
+    const path = [...trail, label];
+    for (const [name, value] of Object.entries(node.properties)) {
+      if (typeof value === 'string' && value.startsWith('data:')) {
+        found.push({path: `${path.join(' › ')} (${name})`, bytes: value.length});
+      }
+    }
+    node.children.forEach(child => walk(child, path));
+  };
+  walk(doc.root, []);
+  return found;
+}
+
 export async function buildShareUrl(doc: MockupDocument): Promise<string> {
   const json = serializeDocument(doc);
   const raw = new TextEncoder().encode(json);
@@ -67,7 +68,6 @@ export async function buildShareUrl(doc: MockupDocument): Promise<string> {
   return `${base}${PREFIX}${payload}`;
 }
 
-/** Reads a document out of a location hash, or null when there is none. */
 export async function readShareUrl(hash: string): Promise<MockupDocument | null> {
   if (!hash.startsWith(PREFIX)) return null;
   const payload = hash.slice(PREFIX.length);

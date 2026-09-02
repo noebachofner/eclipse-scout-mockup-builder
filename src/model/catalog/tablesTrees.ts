@@ -1,13 +1,21 @@
 import {registerWidgets, type WidgetDef} from './registry';
 import {formFieldDefaults, formFieldProps, GROUP_CONTENT, GROUP_LAYOUT, GROUP_STYLE} from './common';
 import {div, span} from '../../render/dom';
-import {cells, checkBox, lines} from '../../render/parts';
+import {checkBox, lines, rows} from '../../render/parts';
 import {renderIcon} from '../../render/icons';
 import type {RenderContext} from './registry';
 import type {MockupNode, PropertyValue} from '../types';
 
-const DEFAULT_COLUMNS = 'Name|left|200\nCity|left|140\nAmount|right|100';
-const DEFAULT_ROWS = 'Ada Lovelace|London|1 250.00\nAlan Turing|Manchester|980.50\nGrace Hopper|New York|3 400.00';
+const DEFAULT_COLUMNS: string[][] = [
+  ['Name', 'left', '200'],
+  ['City', 'left', '140'],
+  ['Amount', 'right', '100']
+];
+const DEFAULT_ROWS: string[][] = [
+  ['Ada Lovelace', 'London', "1 250.00"],
+  ['Alan Turing', 'Manchester', '980.50'],
+  ['Grace Hopper', 'New York', "3 400.00"]
+];
 
 interface ColumnSpec {
   text: string;
@@ -15,21 +23,22 @@ interface ColumnSpec {
   width: number;
 }
 
+function cellGrid(raw: unknown, fallback: string[][]): string[][] {
+  if (!Array.isArray(raw)) return fallback;
+  return raw.filter(Array.isArray).map(row => row.map(cell => String(cell ?? '')));
+}
+
 function parseColumns(raw: unknown): ColumnSpec[] {
-  return lines(raw, cells(DEFAULT_COLUMNS)).map(line => {
-    const parts = line.split('|').map(p => p.trim());
-    const align = (parts[1] || 'left') as ColumnSpec['align'];
-    return {
-      text: parts[0] ?? '',
-      align: align === 'right' || align === 'center' ? align : 'left',
-      width: Number(parts[2]) > 0 ? Number(parts[2]) : 0
-    };
-  });
+  return cellGrid(raw, DEFAULT_COLUMNS).map(([text = '', align = 'left', width = '']) => ({
+    text,
+    align: align === 'right' || align === 'center' ? align : 'left',
+    width: Number(width) > 0 ? Number(width) : 0
+  }));
 }
 
 function renderTable(ctx: RenderContext, node: MockupNode): HTMLElement {
-  const columns = parseColumns(ctx.prop<string>(node, 'columns', DEFAULT_COLUMNS));
-  const rows = lines(ctx.prop<string>(node, 'rows', DEFAULT_ROWS), DEFAULT_ROWS.split('\n')).map(line => line.split('|').map(c => c.trim()));
+  const columns = parseColumns(ctx.prop<string[][]>(node, 'columns', DEFAULT_COLUMNS));
+  const rows = cellGrid(ctx.prop<string[][]>(node, 'rows', DEFAULT_ROWS), DEFAULT_ROWS);
   const checkable = ctx.prop<boolean>(node, 'checkable', false);
   const checkedRows = new Set(lines(ctx.prop<string>(node, 'checkedRows', ''), []).map(Number));
   const selectedRow = Number(ctx.prop<number>(node, 'selectedRow', -1));
@@ -53,8 +62,6 @@ function renderTable(ctx: RenderContext, node: MockupNode): HTMLElement {
   }
 
   const grid = div('table-grid');
-  // Scout's table layout distributes the remaining width; if every column has a
-  // fixed width, a trailing filler keeps the header, rows and footer aligned.
   const hasFlexible = columns.some(c => !c.width);
   const template = [
     showCheckColumn ? '34px' : '',
@@ -107,12 +114,12 @@ function renderTable(ctx: RenderContext, node: MockupNode): HTMLElement {
   });
   if (!rows.length) grid.appendChild(div('table-empty', 'No data'));
 
-  const aggregate = ctx.prop<string>(node, 'aggregateRow', '');
-  if (aggregate) {
+  const aggregate = ctx.prop<string[]>(node, 'aggregateRow', []);
+  if (Array.isArray(aggregate) && aggregate.some(cell => String(cell).trim())) {
     const aggregateRow = div('table-aggregate-row');
     aggregateRow.style.gridTemplateColumns = template;
     if (showCheckColumn) aggregateRow.appendChild(div('table-cell'));
-    const values = aggregate.split('|').map(c => c.trim());
+    const values = Array.isArray(aggregate) ? aggregate.map(cell => String(cell)) : [];
     columns.forEach((column, i) => aggregateRow.appendChild(div(`table-cell halign-${column.align}`, values[i] ?? '')));
     if (!hasFlexible) aggregateRow.appendChild(div('table-cell filler'));
     if (ctx.prop<string>(node, 'groupingStyle', 'bottom') === 'top') {
@@ -146,8 +153,6 @@ function renderTable(ctx: RenderContext, node: MockupNode): HTMLElement {
 }
 
 const TABLE_PROPS = [
-  // One editor drives both properties: adding or removing a column has to keep
-  // the cells of every row lined up with it.
   {name: 'columns', label: 'Columns and rows', type: 'columns' as const, group: GROUP_CONTENT},
   {name: 'selectedRow', label: 'Selected row index', type: 'number' as const, group: GROUP_CONTENT, min: -1},
   {name: 'sortedColumn', label: 'Sorted column index', type: 'number' as const, group: GROUP_CONTENT, min: -1},
@@ -171,7 +176,7 @@ const TABLE_PROPS = [
     {value: 'bottom', label: 'BOTTOM'},
     {value: 'top', label: 'TOP'}
   ]},
-  {name: 'aggregateRow', label: 'Aggregate row (cells separated by |)', type: 'string' as const, group: GROUP_CONTENT,
+  {name: 'aggregateRow', label: 'Aggregate row (one cell per line)', type: 'lines' as const, group: GROUP_CONTENT,
     description: 'Shown as the aggregate row of the grouped column.'}
 ];
 
@@ -315,7 +320,11 @@ const defs: WidgetDef[] = [
       'gridDataHints.h': 8,
       displayMode: 'week',
       title: 'September 2026',
-      appointments: 'Mon|09:00|Sprint planning\nTue|14:00|Design review\nThu|11:30|Customer call'
+      appointments: [
+        ['Mon', '09:00', 'Sprint planning'],
+        ['Tue', '14:00', 'Design review'],
+        ['Thu', '11:30', 'Customer call']
+      ]
     }),
     props: formFieldProps(
       {name: 'title', label: 'Title', type: 'string', group: GROUP_CONTENT},
@@ -325,7 +334,7 @@ const defs: WidgetDef[] = [
         {value: 'workWeek', label: 'WORK_WEEK'},
         {value: 'month', label: 'MONTH'}
       ]},
-      {name: 'appointments', label: 'Appointments (Day|Time|Title)', type: 'lines', group: GROUP_CONTENT}
+      {name: 'appointments', label: 'Appointments', type: 'rows', group: GROUP_CONTENT, columns: ['Day', 'Time', 'Title']}
     ),
     slots: [],
     defaultGridH: 8,
@@ -375,8 +384,7 @@ const defs: WidgetDef[] = [
       }
       root.appendChild(body);
 
-      for (const line of lines(ctx.prop<string>(node, 'appointments', ''), [])) {
-        const [day, time, title] = line.split('|').map(p => p.trim());
+      for (const [day, time, title] of rows(ctx.prop<string[][]>(node, 'appointments', []))) {
         const hour = parseInt(time ?? '', 10);
         const slot = body.querySelector<HTMLElement>(`.calendar-slot[data-day="${day}"][data-hour="${hour}"]`);
         if (slot) {
@@ -403,11 +411,15 @@ const defs: WidgetDef[] = [
       labelVisible: false,
       'gridDataHints.w': 2,
       'gridDataHints.h': 8,
-      resources: 'Team A|2|4|Kick-off\nTeam B|5|3|Implementation\nTeam C|1|2|Analysis',
+      resources: [
+        ['Team A', '2', '4', 'Kick-off'],
+        ['Team B', '5', '3', 'Implementation'],
+        ['Team C', '1', '2', 'Analysis']
+      ],
       columnCount: 12
     }),
     props: formFieldProps(
-      {name: 'resources', label: 'Resources (Name|start|length|activity)', type: 'lines', group: GROUP_CONTENT},
+      {name: 'resources', label: 'Resources', type: 'rows', group: GROUP_CONTENT, columns: ['Name', 'Start', 'Length', 'Activity']},
       {name: 'columnCount', label: 'Timeline columns', type: 'number', group: GROUP_LAYOUT, min: 4, max: 40}
     ),
     slots: [],
@@ -421,8 +433,7 @@ const defs: WidgetDef[] = [
       for (let i = 1; i <= columnCount; i++) scale.appendChild(div('planner-scale-item', String(i)));
       root.appendChild(scale);
 
-      for (const line of lines(ctx.prop<string>(node, 'resources', ''), [])) {
-        const [name, start, length, activity] = line.split('|').map(p => p.trim());
+      for (const [name, start, length, activity] of rows(ctx.prop<string[][]>(node, 'resources', []))) {
         const row = div('planner-row');
         row.style.gridTemplateColumns = `160px repeat(${columnCount}, minmax(0, 1fr))`;
         row.appendChild(div('planner-resource', name ?? ''));

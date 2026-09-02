@@ -17,13 +17,11 @@ export class App {
   private canvas!: Canvas;
   private toolbar!: Toolbar;
   private workspace!: Workspace;
-  /**
-   * Autosave slot this session writes to. A new or opened mockup gets its own,
-   * so the previous one stays recoverable from File > Recent.
-   */
   private slotId: string;
   private readonly toast: HTMLElement;
   private toastTimer = 0;
+  private autosaveTimer = 0;
+  private autosaveFailed = false;
 
   constructor(private root: HTMLElement) {
     const restored = readAutosave();
@@ -46,7 +44,8 @@ export class App {
         this.store.replace(doc);
       },
       currentSlotId: () => this.slotId,
-      toggleAnnotateMode: () => this.setAnnotateMode(!canvas.annotating)
+      toggleAnnotateMode: () => this.setAnnotateMode(!canvas.annotating),
+      toggleGridInspector: () => this.setGridInspector(!canvas.inspectingGrid)
     });
     this.toolbar = toolbar;
     const palette = new Palette(this.store, canvas);
@@ -74,7 +73,10 @@ export class App {
 
     this.root.replaceChildren(layout);
 
-    this.store.subscribe(() => writeAutosave(this.store.doc, this.slotId));
+    this.store.subscribe((_, reason) => {
+      if (reason === 'selection') return;
+      this.scheduleAutosave();
+    });
     this.installShortcuts();
     this.installFileDrop();
     this.installUnloadGuard();
@@ -85,11 +87,6 @@ export class App {
     void this.loadSharedDocument();
   }
 
-  /**
-   * A share link carries the document in the fragment. It wins over the
-   * autosave, and the fragment is dropped afterwards so a later reload shows
-   * the edited version rather than the shared original.
-   */
   private async loadSharedDocument(): Promise<void> {
     if (!location.hash.startsWith('#m=')) return;
     const shared = await readShareUrl(location.hash);
@@ -109,12 +106,19 @@ export class App {
     if (on) this.notify('Click the mockup to place a callout. Drag one to move it, Esc to stop.');
   }
 
-  /** Share URL for the current document. Also the hook the dev tooling uses. */
+  private setGridInspector(on: boolean): void {
+    this.canvas.setGridInspector(on);
+    this.toolbar.setGridInspector(on);
+  }
+
+  measureBounds(parentId: string): Record<string, Record<string, number>> {
+    return this.canvas.measureChildBounds(parentId);
+  }
+
   shareUrl(): Promise<string> {
     return buildShareUrl(this.store.doc);
   }
 
-  /** The innermost form the selection sits in, so the Java dialog preselects it. */
   private selectedFormId(): string | undefined {
     const id = this.store.selectedId;
     if (!id) return undefined;
@@ -123,6 +127,25 @@ export class App {
       if (chain[i].objectType === 'Form') return chain[i].id;
     }
     return undefined;
+  }
+
+  private scheduleAutosave(): void {
+    window.clearTimeout(this.autosaveTimer);
+    this.autosaveTimer = window.setTimeout(() => this.runAutosave(), 600);
+  }
+
+  private runAutosave(): void {
+    const outcome = writeAutosave(this.store.doc, this.slotId);
+    if (outcome.ok) {
+      this.autosaveFailed = false;
+      return;
+    }
+    if (this.autosaveFailed) return;
+    this.autosaveFailed = true;
+    this.notify(outcome.reason === 'too-large'
+      ? 'This mockup is too large to autosave in the browser. Save it with Ctrl+S - your work is only in this tab until you do.'
+      : 'Browser storage is full or blocked, so autosaving stopped. Save with Ctrl+S - your work is only in this tab until you do.',
+    'error');
   }
 
   private notify(message: string, kind: 'info' | 'error' = 'info'): void {
@@ -141,7 +164,6 @@ export class App {
       const key = event.key;
 
       if (meta) {
-        // File and view commands stay available while typing in a field.
         switch (key.toLowerCase()) {
           case 'z':
             event.preventDefault();
@@ -166,9 +188,12 @@ export class App {
             else void this.toolbar.exportHtml();
             return;
           case 'b':
-            // Not [ and ]: both need AltGr on a Swiss or German keyboard.
             event.preventDefault();
             this.workspace.toggle(event.shiftKey ? 'right' : 'left');
+            return;
+          case 'g':
+            event.preventDefault();
+            this.setGridInspector(!this.canvas.inspectingGrid);
             return;
           case 'm':
             event.preventDefault();
@@ -223,10 +248,9 @@ export class App {
         return;
       }
       if (key.startsWith('Arrow')) {
-        // Free placement only: nudge or resize the selected widget.
-        if (this.canvas.nudgeSelection(key, event.shiftKey, !event.altKey)) {
-          event.preventDefault();
-        }
+        const handled = this.canvas.nudgeSelection(key, event.shiftKey, !event.altKey)
+          || this.canvas.navigateSelection(key);
+        if (handled) event.preventDefault();
         return;
       }
       if (key === 'Escape') {
@@ -259,6 +283,10 @@ export class App {
   }
 
   private installUnloadGuard(): void {
+    window.addEventListener('pagehide', () => {
+      window.clearTimeout(this.autosaveTimer);
+      writeAutosave(this.store.doc, this.slotId);
+    });
     window.addEventListener('beforeunload', event => {
       if (!this.store.dirty) return;
       event.preventDefault();

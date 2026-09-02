@@ -1,10 +1,3 @@
-/**
- * Launches Chromium for the development helpers.
- *
- * Playwright pins a browser revision that may not match the one already present
- * in a CI image, so try the pinned download first and fall back to any Chromium
- * found under PLAYWRIGHT_BROWSERS_PATH. Set CHROMIUM_PATH to override.
- */
 import {chromium} from 'playwright';
 import {existsSync, readdirSync} from 'node:fs';
 import {join} from 'node:path';

@@ -1,5 +1,3 @@
-/** Browser file helpers used by save / load / export. */
-
 export function downloadBlob(blob: Blob, fileName: string): void {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -8,7 +6,6 @@ export function downloadBlob(blob: Blob, fileName: string): void {
   document.body.appendChild(link);
   link.click();
   link.remove();
-  // Give the browser a tick to start the download before revoking.
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
@@ -22,7 +19,6 @@ export function pickFile(accept: string): Promise<File | null> {
     input.type = 'file';
     input.accept = accept;
     input.addEventListener('change', () => resolve(input.files?.[0] ?? null), {once: true});
-    // Safari needs the input in the DOM.
     input.style.display = 'none';
     document.body.appendChild(input);
     input.click();
@@ -30,7 +26,6 @@ export function pickFile(accept: string): Promise<File | null> {
   });
 }
 
-/** Reads a picked file as a `data:` URI so it can live inside the document. */
 export function readAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();

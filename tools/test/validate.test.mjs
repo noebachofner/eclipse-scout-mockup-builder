@@ -1,4 +1,3 @@
-/** The mockup check: what it flags, and what it must not flag. */
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {importTs} from './_bundle.mjs';

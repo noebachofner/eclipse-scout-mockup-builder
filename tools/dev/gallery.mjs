@@ -1,10 +1,4 @@
 #!/usr/bin/env node
-/**
- * Dev helper: loads the widget gallery template and screenshots every view, so
- * a regression in a rarely used renderer shows up as an image diff.
- *
- * Usage: node tools/dev/gallery.mjs <outDir>
- */
 import {launchBrowser} from './browser.mjs';
 import {createServer} from 'node:http';
 import {readFile, mkdir} from 'node:fs/promises';
@@ -41,7 +35,6 @@ await page.evaluate(() => localStorage.clear());
 await page.reload({waitUntil: 'networkidle'});
 await page.waitForSelector('.es-canvas-host .desktop');
 
-// Switch to the gallery template through the New menu, like a user would.
 await page.click('.es-toolbar .es-menu-button .es-button:has-text("File")');
 await page.click('.es-dropdown-item:has-text("Widget gallery")');
 await page.waitForTimeout(300);

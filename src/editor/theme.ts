@@ -1,13 +1,6 @@
 import {resolveScoutColors} from '../render/colorSystem';
 import type {ThemeSettings} from '../model/types';
 
-/**
- * Recomputes the whole Scout color system for the given theme and returns it as
- * CSS custom property declarations. Because the palette is re-evaluated (rather
- * than a handful of variables being patched), changing e.g. `accent-color-3`
- * moves the header, selection, focus, links and default buttons together -
- * exactly as recompiling the LESS theme would.
- */
 export function themeCssVariables(theme: ThemeSettings): string {
   const colors = resolveScoutColors(theme.colors ?? {});
   const lines: string[] = [];
@@ -18,7 +11,6 @@ export function themeCssVariables(theme: ThemeSettings): string {
   return lines.join('\n');
 }
 
-/** Applies the theme to a live element (the canvas host). */
 export function applyTheme(host: HTMLElement, theme: ThemeSettings): void {
   const colors = resolveScoutColors(theme.colors ?? {});
   for (const [name, value] of Object.entries(colors)) {
@@ -29,7 +21,6 @@ export function applyTheme(host: HTMLElement, theme: ThemeSettings): void {
   host.classList.toggle('no-responsive', theme.responsive === false);
 }
 
-/** Colour presets offered in the theme editor; each overrides the accent chain. */
 export const THEME_PRESETS: {id: string; label: string; colors: Record<string, string>}[] = [
   {id: 'scout', label: 'Scout blue (default)', colors: {}},
   {
@@ -82,7 +73,6 @@ export const THEME_PRESETS: {id: string; label: string; colors: Record<string, s
   }
 ];
 
-/** The colour variables the theme editor exposes directly. */
 export const THEME_COLOR_FIELDS: {name: string; label: string; hint: string}[] = [
   {name: 'accent-color-3', label: 'Accent (main)', hint: 'Header, navigation, selection, links, default buttons.'},
   {name: 'accent-color-4', label: 'Accent (dark)', hint: 'Hover state of selected items.'},

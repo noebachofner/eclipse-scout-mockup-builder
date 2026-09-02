@@ -11,15 +11,10 @@ import {TEMPLATES} from '../model/templates';
 import {editorIcon} from './icons';
 import {pickFile, readAsDataUrl} from '../io/files';
 import {renderTableEditor} from './tableEditor';
+import {renderRowsEditor} from './rowsEditor';
 
 type Tab = 'properties' | 'theme' | 'document';
 
-/**
- * Canvas sizes worth checking a mockup against. The narrow ones cross Scout's
- * responsive thresholds: the group box condenses its labels below roughly
- * `columns * 420px`, and the desktop switches to its compact layout below
- * 640px.
- */
 const CANVAS_PRESETS = [
   {label: 'Desktop', width: 1920, height: 1080},
   {label: 'Laptop', width: 1440, height: 900},
@@ -29,16 +24,10 @@ const CANVAS_PRESETS = [
   {label: 'Phone', width: 390, height: 844}
 ];
 
-/**
- * Groups that are collapsed away behind "Show advanced properties". They matter
- * for a faithful mockup but get in the way while sketching.
- */
 const ADVANCED_GROUPS = new Set(['Logical grid', 'Appearance']);
 
 export interface PropertyPanelCallbacks {
-  /** Current on-screen bounds of a container's children, relative to its body. */
   measureChildBounds(parentId: string): Record<string, Record<string, number>>;
-  /** Shows a toast, e.g. when a picked image is uncomfortably large. */
   notify?(message: string, kind?: 'info' | 'error'): void;
 }
 
@@ -48,7 +37,6 @@ export class PropertyPanel {
   private readonly body: HTMLElement;
   private tab: Tab = 'properties';
   private propertyFilter = '';
-  /** Property groups the user collapsed, remembered across selections. */
   private collapsedGroups = new Set<string>();
   private showAdvanced = false;
 
@@ -81,8 +69,6 @@ export class PropertyPanel {
     else if (this.tab === 'theme') this.renderTheme();
     else this.renderDocument();
   }
-
-  /* ---------------------------------------------------------------- widget */
 
   private renderProperties(): void {
     const node = this.store.selectedNode;
@@ -175,7 +161,6 @@ export class PropertyPanel {
     }
   }
 
-  /** Filter box above the property groups. */
   private renderFilter(): HTMLElement {
     const wrapper = div('es-search-wrapper es-property-filter');
     wrapper.appendChild(editorIcon('search', 'es-search-icon'));
@@ -187,7 +172,6 @@ export class PropertyPanel {
     input.addEventListener('input', () => {
       this.propertyFilter = input.value.trim().toLowerCase();
       this.render();
-      // Re-focus after the re-render so typing is not interrupted.
       const next = this.body.querySelector<HTMLInputElement>('.es-property-filter .es-search');
       if (next) {
         next.focus();
@@ -221,11 +205,6 @@ export class PropertyPanel {
     return bar;
   }
 
-  /**
-   * Free placement is a sketching aid; Scout itself always uses the logical
-   * grid, so the panel says so rather than letting the user believe the layout
-   * can be reproduced one to one.
-   */
   private renderLayoutWarning(node: MockupNode): void {
     const chain = pathTo(this.store.doc.root, node.id);
     const parent = chain[chain.length - 2];
@@ -257,8 +236,6 @@ export class PropertyPanel {
     const value = current !== undefined ? current : fallback;
     const set = (next: PropertyValue): void => {
       if (prop.name === 'layoutMode' && next === 'free') {
-        // Seed the children with the position the logical grid just gave them,
-        // otherwise they would all jump onto the same default spot.
         this.store.setPropertyWithChildren(node.id, prop.name, next, this.callbacks.measureChildBounds(node.id));
         return;
       }
@@ -362,12 +339,22 @@ export class PropertyPanel {
       case 'image': {
         return this.renderImageEditor(value, set);
       }
+      case 'rows': {
+        const current = Array.isArray(value) ? (value as string[][]) : [];
+        const fallback = getWidget(node.objectType)?.defaults[prop.name];
+        return renderRowsEditor({
+          headers: prop.columns ?? ['Value'],
+          value: current.length ? current : (Array.isArray(fallback) ? (fallback as string[][]) : []),
+          onChange: next => set(next)
+        });
+      }
       case 'columns': {
         return renderTableEditor(node, {
           read: (target, name) => {
             const own = target.properties[name];
-            if (own !== undefined && own !== null) return String(own);
-            return String(getWidget(target.objectType)?.defaults[name] ?? '');
+            const value = own !== undefined && own !== null ? own : getWidget(target.objectType)?.defaults[name];
+            if (!Array.isArray(value)) return [];
+            return value.filter(Array.isArray).map(row => row.map(cell => String(cell ?? '')));
           },
           write: (target, values) => this.store.setProperties(target.id, values)
         });
@@ -392,14 +379,6 @@ export class PropertyPanel {
     }
   }
 
-  /**
-   * Image editor: a file picker that stores the picture as a data URI.
-   *
-   * A plain URL also works, but it would leave the mockup depending on a server
-   * the exports cannot reach - the standalone HTML would no longer be
-   * standalone, and the PNG rasteriser cannot fetch external resources at all,
-   * so the picture would silently disappear from the image. Hence the warning.
-   */
   private renderImageEditor(value: PropertyValue | undefined, set: (v: PropertyValue) => void): HTMLElement {
     const wrapper = div('es-image-editor');
     const current = value === undefined || value === null ? '' : String(value);
@@ -451,8 +430,6 @@ export class PropertyPanel {
     }
     return wrapper;
   }
-
-  /* ----------------------------------------------------------------- theme */
 
   private renderTheme(): void {
     const theme = this.store.doc.theme;
@@ -550,8 +527,6 @@ export class PropertyPanel {
     this.body.appendChild(typography);
   }
 
-  /* -------------------------------------------------------------- document */
-
   private renderDocument(): void {
     const doc = this.store.doc;
 
@@ -565,9 +540,6 @@ export class PropertyPanel {
     const canvas = div('es-property-group');
     canvas.appendChild(div('es-property-group-title', 'Canvas'));
 
-    // Scout is responsive: the labels move on top below the condensed
-    // threshold and the desktop goes compact below 640px. One click per size
-    // makes those breakpoints visible instead of something you have to guess.
     const sizes = div('es-size-presets');
     for (const preset of CANVAS_PRESETS) {
       const button = h('button', 'es-size-preset');

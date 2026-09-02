@@ -1,17 +1,12 @@
-/**
- * The Java generator.
- *
- * The method names asserted here were read off the Scout 26.1 sources; if a
- * future Scout release renames one, these tests are where it should show up.
- */
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {importTs} from './_bundle.mjs';
 
 const java = await importTs('src/io/exportJava.ts');
 const templates = await importTs('src/model/templates.ts');
+const docModule = await importTs('src/model/document.ts');
 
-const OPTIONS = {packageName: 'org.example.client', className: 'PersonForm', useTexts: false, includeGetters: true};
+const OPTIONS = {detail: 'changed', packageName: 'org.example.client', className: 'PersonForm', useTexts: false, includeGetters: true};
 const generate = (form, options = {}) => java.generateFormJava(form, {...OPTIONS, ...options});
 
 const personForm = () => java.collectForms(templates.defaultDesktopTemplate().root)[0];
@@ -71,7 +66,6 @@ test('a table field gets a nested Table with typed columns', () => {
   assert.match(code, /extends AbstractTableField<TableField\.Table>/);
   assert.match(code, /public class Table extends AbstractTable \{/);
   assert.match(code, /public class OrderNoColumn extends AbstractStringColumn \{/);
-  // The column types are inferred from the sample data in the mockup.
   assert.match(code, /public class DateColumn extends AbstractDateColumn \{/);
   assert.match(code, /public class AmountColumn extends AbstractBigDecimalColumn \{/);
   assert.match(code, /return getColumnSet\(\)\.getColumnByClass\(OrderNoColumn\.class\);/);
@@ -134,4 +128,62 @@ test('braces balance out, so the file is at least syntactically plausible', () =
   const open = (code.match(/\{/g) ?? []).length;
   const close = (code.match(/\}/g) ?? []).length;
   assert.equal(open, close);
+});
+
+test('two fields with the same label get distinct class names', () => {
+  const doc = docModule.node({objectType: 'Form', properties: {title: 'Order'}, children: [
+    {objectType: 'GroupBox', slot: 'fields', properties: {label: 'Billing'}, children: [
+      {objectType: 'StringField', slot: 'fields', properties: {label: 'Name'}}
+    ]},
+    {objectType: 'GroupBox', slot: 'fields', properties: {label: 'Shipping'}, children: [
+      {objectType: 'StringField', slot: 'fields', properties: {label: 'Name'}}
+    ]}
+  ]});
+  const {code} = generate(doc, {className: 'OrderForm'});
+  const getters = [...code.matchAll(/^  public \w+ (get\w+)\(\)/gm)].map(match => match[1]);
+  assert.deepEqual(getters, [...new Set(getters)], `duplicate getter: ${getters.join(', ')}`);
+  assert.match(code, /public class ShippingNameField extends AbstractStringField/);
+});
+
+test('a column name cannot collide with a field name', () => {
+  const doc = docModule.node({objectType: 'Form', properties: {title: 'Order'}, children: [
+    {objectType: 'GroupBox', slot: 'fields', properties: {label: 'Main'}, children: [
+      {objectType: 'StringField', slot: 'fields', properties: {label: 'Status'}},
+      {objectType: 'TableField', slot: 'fields', properties: {label: 'Rows', columns: [['Status', 'left', '100']], rows: [['Open']]}}
+    ]}
+  ]});
+  const {code} = generate(doc, {className: 'OrderForm'});
+  const classes = [...code.matchAll(/public class (\w+) extends/g)].map(match => match[1]);
+  assert.deepEqual(classes, [...new Set(classes)], `duplicate class: ${classes.join(', ')}`);
+});
+
+test('layout detail writes the logical grid of every field', () => {
+  const {code} = generate(personForm(), {detail: 'layout'});
+  const firstName = code.slice(code.indexOf('class FirstNameField'), code.indexOf('class LastNameField'));
+  assert.match(firstName, /protected int getConfiguredGridW\(\) \{\s*return 1;/);
+  assert.match(firstName, /protected int getConfiguredGridH\(\) \{\s*return 1;/);
+  assert.match(firstName, /protected double getConfiguredGridWeightX\(\) \{\s*return -1\.0;/);
+  assert.match(firstName, /protected boolean getConfiguredFillHorizontal\(\) \{\s*return true;/);
+});
+
+test('changed detail leaves the defaults out', () => {
+  const {code} = generate(personForm(), {detail: 'changed'});
+  const firstName = code.slice(code.indexOf('class FirstNameField'), code.indexOf('class LastNameField'));
+  assert.doesNotMatch(firstName, /getConfiguredGridW\b/);
+  assert.match(firstName, /getConfiguredMandatory/);
+});
+
+test('all detail adds the non-layout defaults too', () => {
+  const {code} = generate(personForm(), {detail: 'all'});
+  const firstName = code.slice(code.indexOf('class FirstNameField'), code.indexOf('class LastNameField'));
+  assert.match(firstName, /getConfiguredStatusVisible/);
+  assert.match(firstName, /getConfiguredFieldStyle/);
+  assert.match(firstName, /getConfiguredGridW/);
+});
+
+test('every detail level still produces balanced braces', () => {
+  for (const detail of ['changed', 'layout', 'all']) {
+    const {code} = generate(personForm(), {detail});
+    assert.equal((code.match(/\{/g) ?? []).length, (code.match(/\}/g) ?? []).length, detail);
+  }
 });

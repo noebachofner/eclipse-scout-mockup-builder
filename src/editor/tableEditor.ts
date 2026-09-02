@@ -1,11 +1,9 @@
 import {div, h, span} from '../render/dom';
+import {renderRowsEditor} from './rowsEditor';
 import type {MockupNode, PropertyValue} from '../model/types';
-import {getWidget} from '../model/catalog';
 
 export interface TableEditorHost {
-  /** Reads a property with the widget default as the fallback. */
-  read(node: MockupNode, name: string): string;
-  /** Writes both properties in one undo step. */
+  read(node: MockupNode, name: string): string[][];
   write(node: MockupNode, values: Record<string, PropertyValue>): void;
 }
 
@@ -17,47 +15,27 @@ interface Column {
 
 const ALIGNMENTS: Column['align'][] = ['left', 'center', 'right'];
 
-function parseColumns(raw: string): Column[] {
-  return raw.split('\n').map(line => line.trim()).filter(Boolean).map(line => {
-    const [text = '', align = 'left', width = ''] = line.split('|').map(part => part.trim());
-    return {
-      text,
-      align: (ALIGNMENTS as string[]).includes(align) ? (align as Column['align']) : 'left',
-      width: Number(width) > 0 ? Number(width) : 0
-    };
-  });
+function parseColumns(raw: string[][]): Column[] {
+  return raw.map(([text = '', align = 'left', width = '']) => ({
+    text,
+    align: (ALIGNMENTS as string[]).includes(align) ? (align as Column['align']) : 'left',
+    width: Number(width) > 0 ? Number(width) : 0
+  }));
 }
 
-const serializeColumns = (columns: Column[]): string =>
-  columns.map(column => `${column.text}|${column.align}|${column.width || ''}`).join('\n');
+const serializeColumns = (columns: Column[]): string[][] =>
+  columns.map(column => [column.text, column.align, column.width ? String(column.width) : '']);
 
-const parseRows = (raw: string): string[][] =>
-  raw.split('\n').map(line => line.trim()).filter(Boolean).map(line => line.split('|').map(cell => cell.trim()));
-
-const serializeRows = (rows: string[][]): string => rows.map(row => row.join('|')).join('\n');
-
-/**
- * Structured editor for a table's columns and its sample rows.
- *
- * The two are stored as text (`Header|align|width` per line, cells separated by
- * `|`), which is compact in the file but painful to edit by hand and silently
- * wrong as soon as the number of cells stops matching the number of columns.
- * This editor keeps them in step: adding, removing or moving a column does the
- * same to every row.
- */
 export function renderTableEditor(node: MockupNode, host: TableEditorHost): HTMLElement {
   const wrapper = div('es-table-editor');
-  const defaults = getWidget(node.objectType)?.defaults ?? {};
-  let columns = parseColumns(host.read(node, 'columns') || String(defaults.columns ?? ''));
-  let rows = parseRows(host.read(node, 'rows') || String(defaults.rows ?? ''));
+  let columns = parseColumns(host.read(node, 'columns'));
+  let rows = host.read(node, 'rows').map(row => [...row]);
 
   const commit = (): void => {
-    // Every row carries exactly one cell per column, padded or trimmed.
     const normalized = rows.map(row => columns.map((_, index) => row[index] ?? ''));
-    host.write(node, {columns: serializeColumns(columns), rows: serializeRows(normalized)});
+    host.write(node, {columns: serializeColumns(columns), rows: normalized});
   };
 
-  // --- columns --------------------------------------------------------------
   wrapper.appendChild(span('es-table-editor-title', 'Columns'));
   const columnList = div('es-table-columns');
   columns.forEach((column, index) => {
@@ -67,7 +45,7 @@ export function renderTableEditor(node: MockupNode, host: TableEditorHost): HTML
     text.value = column.text;
     text.placeholder = 'Header';
     text.addEventListener('change', () => {
-      column.text = stripPipes(text);
+      column.text = text.value.trim();
       commit();
     });
     row.appendChild(text);
@@ -135,52 +113,17 @@ export function renderTableEditor(node: MockupNode, host: TableEditorHost): HTML
   });
   wrapper.appendChild(addColumn);
 
-  // --- rows -----------------------------------------------------------------
   wrapper.appendChild(span('es-table-editor-title', 'Rows'));
-  const grid = div('es-table-rows');
-  const scroller = div('es-table-rows-scroll');
-  const headerRow = div('es-table-row header');
-  columns.forEach(column => headerRow.appendChild(span('es-table-cell-head', column.text || '—')));
-  headerRow.appendChild(span('es-table-cell-head', ''));
-  scroller.appendChild(headerRow);
-
-  rows.forEach((cells, rowIndex) => {
-    const row = div('es-table-row');
-    columns.forEach((_, columnIndex) => {
-      const input = h('input', 'es-input es-table-cell') as HTMLInputElement;
-      input.value = cells[columnIndex] ?? '';
-      input.addEventListener('change', () => {
-        rows[rowIndex][columnIndex] = stripPipes(input);
-        commit();
-      });
-      row.appendChild(input);
-    });
-    row.appendChild(iconButton('✕', 'Remove the row', true, () => {
-      rows.splice(rowIndex, 1);
+  wrapper.appendChild(renderRowsEditor({
+    headers: columns.map(column => column.text || '—'),
+    value: rows,
+    onChange: next => {
+      rows = next;
       commit();
-    }));
-    scroller.appendChild(row);
-  });
-  grid.appendChild(scroller);
-  wrapper.appendChild(grid);
-
-  const addRow = h('button', 'es-mini-button');
-  addRow.type = 'button';
-  addRow.textContent = '+ Row';
-  addRow.addEventListener('click', () => {
-    rows.push(columns.map(() => ''));
-    commit();
-  });
-  wrapper.appendChild(addRow);
+    }
+  }));
 
   return wrapper;
-}
-
-/** `|` separates the stored cells, so it cannot appear inside one. */
-function stripPipes(input: HTMLInputElement): string {
-  const cleaned = input.value.replace(/\|/g, '/').trim();
-  if (cleaned !== input.value.trim()) input.value = cleaned;
-  return cleaned;
 }
 
 function iconButton(glyph: string, title: string, enabled: boolean, action: () => void): HTMLButtonElement {

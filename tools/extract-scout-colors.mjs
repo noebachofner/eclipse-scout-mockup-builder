@@ -1,16 +1,4 @@
 #!/usr/bin/env node
-/**
- * Parses Scout's `colors.less` into a small expression tree (JSON) so ES Mockup
- * can re-evaluate the *whole* color system in the browser when the user changes
- * the palette - exactly the way LESS would, instead of only recolouring a few
- * hand-picked variables.
- *
- * Every declaration in colors.less is one of:
- *   @name: <literal>                       e.g. #FAFAFA, transparent
- *   @name: @other                          a reference
- *   @name: fn(arg, ...)                    fade() / darken() / lighten() / rgba()
- * (arguments may themselves be references or nested calls)
- */
 import {readFileSync, writeFileSync} from 'node:fs';
 import {join, resolve} from 'node:path';
 
@@ -18,7 +6,6 @@ const pkgDir = resolve(process.argv[2] ?? '.scout/package');
 const outFile = resolve(process.argv[3] ?? 'src/model/scoutColors.generated.ts');
 const text = readFileSync(join(pkgDir, 'src', 'style', 'colors.less'), 'utf8');
 
-/** Tokenizer-free recursive descent over a single right-hand side expression. */
 function parseExpr(input) {
   let pos = 0;
   const ws = () => {
@@ -47,7 +34,7 @@ function parseExpr(input) {
         if (input[pos] === ',') { pos++; continue; }
         if (input[pos] === ')') { pos++; break; }
         if (pos >= input.length) break;
-        pos++; // tolerate stray separators
+        pos++;
       }
       return {k: 'call', fn: word.toLowerCase(), args};
     }
@@ -63,7 +50,6 @@ const re = /^@([a-zA-Z][\w-]*)\s*:\s*([^;]*);/gm;
 let m;
 while ((m = re.exec(text)) !== null) {
   const name = m[1];
-  // Drop trailing inline comments, they are not part of the value.
   const raw = m[2].replace(/\/\/.*$/, '').replace(/\/\*[\s\S]*?\*\//g, '').trim();
   if (!raw) continue;
   decls.push({name, expr: parseExpr(raw)});

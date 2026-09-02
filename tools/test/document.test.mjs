@@ -1,4 +1,3 @@
-/** The .esmockup format: what survives a round trip and what is rejected. */
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {importTs} from './_bundle.mjs';
@@ -73,4 +72,21 @@ test('every template produces a parseable document', () => {
 
 function countNodes(node) {
   return 1 + node.children.reduce((sum, child) => sum + countNodes(child), 0);
+}
+
+test('tabular properties survive a round trip as arrays', () => {
+  const original = templates.defaultDesktopTemplate();
+  const table = findByType(original.root, 'TableField');
+  table.properties.rows = [['A|B', 'plain'], ['second', 'row']];
+  const restored = doc.parseDocument(doc.serializeDocument(original));
+  assert.deepEqual(findByType(restored.root, 'TableField').properties.rows, [['A|B', 'plain'], ['second', 'row']]);
+});
+
+function findByType(node, objectType) {
+  if (node.objectType === objectType) return node;
+  for (const child of node.children) {
+    const found = findByType(child, objectType);
+    if (found) return found;
+  }
+  return null;
 }

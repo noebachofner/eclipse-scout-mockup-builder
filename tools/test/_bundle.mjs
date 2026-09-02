@@ -1,10 +1,3 @@
-/**
- * Bundles a TypeScript entry point and imports it in Node.
- *
- * The catalog modules build DOM nodes only inside their render functions, but a
- * few helpers touch `document` while the module is evaluated, so a very small
- * stub stands in for it. The generators under test never render anything.
- */
 import {build} from 'vite';
 
 export async function importTs(entry) {

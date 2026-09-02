@@ -5,21 +5,18 @@ import {newId} from '../model/ids';
 export interface StoreState {
   doc: MockupDocument;
   selectedId: string | null;
+  selectedIds: string[];
   fileName: string;
   dirty: boolean;
 }
 
-type Listener = (state: StoreState, reason: ChangeReason) => void;
+type Listener = (state: StoreState, reason: ChangeReason, changedIds?: string[]) => void;
 
 export type ChangeReason = 'document' | 'selection' | 'meta';
 
 const UNDO_LIMIT = 100;
+const UNDO_BYTE_LIMIT = 24 * 1024 * 1024;
 
-/**
- * Single source of truth for the editor. Undo/redo works on serialized
- * snapshots: mockup documents are small, and a snapshot cannot go out of sync
- * with the tree the way a command log can.
- */
 export class Store {
   private state: StoreState;
   private listeners = new Set<Listener>();
@@ -27,7 +24,7 @@ export class Store {
   private redoStack: string[] = [];
 
   constructor(doc: MockupDocument, fileName = 'mockup.esmockup') {
-    this.state = {doc, selectedId: doc.root.id, fileName, dirty: false};
+    this.state = {doc, selectedId: doc.root.id, selectedIds: [doc.root.id], fileName, dirty: false};
   }
 
   get doc(): MockupDocument {
@@ -63,27 +60,34 @@ export class Store {
     return () => this.listeners.delete(listener);
   }
 
-  private emit(reason: ChangeReason): void {
-    for (const listener of this.listeners) listener(this.state, reason);
+  private emit(reason: ChangeReason, changedIds?: string[]): void {
+    for (const listener of this.listeners) listener(this.state, reason, changedIds);
   }
 
-  /** Runs `mutator` against the document and records an undo snapshot. */
-  update(mutator: (doc: MockupDocument) => void): void {
+  update(mutator: (doc: MockupDocument) => void, changedIds?: string[]): void {
     this.undoStack.push(JSON.stringify(this.state.doc));
-    if (this.undoStack.length > UNDO_LIMIT) this.undoStack.shift();
+    this.trimUndoStack();
     this.redoStack.length = 0;
     mutator(this.state.doc);
     this.state.dirty = true;
-    this.emit('document');
+    this.emit('document', changedIds);
   }
 
-  /** Replaces the whole document (new file, load, template switch). */
+  private trimUndoStack(): void {
+    while (this.undoStack.length > UNDO_LIMIT) this.undoStack.shift();
+    let bytes = this.undoStack.reduce((sum, snapshot) => sum + snapshot.length, 0);
+    while (this.undoStack.length > 1 && bytes > UNDO_BYTE_LIMIT) {
+      bytes -= this.undoStack.shift()?.length ?? 0;
+    }
+  }
+
   replace(doc: MockupDocument, fileName = this.state.fileName): void {
     this.undoStack.push(JSON.stringify(this.state.doc));
     this.redoStack.length = 0;
     this.state.doc = doc;
     this.state.fileName = fileName;
     this.state.selectedId = doc.root.id;
+    this.state.selectedIds = [doc.root.id];
     this.state.dirty = false;
     this.emit('document');
   }
@@ -94,9 +98,7 @@ export class Store {
     this.redoStack.push(JSON.stringify(this.state.doc));
     this.state.doc = parseDocument(snapshot);
     this.state.dirty = true;
-    if (this.state.selectedId && !findNode(this.state.doc.root, this.state.selectedId)) {
-      this.state.selectedId = this.state.doc.root.id;
-    }
+    this.pruneSelection();
     this.emit('document');
   }
 
@@ -106,13 +108,29 @@ export class Store {
     this.undoStack.push(JSON.stringify(this.state.doc));
     this.state.doc = parseDocument(snapshot);
     this.state.dirty = true;
-    if (this.state.selectedId && !findNode(this.state.doc.root, this.state.selectedId)) {
-      this.state.selectedId = this.state.doc.root.id;
-    }
+    this.pruneSelection();
     this.emit('document');
   }
 
-  /* ----------------------------------------------------------- annotations */
+  private clipboard: MockupNode | null = null;
+
+  copyToClipboard(nodeId: string): boolean {
+    const node = findNode(this.state.doc.root, nodeId);
+    if (!node) return false;
+    this.clipboard = cloneNode(node);
+    return true;
+  }
+
+  get clipboardType(): string | null {
+    return this.clipboard?.objectType ?? null;
+  }
+
+  pasteInto(parentId: string, slot: string): string | null {
+    if (!this.clipboard) return null;
+    const copy = cloneNode(this.clipboard);
+    this.insert(parentId, copy, slot);
+    return copy.id;
+  }
 
   addAnnotation(x: number, y: number): string {
     const id = newId();
@@ -136,9 +154,40 @@ export class Store {
     });
   }
 
+  get selectedIds(): string[] {
+    return [...this.state.selectedIds];
+  }
+
+  isSelected(id: string): boolean {
+    return this.state.selectedIds.includes(id);
+  }
+
+  private pruneSelection(): void {
+    this.state.selectedIds = this.state.selectedIds.filter(id => !!findNode(this.state.doc.root, id));
+    if (!this.state.selectedIds.length) this.state.selectedIds = [this.state.doc.root.id];
+    if (!this.state.selectedId || !findNode(this.state.doc.root, this.state.selectedId)) {
+      this.state.selectedId = this.state.selectedIds[this.state.selectedIds.length - 1];
+    }
+  }
+
   select(id: string | null): void {
-    if (this.state.selectedId === id) return;
+    if (this.state.selectedId === id && this.state.selectedIds.length <= 1) return;
     this.state.selectedId = id;
+    this.state.selectedIds = id ? [id] : [];
+    this.emit('selection');
+  }
+
+  toggleSelection(id: string): void {
+    const ids = this.state.selectedIds.filter(current => current !== id);
+    if (ids.length === this.state.selectedIds.length) ids.push(id);
+    this.state.selectedIds = ids;
+    this.state.selectedId = ids[ids.length - 1] ?? null;
+    this.emit('selection');
+  }
+
+  setSelection(ids: string[]): void {
+    this.state.selectedIds = [...new Set(ids)];
+    this.state.selectedId = this.state.selectedIds[this.state.selectedIds.length - 1] ?? null;
     this.emit('selection');
   }
 
@@ -151,14 +200,9 @@ export class Store {
       } else {
         target.properties[name] = value;
       }
-    });
+    }, [nodeId]);
   }
 
-  /**
-   * Applies a property to `nodeId` and, in the same undo step, properties to a
-   * set of other nodes. Used when switching a container to free placement,
-   * which has to seed the children's bounds at the same time.
-   */
   setPropertyWithChildren(nodeId: string, name: string, value: PropertyValue, children: Record<string, Record<string, PropertyValue>>): void {
     this.update(doc => {
       const target = findNode(doc.root, nodeId);
@@ -170,15 +214,29 @@ export class Store {
     });
   }
 
+  setPropertiesForNodes(changes: Record<string, Record<string, PropertyValue>>): void {
+    const ids = Object.keys(changes);
+    if (!ids.length) return;
+    this.update(doc => {
+      for (const id of ids) {
+        const target = findNode(doc.root, id);
+        if (!target) continue;
+        for (const [name, value] of Object.entries(changes[id])) {
+          if (value === null || value === '') delete target.properties[name];
+          else target.properties[name] = value;
+        }
+      }
+    }, ids);
+  }
+
   setProperties(nodeId: string, values: Record<string, PropertyValue>): void {
     this.update(doc => {
       const target = findNode(doc.root, nodeId);
       if (!target) return;
       Object.assign(target.properties, values);
-    });
+    }, [nodeId]);
   }
 
-  /** Inserts `child` into `parentId`'s `slot` at `index` (append when omitted). */
   insert(parentId: string, child: MockupNode, slot: string, index = -1): void {
     this.update(doc => {
       const parent = findNode(doc.root, parentId);
@@ -219,7 +277,6 @@ export class Store {
     this.select(copy.id);
   }
 
-  /** Moves an existing node into another slot/position. */
   move(nodeId: string, targetParentId: string, slot: string, index: number): void {
     this.update(doc => {
       const parent = findParent(doc.root, nodeId);

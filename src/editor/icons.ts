@@ -1,10 +1,3 @@
-/**
- * Inline SVG icons for the editor chrome.
- *
- * The Scout icon font is reserved for the mockup itself; the editor around it
- * uses its own set so a themed mockup can never change the look of the tool.
- * All icons share a 16x16 box and inherit `currentColor`.
- */
 const PATHS: Record<string, string> = {
   file: 'M4 1.5h5L12.5 5v9.5h-9zM9 1.5V5h3.5',
   folderOpen: 'M1.5 12.5V3.5h4l1.5 2h6.5v2M1.5 12.5l2-5h11l-2 5z',
@@ -27,6 +20,7 @@ const PATHS: Record<string, string> = {
   panelLeft: 'M1.5 2.5h13v11h-13zM6.5 2.5v11M3 6h2M3 8.5h2',
   panelRight: 'M1.5 2.5h13v11h-13zM9.5 2.5v11M11 6h2M11 8.5h2',
   annotate: 'M8 1.5a6.5 6.5 0 1 1 0 13 6.5 6.5 0 0 1 0-13ZM6.3 6.1a1.8 1.8 0 1 1 2.3 2.1c-.4.2-.6.5-.6.9v.3M8 11.9v.01',
+  grid: 'M1.5 1.5h13v13h-13zM6 1.5v13M10 1.5v13M1.5 6h13M1.5 10h13',
   chevronDown: 'M4 6.5 8 10.5l4-4',
   chevronRight: 'M6.5 4 10.5 8l-4 4'
 };
@@ -49,7 +43,6 @@ export function editorIcon(name: keyof typeof PATHS | string, className = ''): S
   return svg;
 }
 
-/** Platform-aware shortcut label, e.g. `⌘Z` on a Mac and `Ctrl+Z` elsewhere. */
 export function shortcutLabel(keys: string): string {
   const mac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
   if (!mac) return keys;

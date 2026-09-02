@@ -1,7 +1,7 @@
 import {registerWidgets, type WidgetDef} from './registry';
 import {formFieldDefaults, formFieldProps, GROUP_CONTENT, GROUP_STYLE, WIDGET_DEFAULTS, WIDGET_PROPS} from './common';
 import {div, span} from '../../render/dom';
-import {lines} from '../../render/parts';
+import {lines, rows} from '../../render/parts';
 import {renderIcon} from '../../render/icons';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -12,7 +12,6 @@ function svg(tag: string, attrs: Record<string, string | number>): SVGElement {
   return el;
 }
 
-/** Scout's chart colors follow the accent/palette scheme; these map onto the tokens. */
 const CHART_COLORS = [
   'var(--scout-accent-color-3)',
   'var(--scout-palette-green-4)',
@@ -27,12 +26,11 @@ interface Series {
   values: number[];
 }
 
-function parseSeries(raw: unknown, fallback: string[]): Series[] {
-  return lines(raw, fallback).map(line => {
-    const [label, ...rest] = line.split('|').map(p => p.trim());
-    const values = (rest[0] ?? '').split(/[,\s]+/).filter(Boolean).map(Number).filter(n => Number.isFinite(n));
-    return {label: label ?? '', values};
-  });
+function parseSeries(raw: unknown, fallback: string[][]): Series[] {
+  return rows(raw, fallback).map(([label = '', numbers = '']) => ({
+    label,
+    values: numbers.split(/[,\s]+/).filter(Boolean).map(Number).filter(value => Number.isFinite(value))
+  }));
 }
 
 const defs: WidgetDef[] = [
@@ -52,7 +50,10 @@ const defs: WidgetDef[] = [
       'gridDataHints.h': 6,
       chartType: 'bar',
       categories: 'Q1, Q2, Q3, Q4',
-      series: 'Revenue|120, 190, 150, 220\nCost|80, 110, 95, 130',
+      series: [
+        ['Revenue', '120, 190, 150, 220'],
+        ['Cost', '80, 110, 95, 130']
+      ],
       legendVisible: true,
       legendPosition: 'right'
     }),
@@ -66,7 +67,7 @@ const defs: WidgetDef[] = [
         {value: 'doughnut', label: 'DOUGHNUT'}
       ]},
       {name: 'categories', label: 'Categories (comma separated)', type: 'string', group: GROUP_CONTENT},
-      {name: 'series', label: 'Series (Name|v1, v2, v3)', type: 'lines', group: GROUP_CONTENT},
+      {name: 'series', label: 'Series', type: 'rows', group: GROUP_CONTENT, columns: ['Name', 'Values']},
       {name: 'legendVisible', label: 'Legend visible', type: 'boolean', group: GROUP_STYLE},
       {name: 'legendPosition', label: 'Legend position', type: 'enum', group: GROUP_STYLE, options: [
         {value: 'right', label: 'RIGHT'},
@@ -78,7 +79,7 @@ const defs: WidgetDef[] = [
     render(ctx, node) {
       const type = ctx.prop<string>(node, 'chartType', 'bar');
       const categories = String(ctx.prop<string>(node, 'categories', '')).split(',').map(c => c.trim()).filter(Boolean);
-      const series = parseSeries(ctx.prop<string>(node, 'series', ''), ['Series|10, 20, 30']);
+      const series = parseSeries(ctx.prop<string[][]>(node, 'series', []), [['Series', '10, 20, 30']]);
       const legendVisible = ctx.prop<boolean>(node, 'legendVisible', true);
       const legendPosition = ctx.prop<string>(node, 'legendPosition', 'right');
 
@@ -86,7 +87,6 @@ const defs: WidgetDef[] = [
       const plot = div('chart-plot');
       const width = 400;
       const height = 240;
-      // Bars and lines may stretch to the field; a pie must stay round.
       const round = type === 'pie' || type === 'doughnut';
       const canvas = svg('svg', {
         viewBox: `0 0 ${width} ${height}`,
@@ -348,11 +348,6 @@ const defs: WidgetDef[] = [
 
 registerWidgets(defs);
 
-/*
- * Widgets the official demo apps show that are not part of the core form field
- * hierarchy: floating popups and tooltips, and the heat map from
- * `org.eclipse.scout.widgets.heatmap`.
- */
 registerWidgets([
   {
     objectType: 'Popup',
@@ -499,7 +494,6 @@ registerWidgets([
     render(ctx, node) {
       const root = div('heatmap-field-box');
       const map = div('heatmap-map');
-      // A stylised map: the mockup must not fetch real tiles.
       map.appendChild(div('heatmap-tiles'));
       for (const line of lines(ctx.prop<string>(node, 'heatPoints', ''), [])) {
         const [x, y, intensity] = line.split(',').map(part => Number(part.trim()));

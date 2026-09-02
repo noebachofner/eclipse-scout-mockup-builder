@@ -1,12 +1,4 @@
 #!/usr/bin/env node
-/**
- * End-to-end smoke test of the editor: palette insert, drag & drop, property
- * editing, theming, free placement, save/load round trip and both exports.
- * The exported HTML is loaded in a fresh page and screenshotted, which is the
- * only way to prove the export really is standalone.
- *
- * Usage: node tools/dev/e2e.mjs [outDir]
- */
 import {launchBrowser} from './browser.mjs';
 import {createServer} from 'node:http';
 import {readFile, mkdir, writeFile} from 'node:fs/promises';
@@ -55,7 +47,6 @@ const countNodes = () => page.evaluate(() => {
   return n;
 });
 
-// --- 1. add a widget by clicking it in the palette -------------------------
 const before = await countNodes();
 await page.click('.es-structure-row:has-text("Personal data")');
 await page.fill('.es-search', 'Check box');
@@ -68,7 +59,6 @@ check('inserted widget is selected', await page.evaluate(() =>
 check('check box is rendered on the canvas',
   (await page.locator('.es-canvas-host .scout-check-box-field').count()) === 1);
 
-// --- 2. drag & drop from the palette onto the canvas ----------------------
 await page.fill('.es-search', 'Slider');
 const source = page.locator('.es-palette-item:has-text("Slider field")');
 const target = page.locator('.es-canvas-host .scout-group-box .group-box-body').first();
@@ -77,7 +67,6 @@ await page.waitForTimeout(200);
 check('drag & drop inserts a widget',
   (await page.locator('.es-canvas-host .scout-slider-field').count()) === 1);
 
-// --- 3. edit a property ---------------------------------------------------
 await page.click('.es-canvas-host .scout-slider-field');
 await page.waitForTimeout(100);
 const labelInput = page.locator('.es-property-row:has(.es-property-label:text-is("Label")) input.es-input').first();
@@ -88,7 +77,6 @@ await page.waitForTimeout(200);
 check('property edit reaches the canvas',
   (await page.locator('.es-canvas-host .scout-slider-field > label').innerText()).trim() === 'Completion');
 
-// --- 4. undo / redo -------------------------------------------------------
 await page.keyboard.press('Control+z');
 await page.waitForTimeout(150);
 const afterUndo = await page.locator('.es-canvas-host .scout-slider-field > label').innerText();
@@ -98,7 +86,6 @@ await page.waitForTimeout(150);
 check('redo re-applies the property edit',
   (await page.locator('.es-canvas-host .scout-slider-field > label').innerText()).trim() === 'Completion');
 
-// --- 4b. Scout's default field style is ALTERNATIVE ------------------------
 check('value fields use the underlined ALTERNATIVE style by default',
   await page.evaluate(() => {
     const el = document.querySelector('.es-canvas-host .scout-string-field .input-field');
@@ -108,7 +95,6 @@ check('value fields use the underlined ALTERNATIVE style by default',
       && style.borderBottomWidth === '1px';
   }));
 
-// --- 4c. responsive CONDENSED state ---------------------------------------
 const labelsSideBySide = await page.evaluate(() => {
   const f = document.querySelector('.es-canvas-host .scout-string-field');
   return f.querySelector('label').getBoundingClientRect().bottom > f.querySelector('.field').getBoundingClientRect().top + 2;
@@ -136,7 +122,6 @@ await page.evaluate(() => {
 });
 await page.waitForTimeout(200);
 
-// --- 5. theme ------------------------------------------------------------
 const headerColorBefore = await page.evaluate(() =>
   getComputedStyle(document.querySelector('.es-canvas-host .desktop-header')).backgroundColor);
 await page.click('.es-tab:text-is("Theme")');
@@ -152,7 +137,6 @@ check('theme propagates to derived colors (selection)', selectionColor !== 'rgb(
 await page.click('.es-preset:has-text("Scout blue")');
 await page.waitForTimeout(200);
 
-// --- 6. free placement ---------------------------------------------------
 await page.click('.es-tab:text-is("Properties")');
 await page.click('.es-structure-row:has-text("Personal data")');
 await page.waitForTimeout(120);
@@ -169,7 +153,6 @@ check('free placement positions children absolutely',
 await page.keyboard.press('Control+z');
 await page.waitForTimeout(200);
 
-// --- 7. save / load round trip -------------------------------------------
 const roundTrip = await page.evaluate(() => {
   const before = window.esMockup.store.serialize();
   const parsed = JSON.parse(before);
@@ -177,7 +160,6 @@ const roundTrip = await page.evaluate(() => {
 });
 check('document serializes to the .esmockup format', roundTrip.ok, `${roundTrip.size} bytes`);
 
-// The file commands live in the File menu now.
 const savePromise = page.waitForEvent('download');
 await page.click('.es-toolbar .es-menu-button .es-button:has-text("File")');
 await page.click('.es-dropdown-item:has-text("Save")');
@@ -187,7 +169,6 @@ await saved.saveAs(savedPath);
 const savedText = await readFile(savedPath, 'utf8');
 check('save downloads a JSON file', savedText.trim().startsWith('{') && savedText.includes('"es-mockup"'));
 
-// Load it back through the real file picker.
 const savedName = await page.evaluate(() => {
   window.esMockup.store.updateMeta({name: 'Round trip probe'});
   return window.esMockup.store.doc.meta.name;
@@ -211,7 +192,6 @@ check('open restores the saved document', loaded.format === 'es-mockup' && loade
   `${loaded.nodes} nodes, name "${loaded.name}"`);
 check('open restores the full widget tree', loaded.nodes === after + 1, `${loaded.nodes} nodes`);
 
-// Rejecting a non-mockup file must not destroy the current document.
 const badPath = join(outDir, 'not-a-mockup.json');
 await writeFile(badPath, JSON.stringify({hello: 'world'}));
 const badChooserPromise = page.waitForEvent('filechooser');
@@ -223,7 +203,6 @@ check('a foreign JSON file is rejected with a message',
   (await page.locator('.es-toast.error').count()) > 0 &&
   (await page.evaluate(() => window.esMockup.store.doc.format)) === 'es-mockup');
 
-// --- 8. HTML export ------------------------------------------------------
 const htmlPromise = page.waitForEvent('download');
 await page.click('.es-toolbar .es-menu-button .es-button:has-text("Export")');
 await page.click('.es-dropdown-item:has-text("HTML file")');
@@ -236,7 +215,6 @@ check('HTML export inlines the Scout tokens', html.includes('--scout-desktop-hea
 check('HTML export contains no external references',
   !/(src|href)\s*=\s*"(?!data:)(https?:)?\/\//.test(html) && !/url\(['"]?\/fonts/.test(html));
 
-// Render the exported file in a fresh page to prove it stands alone.
 const exportPage = await context.newPage();
 const exportErrors = [];
 exportPage.on('pageerror', e => exportErrors.push(String(e)));
@@ -249,7 +227,6 @@ check('exported HTML renders the desktop',
 check('exported HTML loads without errors', exportErrors.length === 0, exportErrors.join('; '));
 await exportPage.close();
 
-// --- 9. PNG export -------------------------------------------------------
 const pngPromise = page.waitForEvent('download', {timeout: 30000});
 await page.click('.es-toolbar .es-menu-button .es-button:has-text("Export")');
 await page.click('.es-dropdown-item:has-text("PNG image, 1")');
@@ -260,7 +237,6 @@ const png = await readFile(pngPath);
 check('PNG export produces a PNG', png.length > 5000 && png[0] === 0x89 && png[1] === 0x50,
   `${Math.round(png.length / 1024)} KB`);
 
-// --- 10. editor usability -------------------------------------------------
 await page.keyboard.press('Escape');
 await page.keyboard.press('Shift+Slash');
 await page.waitForTimeout(200);
@@ -302,7 +278,6 @@ check('context menu duplicates a widget', (await countNodes()) === nodesBeforeDu
 await page.keyboard.press('Control+z');
 await page.waitForTimeout(150);
 
-// --- 11. free placement: resize with the handles --------------------------
 await page.click('.es-structure-row:has-text("Personal data")');
 await page.waitForTimeout(150);
 await page.locator('.es-property-row:has(.es-property-label:text-is("Layout mode")) select').first()
@@ -364,7 +339,6 @@ await page.keyboard.press('Control+z');
 await page.keyboard.press('Control+z');
 await page.waitForTimeout(250);
 
-// --- 12. no widget may overlap another in the logical grid ----------------
 const overlapProbe = async () => page.evaluate(() => {
   const found = new Set();
   document.querySelectorAll('.es-canvas-host .logical-grid').forEach(grid => {
@@ -384,8 +358,6 @@ const overlapProbe = async () => page.evaluate(() => {
 await page.click('.es-toolbar .es-menu-button .es-button:has-text("File")');
 await page.click('.es-dropdown-item:has-text("Widget gallery")');
 await page.waitForTimeout(400);
-// This used to be swallowed by a confirm() dialog Playwright auto-dismisses,
-// which left the checks below inspecting the default desktop instead.
 const galleryNodes = await page.evaluate(() => {
   let count = 0;
   const walk = node => { count++; node.children.forEach(walk); };
@@ -393,15 +365,10 @@ const galleryNodes = await page.evaluate(() => {
   return count;
 });
 check('the widget gallery template loads', galleryNodes > 60, `${galleryNodes} nodes`);
-// Intersecting boxes are only half the story: a widget whose *content* is
-// taller than the box it was given spills over the widget below it without the
-// two rectangles ever crossing. That is how the chart used to overlap the form.
 const overflowProbe = async () => page.evaluate(() => {
   const found = new Set();
   document.querySelectorAll('.es-canvas-host .logical-grid, .es-canvas-host .group-box-body').forEach(box => {
     if (getComputedStyle(box).overflowY !== 'visible') return;
-    // Scout scrolls a form's main box, so a form taller than the canvas is
-    // normal. Everything inside it must fit the box it was given.
     if (box.parentElement?.classList.contains('root-group-box')) return;
     if (box.scrollHeight > box.clientHeight + 1) {
       const owner = box.closest('[data-object-type]');
@@ -422,7 +389,209 @@ for (const view of [0, 1, 2, 3, 4]) {
 check('no widget overlaps another in the logical grid', overlapReport.length === 0, overlapReport.join('; '));
 check('no widget content overflows its box', overflowReport.length === 0, overflowReport.join('; '));
 
-// --- 13. review callouts ---------------------------------------------------
+await page.click('.es-toolbar .es-menu-button .es-button:has-text("File")');
+await page.click('.es-dropdown-item:has-text("New: Scout desktop")');
+await page.waitForTimeout(300);
+const menuBox = await page.locator('.es-canvas-page').boundingBox();
+await page.mouse.click(menuBox.x + 700, menuBox.y + 240, {button: 'right'});
+await page.waitForTimeout(250);
+check('right click opens the editor menu instead of the browser one', await page.isVisible('.es-context-menu'));
+const menuItems = await page.locator('.es-context-menu-item').allTextContents();
+check('the menu names the widget and offers the usual actions',
+  menuItems[0]?.trim() === 'String field' && menuItems.some(item => item.startsWith('Duplicate')) && menuItems.some(item => item.startsWith('Remove')),
+  menuItems.join(' | '));
+
+await page.hover('.es-context-menu-item:has-text("Add widget")');
+await page.waitForTimeout(300);
+const categories = await page.locator('.es-context-menu[data-depth="1"] .es-context-menu-item').allTextContents();
+check('the add submenu groups the widgets by category', categories.length >= 5, categories.join(', '));
+
+await page.hover('.es-context-menu[data-depth="1"] .es-context-menu-item:has-text("Value fields")');
+await page.waitForTimeout(300);
+const rowsBeforeInsert = await page.evaluate(() => document.querySelectorAll('.es-structure-row').length);
+await page.click('.es-context-menu[data-depth="2"] .es-context-menu-item:has-text("Number field")');
+await page.waitForTimeout(300);
+const rowsAfterInsert = await page.evaluate(() => document.querySelectorAll('.es-structure-row').length);
+check('adding from the submenu inserts the widget', rowsAfterInsert === rowsBeforeInsert + 1, `${rowsBeforeInsert} -> ${rowsAfterInsert}`);
+check('the menu closes after an action', !(await page.isVisible('.es-context-menu')));
+
+await page.mouse.click(menuBox.x + 700, menuBox.y + 240, {button: 'right'});
+await page.waitForTimeout(250);
+await page.keyboard.press('ArrowDown');
+await page.keyboard.press('ArrowDown');
+const focused = await page.evaluate(() => document.activeElement?.textContent?.trim());
+check('the arrow keys move through the menu', (focused ?? '').startsWith('Copy'), (focused ?? '').slice(0, 40));
+await page.keyboard.press('Escape');
+await page.waitForTimeout(150);
+check('Escape closes the menu', !(await page.isVisible('.es-context-menu')));
+
+await page.mouse.click(menuBox.x + 700, menuBox.y + 240, {button: 'right'});
+await page.waitForTimeout(200);
+await page.click('.es-context-menu-item:has-text("Copy")');
+await page.waitForTimeout(200);
+await page.keyboard.press('?');
+await page.waitForTimeout(200);
+check('the shortcut dialog still opens after using the menu', await page.isVisible('.es-modal'));
+await page.keyboard.press('Escape');
+await page.waitForTimeout(200);
+check('Escape still reaches the editor after using the menu', !(await page.isVisible('.es-modal')));
+
+await page.click('.es-toolbar .es-menu-button .es-button:has-text("File")');
+await page.click('.es-dropdown-item:has-text("New: Form only")');
+await page.waitForTimeout(300);
+await page.evaluate(() => {
+  const store = window.esMockup.store;
+  const box = store.doc.root.children[0];
+  store.setPropertyWithChildren(box.id, 'layoutMode', 'free', window.esMockup.measureBounds(box.id));
+});
+await page.waitForTimeout(300);
+
+const freeIds = await page.evaluate(() => window.esMockup.store.doc.root.children[0].children.map(child => child.id));
+check('the form has widgets to select', freeIds.length >= 2, `${freeIds.length} widgets`);
+
+const boxOf = id => page.evaluate(nodeId => {
+  const store = window.esMockup.store;
+  const find = node => node.id === nodeId ? node : node.children.map(find).find(Boolean);
+  const node = find(store.doc.root);
+  return {
+    x: Number(node.properties['bounds.x']),
+    y: Number(node.properties['bounds.y']),
+    w: Number(node.properties['bounds.width']),
+    h: Number(node.properties['bounds.height'])
+  };
+}, id);
+
+const first = await page.locator(`.es-canvas-host [data-node-id="${freeIds[0]}"]`).boundingBox();
+const second = await page.locator(`.es-canvas-host [data-node-id="${freeIds[1]}"]`).boundingBox();
+await page.mouse.click(first.x + 20, first.y + 10);
+await page.keyboard.down('Shift');
+await page.mouse.click(second.x + 20, second.y + 10);
+await page.keyboard.up('Shift');
+await page.waitForTimeout(200);
+const selected = await page.evaluate(() => window.esMockup.store.selectedIds.length);
+check('shift-click extends the selection', selected === 2, `${selected} selected`);
+check('every selected widget gets a frame', (await page.locator('.es-selection-box').count()) === 2);
+
+const before0 = await boxOf(freeIds[0]);
+const before1 = await boxOf(freeIds[1]);
+await page.keyboard.press('ArrowDown');
+await page.keyboard.press('ArrowDown');
+await page.waitForTimeout(200);
+const after0 = await boxOf(freeIds[0]);
+const after1 = await boxOf(freeIds[1]);
+check('arrow keys move the whole selection',
+  after0.y === before0.y + 10 && after1.y === before1.y + 10,
+  `${before0.y}->${after0.y}, ${before1.y}->${after1.y}`);
+
+await page.mouse.click(second.x + 20, second.y + 10);
+await page.waitForTimeout(150);
+const snapAnchor = await boxOf(freeIds[0]);
+const snapMover = await boxOf(freeIds[1]);
+const zoom = await page.evaluate(() => window.esMockup.store.doc.canvas.zoom);
+const grab = await page.locator(`.es-canvas-host [data-node-id="${freeIds[1]}"]`).boundingBox();
+await page.mouse.move(grab.x + 20, grab.y + 10);
+await page.mouse.down();
+await page.mouse.move(grab.x + 20 + (snapAnchor.x - snapMover.x + 3) * zoom, grab.y + 40, {steps: 8});
+const guides = await page.locator('.es-guide').count();
+await page.mouse.up();
+await page.waitForTimeout(200);
+const snapped = await boxOf(freeIds[1]);
+check('a guide line is drawn while snapping', guides > 0, `${guides} guides`);
+check('the widget snaps onto its neighbour', snapped.x === snapAnchor.x, `${snapped.x} vs ${snapAnchor.x}`);
+
+await page.mouse.click(first.x - 60, first.y - 30);
+const band = await page.locator('.es-canvas-page').boundingBox();
+await page.mouse.move(band.x + 4, band.y + 4);
+await page.mouse.down();
+await page.mouse.move(band.x + band.width - 4, band.y + band.height - 4, {steps: 10});
+await page.mouse.up();
+await page.waitForTimeout(200);
+const banded = await page.evaluate(() => window.esMockup.store.selectedIds.length);
+check('a rubber band selects everything it encloses', banded >= 2, `${banded} selected`);
+
+await page.evaluate(ids => window.esMockup.store.setSelection(ids), freeIds);
+const undoBefore = await Promise.all(freeIds.map(boxOf));
+const groupGrab = await page.locator(`.es-canvas-host [data-node-id="${freeIds[0]}"]`).boundingBox();
+await page.mouse.move(groupGrab.x + 20, groupGrab.y + 10);
+await page.mouse.down();
+await page.mouse.move(groupGrab.x + 20, groupGrab.y + 90, {steps: 6});
+await page.mouse.up();
+await page.waitForTimeout(250);
+const undoMoved = await Promise.all(freeIds.map(boxOf));
+check('a group drag moves every selected widget',
+  undoMoved.every((box, index) => box.y !== undoBefore[index].y),
+  JSON.stringify(undoMoved.map(box => box.y)));
+await page.keyboard.press('Control+z');
+await page.waitForTimeout(250);
+const undoRestored = await Promise.all(freeIds.map(boxOf));
+check('one undo restores the whole group drag',
+  JSON.stringify(undoRestored) === JSON.stringify(undoBefore),
+  `${JSON.stringify(undoRestored.map(b => b.y))} vs ${JSON.stringify(undoBefore.map(b => b.y))}`);
+
+const alignAnchor = await page.locator(`.es-canvas-host [data-node-id="${freeIds[0]}"]`).boundingBox();
+await page.mouse.click(alignAnchor.x + 20, alignAnchor.y + 10, {button: 'right'});
+await page.waitForTimeout(250);
+const hasAlign = await page.locator('.es-context-menu-item:has-text("Align")').count();
+check('the menu offers alignment for a multi selection', hasAlign === 1);
+await page.keyboard.press('Escape');
+await page.waitForTimeout(150);
+
+await page.click('.es-toolbar .es-menu-button .es-button:has-text("File")');
+await page.click('.es-dropdown-item:has-text("New: Scout desktop")');
+await page.waitForTimeout(300);
+
+const placementOf = selector => page.evaluate(css => {
+  const el = document.querySelector(css);
+  if (!el) return null;
+  return {gridColumn: el.style.gridColumn, gridRow: el.style.gridRow, cell: el.dataset.gridCell ?? ''};
+}, selector);
+
+const boxSelector = '.es-canvas-host [data-object-type="GroupBox"]';
+const placementBefore = await placementOf(boxSelector);
+await page.evaluate(() => {
+  const store = window.esMockup.store;
+  const find = node => node.objectType === 'StringField' ? node : node.children.map(find).find(Boolean);
+  store.setProperty(find(store.doc.root).id, 'label', 'Renamed by the partial path');
+});
+await page.waitForTimeout(250);
+const placementAfter = await placementOf(boxSelector);
+check('a rebuilt container keeps the placement its parent gave it',
+  JSON.stringify(placementAfter) === JSON.stringify(placementBefore),
+  `${JSON.stringify(placementBefore)} vs ${JSON.stringify(placementAfter)}`);
+check('the property change reached the canvas',
+  (await page.textContent('.es-canvas-host')).includes('Renamed by the partial path'));
+
+await page.evaluate(() => {
+  const store = window.esMockup.store;
+  const find = node => node.objectType === 'StringField' ? node : node.children.map(find).find(Boolean);
+  store.setProperty(find(store.doc.root).id, 'gridDataHints.w', 2);
+});
+await page.waitForTimeout(250);
+const reflowed = await page.evaluate(() => {
+  const fields = [...document.querySelectorAll('.es-canvas-host [data-object-type="StringField"]')];
+  return fields.slice(0, 2).map(el => el.style.gridColumn);
+});
+check('widening a field re-flows its siblings', reflowed[0] === '1 / span 2' && reflowed[1] === '1 / span 1',
+  JSON.stringify(reflowed));
+
+await page.click('.es-toolbar .es-menu-button .es-button:has-text("File")');
+await page.click('.es-dropdown-item:has-text("New: Scout desktop")');
+await page.waitForTimeout(300);
+await page.keyboard.press('Control+g');
+await page.waitForTimeout(300);
+const gridBoxes = await page.locator('.es-grid-box').count();
+const gridBadges = await page.locator('.es-grid-badge').count();
+check('the grid inspector outlines every logical grid', gridBoxes >= 3, `${gridBoxes} boxes`);
+check('every placed widget gets an x/y/w/h badge', gridBadges >= 8, `${gridBadges} badges`);
+const badgeText = await page.locator('.es-grid-badge').first().textContent();
+check('the badge shows the resolved cell', /^\d+,\d+\d*×\d+/.test((badgeText ?? '').replace(/\s/g, '')), badgeText);
+const spanning = await page.evaluate(() => [...document.querySelectorAll('.es-grid-badge')]
+  .map(badge => badge.title).find(title => /w 2, h 3/.test(title)) ?? '');
+check('the badge reports the inherited weight', /weightY 3/.test(spanning), spanning.replace(/\n/g, ' | '));
+await page.keyboard.press('Control+g');
+await page.waitForTimeout(200);
+check('the inspector can be turned off again', (await page.locator('.es-grid-box').count()) === 0);
+
 await page.click('.es-toolbar .es-menu-button .es-button:has-text("File")');
 await page.click('.es-dropdown-item:has-text("New: Scout desktop")');
 await page.waitForTimeout(300);
@@ -443,7 +612,6 @@ const calloutHtml = await page.evaluate(async () => {
 });
 check('a callout keeps its text', calloutHtml === 'Check this field', calloutHtml);
 
-// Dragging a marker moves it in the mockup's own coordinate space.
 const marker = await page.locator('.es-annotation-layer .annotation-marker').boundingBox();
 await page.mouse.move(marker.x + 14, marker.y + 14);
 await page.mouse.down();
@@ -453,7 +621,6 @@ await page.waitForTimeout(150);
 const moved = await page.evaluate(() => window.esMockup.store.doc.annotations[0]);
 check('a callout can be dragged', moved.x === placed[0].x + 80 && moved.y === placed[0].y + 40, JSON.stringify(moved));
 
-// Callouts are review material, so they have to survive an export.
 const annotatedPromise = page.waitForEvent('download');
 await page.click('.es-toolbar .es-menu-button .es-button:has-text("Export")');
 await page.click('.es-dropdown-item:has-text("HTML file")');
@@ -463,7 +630,6 @@ const annotatedHtml = await readFile(annotatedPath, 'utf8');
 check('the HTML export carries the callouts',
   annotatedHtml.includes('annotation-marker') && annotatedHtml.includes('Check this field'));
 
-// --- 14. a share link carries the document in its fragment -----------------
 await page.evaluate(() => window.esMockup.store.updateMeta({name: 'Shared mockup'}));
 const shareUrl = await page.evaluate(() => window.esMockup.shareUrl());
 check('the share link fits in a URL', shareUrl.length < 8000, `${shareUrl.length} characters`);
@@ -484,7 +650,108 @@ check('opening the share link restores the document', sharedName === 'Shared moc
 check('the fragment is dropped after loading', (await shared.evaluate(() => location.hash)) === '');
 await shared.close();
 
-// --- 15. the workspace panels collapse and resize --------------------------
+await page.click('.es-toolbar .es-menu-button .es-button:has-text("File")');
+await page.click('.es-dropdown-item:has-text("New: Scout desktop")');
+await page.waitForTimeout(300);
+
+const focusInfo = () => page.evaluate(() => {
+  const el = document.activeElement;
+  if (!el || el === document.body) return {tag: 'body', cls: '', text: ''};
+  return {
+    tag: el.tagName.toLowerCase(),
+    cls: (el.className || '').toString(),
+    text: (el.textContent || el.value || '').trim().slice(0, 40)
+  };
+});
+
+await page.focus('.es-palette .es-search');
+await page.keyboard.press('ArrowDown');
+let focus = await focusInfo();
+check('ArrowDown from the search box enters the widget list', focus.cls.includes('es-palette-item'), JSON.stringify(focus));
+await page.keyboard.press('ArrowDown');
+await page.keyboard.press('ArrowDown');
+const walked = await focusInfo();
+check('arrows walk the widget list', walked.text !== focus.text, `${focus.text} -> ${walked.text}`);
+const rovingStops = await page.evaluate(() =>
+  [...document.querySelectorAll('.es-palette-item')].filter(item => item.tabIndex === 0).length);
+check('the palette keeps a single tab stop', rovingStops === 1, `${rovingStops} stops`);
+
+const nodesBeforeKey = await page.evaluate(() => {
+  let count = 0;
+  const walk = node => { count++; node.children.forEach(walk); };
+  walk(window.esMockup.store.doc.root);
+  return count;
+});
+await page.keyboard.press('Enter');
+await page.waitForTimeout(250);
+const nodesAfterKey = await page.evaluate(() => {
+  let count = 0;
+  const walk = node => { count++; node.children.forEach(walk); };
+  walk(window.esMockup.store.doc.root);
+  return count;
+});
+check('Enter adds the focused widget', nodesAfterKey === nodesBeforeKey + 1, `${nodesBeforeKey} -> ${nodesAfterKey}`);
+
+await page.evaluate(() => {
+  const store = window.esMockup.store;
+  const form = store.doc.root.children.find(child => child.objectType === 'Form');
+  store.select(form.children[0].children[0].id);
+});
+await page.waitForTimeout(150);
+const navStart = await page.evaluate(() => window.esMockup.store.selectedId);
+await page.keyboard.press('ArrowRight');
+await page.waitForTimeout(150);
+const navSibling = await page.evaluate(() => window.esMockup.store.selectedId);
+check('an arrow moves to the next sibling', navSibling !== navStart, `${navStart} -> ${navSibling}`);
+await page.keyboard.press('ArrowLeft');
+await page.waitForTimeout(150);
+check('the opposite arrow moves back', (await page.evaluate(() => window.esMockup.store.selectedId)) === navStart);
+await page.keyboard.press('ArrowUp');
+await page.waitForTimeout(150);
+const navParent = await page.evaluate(() => {
+  const id = window.esMockup.store.selectedId;
+  const find = node => node.id === id ? node : node.children.map(find).find(Boolean);
+  return find(window.esMockup.store.doc.root)?.objectType;
+});
+check('an arrow up selects the parent', navParent === 'GroupBox', navParent);
+await page.keyboard.press('ArrowDown');
+await page.waitForTimeout(150);
+check('an arrow down steps back into the first child',
+  (await page.evaluate(() => window.esMockup.store.selectedId)) === navStart);
+
+await page.evaluate(() => document.querySelector('.es-structure-row').focus());
+await page.keyboard.press('ArrowDown');
+await page.keyboard.press('ArrowDown');
+await page.keyboard.press('Enter');
+await page.waitForTimeout(200);
+const treeSelected = await page.evaluate(() => {
+  const id = window.esMockup.store.selectedId;
+  const find = node => node.id === id ? node : node.children.map(find).find(Boolean);
+  return find(window.esMockup.store.doc.root)?.objectType;
+});
+check('the structure tree selects with the keyboard', !!treeSelected && treeSelected !== 'Desktop', treeSelected);
+
+await page.evaluate(() => document.querySelector('.es-structure-row').focus());
+await page.keyboard.press('ArrowLeft');
+await page.waitForTimeout(200);
+const collapsedRows = await page.evaluate(() => document.querySelectorAll('.es-structure-row').length);
+check('ArrowLeft collapses a tree node', collapsedRows === 1, `${collapsedRows} rows visible`);
+await page.keyboard.press('ArrowRight');
+await page.waitForTimeout(200);
+
+await page.focus('.es-toolbar .es-button[aria-label="Keyboard shortcuts and help"]');
+await page.keyboard.press('Enter');
+await page.waitForTimeout(250);
+const dialogFocus = await focusInfo();
+check('the dialog takes the focus', dialogFocus.cls.includes('es-modal-close'), JSON.stringify(dialogFocus));
+await page.keyboard.press('Tab');
+const trapped = await page.evaluate(() => !!document.activeElement?.closest('.es-modal'));
+check('Tab stays inside the dialog', trapped);
+await page.keyboard.press('Escape');
+await page.waitForTimeout(200);
+const restored = await focusInfo();
+check('closing the dialog gives the focus back', restored.cls.includes('es-button'), JSON.stringify(restored));
+
 const panelWidth = side => page.evaluate(
   selector => Math.round(document.querySelector(selector)?.getBoundingClientRect().width ?? -1),
   side === 'left' ? '.es-side-left' : '.es-properties'

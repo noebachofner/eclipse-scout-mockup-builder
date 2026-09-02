@@ -1,7 +1,3 @@
-/**
- * Share links. `buildShareUrl` reads `location`, which Node does not have, so
- * a minimal stand-in is installed before the module is loaded.
- */
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {importTs} from './_bundle.mjs';
@@ -47,4 +43,21 @@ test('a truncated link is rejected rather than half loaded', async () => {
   const url = await share.buildShareUrl(templates.defaultDesktopTemplate());
   const hash = new URL(url).hash;
   assert.equal(await share.readShareUrl(hash.slice(0, hash.length - 40)), null);
+});
+
+test('an embedded image is detected before a link is built', async () => {
+  const doc = templates.defaultDesktopTemplate();
+  assert.deepEqual(share.findEmbeddedImages(doc), []);
+
+  doc.root.properties.logoUrl = 'data:image/png;base64,' + 'A'.repeat(4000);
+  const found = share.findEmbeddedImages(doc);
+  assert.equal(found.length, 1);
+  assert.match(found[0].path, /logoUrl/);
+  assert.ok(found[0].bytes > 4000);
+});
+
+test('a plain URL is not mistaken for an embedded image', () => {
+  const doc = templates.defaultDesktopTemplate();
+  doc.root.properties.logoUrl = 'https://example.org/logo.png';
+  assert.deepEqual(share.findEmbeddedImages(doc), []);
 });
