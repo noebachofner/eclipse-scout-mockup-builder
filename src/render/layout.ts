@@ -217,10 +217,12 @@ export function renderLogicalGrid(
     el.style.gridColumn = `${cell.x + 1} / span ${cell.w}`;
     el.style.gridRow = `${cell.y + 1} / span ${cell.h}`;
     if (cell.h > 1) {
-      // Spanning several rows implies a minimum height. Without it the browser
-      // would let a tall widget be squeezed below its logical size, which in a
-      // nested grid shows up as content spilling into the next row.
-      el.style.minHeight = `calc(${cell.h} * ${rowHeight} + ${cell.h - 1} * var(--es-grid-row-gap))`;
+      // Spanning several rows implies a minimum height. It goes on the field
+      // content, not on the grid item: on the item a specified minimum would
+      // *replace* its minimum contribution and stop the track from growing to
+      // fit taller content, on a child it merely raises the item's min-content.
+      const target = el.querySelector<HTMLElement>(':scope > .field') ?? el;
+      target.style.minHeight = `calc(${cell.h} * ${rowHeight} + ${cell.h - 1} * var(--es-grid-row-gap))`;
     }
     if (!ctx.prop<boolean>(cell.node, 'gridDataHints.fillVertical', false)) {
       const valign = read(cell.node, 'gridDataHints.verticalAlignment', -1);

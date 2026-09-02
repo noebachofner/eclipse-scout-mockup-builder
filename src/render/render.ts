@@ -1,20 +1,12 @@
 import type {MockupDocument, MockupNode, PropertyValue} from '../model/types';
 import {getWidget, type RenderContext, type WidgetDef} from '../model/catalog/registry';
 import {append, div, h, span} from './dom';
-import {renderIcon} from './icons';
 
 export interface RenderOptions {
   exportMode?: boolean;
   /** Called for every rendered node so the editor can attach selection handling. */
   onNode?: (el: HTMLElement, node: MockupNode, parent: MockupNode | null, def: WidgetDef | undefined) => void;
 }
-
-const SEVERITY_ICON: Record<string, string> = {
-  error: 'exclamation-mark-circle',
-  warning: 'exclamation-mark-circle',
-  info: 'info',
-  ok: 'checked-bold'
-};
 
 export function createRenderContext(doc: MockupDocument, options: RenderOptions = {}): RenderContext {
   const ctx: RenderContext = {
@@ -136,23 +128,28 @@ export function renderFormField(ctx: RenderContext, node: MockupNode, def: Widge
   }
   root.appendChild(fieldContent);
 
-  const status = div('status');
-  const severityIcon = SEVERITY_ICON[severity];
-  if (statusVisible && !def.ownsLabel && (severityIcon || tooltipText)) {
-    const icon = renderIcon(severityIcon ?? 'info');
-    if (icon) status.appendChild(icon);
-    status.classList.add(severity !== 'none' ? severity : 'tooltip');
-  }
-  root.appendChild(status);
+  // FieldStatus.less: a 24x24 rounded icon box whose glyph and colour come from
+  // the severity, plus the Scout tooltip bubble when the message is shown.
+  const hasMenus = ctx.childrenOf(node, 'menus').length > 0;
+  const status = div('status field-status');
+  const message = ctx.prop<string>(node, 'errorStatusMessage', '');
+  if (statusVisible && !def.ownsLabel && (severity !== 'none' || tooltipText || hasMenus)) {
+    if (severity !== 'none') status.classList.add(`has-${severity}`);
+    else if (tooltipText) status.classList.add('has-tooltip');
+    else status.classList.add('has-menus');
+    root.classList.add('has-status');
 
-  if (severity !== 'none') {
-    const message = ctx.prop<string>(node, 'errorStatusMessage', '');
-    if (message) {
-      const hint = div('field-status-message', message);
-      root.appendChild(hint);
-      root.classList.add('has-status-message');
+    if (ctx.prop<boolean>(node, 'statusTooltipVisible', false)) {
+      const text = message || tooltipText;
+      if (text) {
+        const tooltip = div(`tooltip status-tooltip${severity !== 'none' ? ' ' + severity : ''}`);
+        tooltip.appendChild(div('tooltip-content', text));
+        tooltip.appendChild(div('tooltip-arrow arrow-bottom'));
+        status.appendChild(tooltip);
+      }
     }
   }
+  root.appendChild(status);
 
   applyCommonStyles(ctx, node, root);
   return root;

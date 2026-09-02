@@ -69,7 +69,8 @@ const defs: WidgetDef[] = [
       logoUrl: '',
       displayStyle: 'default',
       navigationInBackground: false,
-      outlineIconId: 'folder'
+      outlineIconId: 'folder',
+      viewButtonDisplayStyle: 'menu'
     },
     props: [
       {name: 'title', label: 'Application title', type: 'string', group: GROUP_CONTENT},
@@ -87,7 +88,19 @@ const defs: WidgetDef[] = [
         {value: 'outlineDetail', label: "Selected outline's detail"}
       ]},
       {name: 'selectedView', label: 'Selected view index', type: 'number', group: GROUP_CONTENT, min: 0, visibleWhen: p => p.benchContent !== 'outlineDetail'},
-      {name: 'outlineIconId', label: 'Outline switcher icon', type: 'icon', group: GROUP_STYLE, description: "Icon of the white outline switcher on the header. Falls back to the selected outline's icon."},
+      {
+        name: 'viewButtonDisplayStyle',
+        label: 'Outline buttons',
+        type: 'enum',
+        group: GROUP_LAYOUT,
+        options: [
+          {value: 'menu', label: 'MENU (icon + switcher)'},
+          {value: 'compact', label: 'COMPACT (switcher only)'},
+          {value: 'tabs', label: 'TABS (one icon per outline, side by side)'}
+        ],
+        description: 'How the outlines are offered at the top left. TABS shows every outline as its own icon button - give each outline an icon to tell them apart.'
+      },
+      {name: 'outlineIconId', label: 'Outline switcher icon', type: 'icon', group: GROUP_STYLE, visibleWhen: p => p.viewButtonDisplayStyle !== 'tabs', description: "Icon of the outline switcher. Falls back to the selected outline's icon."},
       {
         name: 'navigationInBackground',
         label: 'Navigation in background',
@@ -131,32 +144,59 @@ const defs: WidgetDef[] = [
         // button box. `selected` is the state Scout shows while the navigation
         // holds the active outline - the white card on the blue header.
         const viewButtonBox = div('view-button-box');
-        const viewMenuTab = div('view-menu-tab selected');
-        const viewButton = div('view-button');
-        const outlineIcon = renderIcon(
-          (selectedOutline && String(selectedOutline.properties.iconId ?? '')) || ctx.prop<string>(node, 'outlineIconId', 'folder')
-        );
-        if (outlineIcon) viewButton.appendChild(outlineIcon);
-        viewMenuTab.appendChild(viewButton);
-        const viewMenu = div('view-menu');
-        const caret = renderIcon('angle-down');
-        if (caret) viewMenu.appendChild(caret);
-        viewMenuTab.appendChild(viewMenu);
-        viewButtonBox.appendChild(viewMenuTab);
+        const displayStyle = ctx.prop<string>(node, 'viewButtonDisplayStyle', 'menu');
 
-        // Further outlines appear as small buttons next to the switcher.
-        if (outlines.length > 1) {
+        if (displayStyle === 'tabs') {
+          // Every outline gets its own button, side by side - Scout's TAB style
+          // for view buttons.
           const wrapper = div('view-tab-wrapper');
           outlines.forEach((outline, i) => {
-            if (i === selectedOutlineIndex) return;
             const tab = div('view-tab');
-            const icon = renderIcon(String(outline.properties.iconId ?? '') || 'star');
+            if (i === selectedOutlineIndex) tab.classList.add('selected');
+            const icon = renderIcon(String(outline.properties.iconId ?? '') || 'folder');
             if (icon) tab.appendChild(icon);
+            tab.title = String(outline.properties.title ?? '');
             tab.dataset.nodeId = outline.id;
             wrapper.appendChild(tab);
           });
-          if (wrapper.childElementCount) viewButtonBox.appendChild(wrapper);
+          if (!outlines.length) wrapper.appendChild(div('view-tab selected'));
+          viewButtonBox.appendChild(wrapper);
+        } else {
+          // The outline switcher. `selected` is the state Scout shows while the
+          // navigation holds the active outline: a white tab that merges into
+          // the navigation body below it.
+          const viewMenuTab = div('view-menu-tab selected');
+          if (displayStyle === 'compact') viewMenuTab.classList.add('selected-button-invisible');
+          else {
+            const viewButton = div('view-button');
+            const outlineIcon = renderIcon(
+              (selectedOutline && String(selectedOutline.properties.iconId ?? '')) || ctx.prop<string>(node, 'outlineIconId', 'folder')
+            );
+            if (outlineIcon) viewButton.appendChild(outlineIcon);
+            viewMenuTab.appendChild(viewButton);
+          }
+          const viewMenu = div('view-menu');
+          const caret = renderIcon('angle-down');
+          if (caret) viewMenu.appendChild(caret);
+          viewMenuTab.appendChild(viewMenu);
+          viewButtonBox.appendChild(viewMenuTab);
+
+          // Further outlines appear as small buttons next to the switcher.
+          if (outlines.length > 1) {
+            const wrapper = div('view-tab-wrapper');
+            outlines.forEach((outline, i) => {
+              if (i === selectedOutlineIndex) return;
+              const tab = div('view-tab');
+              const icon = renderIcon(String(outline.properties.iconId ?? '') || 'star');
+              if (icon) tab.appendChild(icon);
+              tab.title = String(outline.properties.title ?? '');
+              tab.dataset.nodeId = outline.id;
+              wrapper.appendChild(tab);
+            });
+            if (wrapper.childElementCount) viewButtonBox.appendChild(wrapper);
+          }
         }
+        if (inBackground) viewButtonBox.classList.add('in-background');
         navigation.appendChild(viewButtonBox);
 
         const body = div('navigation-body');

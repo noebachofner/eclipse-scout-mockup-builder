@@ -438,6 +438,8 @@ registerWidgets([
       {name: 'text', label: 'Text', type: 'text', group: GROUP_CONTENT},
       {name: 'severity', label: 'Severity', type: 'enum', group: GROUP_STYLE, options: [
         {value: 'info', label: 'INFO (dark)'},
+        {value: 'ok', label: 'OK'},
+        {value: 'warning', label: 'WARNING'},
         {value: 'error', label: 'ERROR'}
       ]},
       {name: 'arrowPosition', label: 'Arrow position', type: 'enum', group: GROUP_STYLE, options: [
@@ -451,11 +453,11 @@ registerWidgets([
     ],
     slots: [],
     render(ctx, node) {
-      const tooltip = div(`tooltip severity-${ctx.prop<string>(node, 'severity', 'info')} arrow-${ctx.prop<string>(node, 'arrowPosition', 'bottom')}`);
+      const tooltip = div(`tooltip ${ctx.prop<string>(node, 'severity', 'info')}`);
       tooltip.style.left = `${Number(ctx.prop<number>(node, 'bounds.x', 480))}px`;
       tooltip.style.top = `${Number(ctx.prop<number>(node, 'bounds.y', 320))}px`;
       tooltip.appendChild(div('tooltip-content', ctx.prop<string>(node, 'text', '')));
-      tooltip.appendChild(div('tooltip-arrow'));
+      tooltip.appendChild(div(`tooltip-arrow arrow-${ctx.prop<string>(node, 'arrowPosition', 'bottom')}`));
       return tooltip;
     }
   },

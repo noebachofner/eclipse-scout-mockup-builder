@@ -111,26 +111,40 @@
 }
 
 /*
- * The outline switcher. When the navigation holds the active content Scout marks
- * the tab `selected`, which turns it into the white rounded card on the blue
- * header (`.view-menu-tab.selected`) - the look of Scout 22+.
+ * The outline switcher and the outline buttons.
+ *
+ * ViewMenuTab.less / ViewTab.less: while the navigation holds the active
+ * outline the tab is `selected` - a white card that grows into the navigation
+ * body below it, with a concave edge where the white surface curves up into the
+ * tab. When the bench has the focus instead (`in-background`) Scout detaches it
+ * into a floating grey pill.
  */
+.view-button-box {
+  align-items: stretch;
+  padding: 0 0 0 6px;
+}
+
 .view-menu-tab {
   display: flex;
   align-items: stretch;
   flex: none;
   min-width: 0;
-  height: 40px;
+  margin: var(--scout-view-tab-margin-top, 8px) 6px 0 0;
   border-radius: var(--scout-border-radius-medium);
   background-color: var(--scout-view-menu-tab-background-color);
 }
 
-.view-menu-tab > .view-button {
+.view-menu-tab > .view-button,
+.view-menu-tab > .view-menu {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 50px;
   flex: none;
+  cursor: pointer;
+}
+
+.view-menu-tab > .view-button {
+  width: 50px;
   border-top-left-radius: inherit;
   border-bottom-left-radius: inherit;
 }
@@ -141,13 +155,14 @@
 
 .view-menu-tab > .view-menu {
   position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   width: 44px;
-  flex: none;
   border-top-right-radius: inherit;
   border-bottom-right-radius: inherit;
+}
+
+.view-menu-tab.selected-button-invisible > .view-menu {
+  border-radius: inherit;
+  width: 50px;
 }
 
 .view-menu-tab > .view-menu > .font-icon {
@@ -163,11 +178,17 @@
   border-left: 1px solid var(--scout-desktop-header-background-color);
 }
 
+.view-menu-tab.selected-button-invisible > .view-menu::before {
+  display: none;
+}
+
+/* --- selected: merged with the navigation body ---------------------------- */
 .view-menu-tab.selected {
+  position: relative;
   color: var(--scout-accent-color-3);
-  background-color: var(--scout-palette-white);
-  border-top-left-radius: 0;
-  margin-right: 6px;
+  background-color: var(--scout-desktop-navigation-body-background-color);
+  border-radius: var(--scout-border-radius-large) var(--scout-border-radius-large) 0 0;
+  margin: 8px 6px 0 0;
 }
 
 .view-menu-tab.selected > .view-button {
@@ -187,26 +208,68 @@
   border-color: var(--scout-border-color);
 }
 
-/* Additional outlines are shown as small rounded buttons next to the switcher. */
+/*
+ * The concave curve that makes the white surface flow into the tab, ported from
+ * `.view-tab.selected > .edge` - a box with only two borders and a large
+ * radius, so the corner reads as a cut-out rather than a rounded rectangle.
+ */
+.view-menu-tab.selected::after,
+.view-tab.selected::after {
+  content: '';
+  position: absolute;
+  right: -12px;
+  bottom: -5px;
+  width: 12px;
+  height: 12px;
+  box-sizing: content-box;
+  border: 5px solid var(--scout-desktop-navigation-body-background-color);
+  border-top: none;
+  border-right: none;
+  border-bottom-left-radius: 17px;
+  pointer-events: none;
+}
+
+/* --- in background: a detached pill --------------------------------------- */
+.view-button-box.in-background .view-menu-tab.selected,
+.view-button-box.in-background .view-tab.selected {
+  background-color: var(--scout-desktop-navigation-body-in-background-background-color);
+  border-radius: var(--scout-border-radius-large);
+  margin: 12px 6px 12px 0;
+}
+
+.view-button-box.in-background .view-menu-tab.selected::after,
+.view-button-box.in-background .view-tab.selected::after {
+  display: none;
+}
+
+/* --- outline buttons side by side (TABS display style) -------------------- */
 .view-tab-wrapper {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: 4px;
 }
 
 .view-tab {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 40px;
+  width: 50px;
+  margin: 14px 0 6px;
   border-radius: var(--scout-border-radius-medium);
   background-color: var(--scout-view-menu-tab-background-color);
   cursor: pointer;
 }
 
 .view-tab > .font-icon {
-  font-size: 22px;
+  font-size: 24px;
+}
+
+.view-tab.selected {
+  margin: 8px 0 0;
+  border-radius: var(--scout-border-radius-large) var(--scout-border-radius-large) 0 0;
+  background-color: var(--scout-desktop-navigation-body-background-color);
+  color: var(--scout-accent-color-3);
 }
 
 .navigation-body {
@@ -728,10 +791,6 @@
     .logical-grid[data-columns="1"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .mandatory-indicator { grid-row: 2; }
     .logical-grid[data-columns="1"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .field { grid-column: 2; grid-row: 2; }
     .logical-grid[data-columns="1"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .status { grid-column: 3; grid-row: 2; }
-    .logical-grid[data-columns="1"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .field-status-message { grid-column: 2; grid-row: 3; }
-    .logical-grid[data-columns="1"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label).has-status-message {
-    grid-template-rows: max-content minmax(var(--es-grid-row-height), auto) max-content;
-  }
 }
 
 @container es-grid (max-width: 869px) {
@@ -753,10 +812,6 @@
     .logical-grid[data-columns="2"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .mandatory-indicator { grid-row: 2; }
     .logical-grid[data-columns="2"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .field { grid-column: 2; grid-row: 2; }
     .logical-grid[data-columns="2"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .status { grid-column: 3; grid-row: 2; }
-    .logical-grid[data-columns="2"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .field-status-message { grid-column: 2; grid-row: 3; }
-    .logical-grid[data-columns="2"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label).has-status-message {
-    grid-template-rows: max-content minmax(var(--es-grid-row-height), auto) max-content;
-  }
 }
 
 @container es-grid (max-width: 1319px) {
@@ -778,10 +833,6 @@
     .logical-grid[data-columns="3"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .mandatory-indicator { grid-row: 2; }
     .logical-grid[data-columns="3"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .field { grid-column: 2; grid-row: 2; }
     .logical-grid[data-columns="3"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .status { grid-column: 3; grid-row: 2; }
-    .logical-grid[data-columns="3"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .field-status-message { grid-column: 2; grid-row: 3; }
-    .logical-grid[data-columns="3"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label).has-status-message {
-    grid-template-rows: max-content minmax(var(--es-grid-row-height), auto) max-content;
-  }
 }
 
 @container es-grid (max-width: 1769px) {
@@ -803,10 +854,6 @@
     .logical-grid[data-columns="4"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .mandatory-indicator { grid-row: 2; }
     .logical-grid[data-columns="4"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .field { grid-column: 2; grid-row: 2; }
     .logical-grid[data-columns="4"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .status { grid-column: 3; grid-row: 2; }
-    .logical-grid[data-columns="4"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .field-status-message { grid-column: 2; grid-row: 3; }
-    .logical-grid[data-columns="4"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label).has-status-message {
-    grid-template-rows: max-content minmax(var(--es-grid-row-height), auto) max-content;
-  }
 }
 
 @container es-grid (max-width: 2219px) {
@@ -828,10 +875,6 @@
     .logical-grid[data-columns="5"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .mandatory-indicator { grid-row: 2; }
     .logical-grid[data-columns="5"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .field { grid-column: 2; grid-row: 2; }
     .logical-grid[data-columns="5"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .status { grid-column: 3; grid-row: 2; }
-    .logical-grid[data-columns="5"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .field-status-message { grid-column: 2; grid-row: 3; }
-    .logical-grid[data-columns="5"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label).has-status-message {
-    grid-template-rows: max-content minmax(var(--es-grid-row-height), auto) max-content;
-  }
 }
 
 @container es-grid (max-width: 2669px) {
@@ -853,10 +896,6 @@
     .logical-grid[data-columns="6"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .mandatory-indicator { grid-row: 2; }
     .logical-grid[data-columns="6"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .field { grid-column: 2; grid-row: 2; }
     .logical-grid[data-columns="6"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .status { grid-column: 3; grid-row: 2; }
-    .logical-grid[data-columns="6"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label) > .field-status-message { grid-column: 2; grid-row: 3; }
-    .logical-grid[data-columns="6"] > .form-field.label-position-default:not(.label-hidden):not(.owns-label).has-status-message {
-    grid-template-rows: max-content minmax(var(--es-grid-row-height), auto) max-content;
-  }
 }
 
 /* Turned off per document via the "Responsive labels" setting ... */
@@ -904,9 +943,12 @@
   position: relative;
   display: grid;
   grid-template-columns: var(--scout-mandatory-indicator-width) var(--es-label-width) minmax(0, 1fr) auto;
+  /* The row keeps the logical grid row height as a floor. A `min-height` on the
+     element itself must NOT be used: on a grid item a specified minimum becomes
+     its minimum contribution, which stops the surrounding track from growing to
+     fit taller content. */
   grid-template-rows: minmax(var(--es-grid-row-height), auto);
   align-items: start;
-  min-height: var(--es-grid-row-height);
   min-width: 0;
 }
 
@@ -953,21 +995,60 @@
   align-self: stretch;
 }
 
+/*
+ * FieldStatus.less: the status is a 24x24 rounded box whose glyph and colour
+ * come from the severity. `--icon` / `--color` mirror the upstream variables.
+ */
 .form-field > .status {
+  position: relative;
   grid-column: 4;
   grid-row: 1;
-  width: var(--scout-field-status-size);
   height: var(--scout-field-status-size);
   margin-left: var(--scout-field-status-margin-left);
   display: flex;
   align-items: center;
-  justify-content: center;
-  font-size: var(--scout-font-size-icon);
+  --icon: '\E002';
+  --color: var(--scout-palette-gray-6-1);
 }
 
-.form-field > .status:empty {
+.form-field > .status:not([class*="has-"]) {
   width: 0;
   margin-left: 0;
+}
+
+.form-field > .status[class*="has-"]::before {
+  content: var(--icon);
+  font-family: scoutIcons, Arial, sans-serif;
+  font-weight: normal;
+  font-style: normal;
+  speak: none;
+  -webkit-font-smoothing: antialiased;
+  color: var(--color);
+  font-size: var(--scout-font-size-icon);
+  width: var(--scout-field-status-size);
+  height: var(--scout-field-status-size);
+  border-radius: var(--scout-border-radius);
+  background-color: var(--scout-hover-background-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* The message bubble Scout opens from the status icon. */
+.status-tooltip {
+  position: absolute;
+  right: -6px;
+  bottom: calc(100% + 9px);
+  z-index: 20;
+  width: max-content;
+  max-width: 300px;
+  text-align: left;
+}
+
+.status-tooltip > .tooltip-arrow {
+  left: auto;
+  right: 12px;
+  transform: translate(0, 50%) rotate(45deg);
 }
 
 /* FormField.StatusPosition.TOP puts the status next to the label instead. */
@@ -1007,11 +1088,12 @@
   100% { transform: scale(1.2); opacity: 0; }
 }
 
-.form-field > .status.error { color: var(--scout-error-color); }
-.form-field > .status.warning { color: var(--scout-warning-color); }
-.form-field > .status.info { color: var(--scout-info-color); }
-.form-field > .status.ok { color: var(--scout-ok-color); }
-.form-field > .status.tooltip { color: var(--scout-text-field-icon-color); }
+.form-field > .status.has-menus { --icon: '\E041'; --color: var(--scout-text-color-2); }
+.form-field > .status.has-tooltip { --icon: '\E002'; --color: var(--scout-palette-gray-6-1); }
+.form-field > .status.has-ok { --icon: '\E002'; --color: var(--scout-ok-color); }
+.form-field > .status.has-info { --icon: '\E002'; --color: var(--scout-info-color); }
+.form-field > .status.has-warning { --icon: '\E001'; --color: var(--scout-warning-color); }
+.form-field > .status.has-error { --icon: '\E001'; --color: var(--scout-error-color); }
 
 .form-field.label-hidden > .label,
 .form-field.label-hidden > .label-with-sub {
@@ -1095,21 +1177,6 @@
 .form-field.has-error > .label { color: var(--scout-error-color); }
 .form-field.disabled > .label { color: var(--scout-label-disabled-color); }
 
-.field-status-message {
-  grid-column: 3;
-  grid-row: 2;
-  font-size: var(--scout-font-size-small);
-  padding-top: 3px;
-  color: var(--scout-error-color);
-}
-
-.form-field.has-warning .field-status-message { color: var(--scout-warning-color); }
-.form-field.has-info .field-status-message { color: var(--scout-info-color); }
-.form-field.has-ok .field-status-message { color: var(--scout-ok-color); }
-
-.form-field.has-status-message {
-  grid-template-rows: minmax(var(--es-grid-row-height), auto) auto;
-}
 
 /* --- Inputs -------------------------------------------------------------- */
 .field-container {
@@ -2757,13 +2824,22 @@
 .chart.legend-bottom { flex-direction: column; align-items: stretch; }
 
 .chart-plot {
+  position: relative;
   flex: 1 1 auto;
+  align-self: stretch;
   min-width: 0;
-  min-height: 0;
-  height: 100%;
+  /* Floor for the case where the surrounding height cannot be resolved. */
+  min-height: 160px;
 }
 
+/*
+ * Absolutely positioned: an in-flow <svg> without a resolvable height falls
+ * back to the aspect ratio of its viewBox, which at full width makes the chart
+ * hundreds of pixels tall and pushes it over the widgets around it.
+ */
 .chart-svg {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   display: block;
@@ -2876,57 +2952,46 @@
   border-bottom: 2px solid var(--scout-palette-gray-5);
 }
 
+/* Tooltip.less - the arrow is a rotated square of the same colour. */
 .tooltip {
   position: absolute;
   pointer-events: auto;
   max-width: 300px;
-  padding: 8px 12px;
   border-radius: var(--scout-border-radius);
-  background-color: var(--scout-tooltip-background-color, var(--scout-palette-gray-9));
-  color: var(--scout-palette-white);
+  border: 0 solid var(--scout-tooltip-border-color);
+  background-color: var(--scout-tooltip-info-background-color);
+  color: var(--scout-tooltip-info-color);
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
   white-space: normal;
 }
 
-.tooltip.severity-error {
-  background-color: var(--scout-error-color);
+.tooltip.ok { background-color: var(--scout-tooltip-ok-background-color); }
+.tooltip.info { background-color: var(--scout-tooltip-info-background-color); }
+.tooltip.warning { background-color: var(--scout-tooltip-warning-background-color); }
+.tooltip.error { background-color: var(--scout-tooltip-error-background-color); }
+
+.tooltip-content {
+  position: relative;
+  min-width: 60px;
+  padding: 8px 12px;
+  border-radius: inherit;
+  background-color: inherit;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .tooltip-arrow {
   position: absolute;
-  width: 0;
-  height: 0;
-  border: 7px solid transparent;
+  width: 7px;
+  height: 7px;
+  background-color: inherit;
+  border: inherit;
 }
 
-.tooltip.arrow-bottom .tooltip-arrow {
-  bottom: -14px;
-  left: 16px;
-  border-top-color: var(--scout-tooltip-background-color, var(--scout-palette-gray-9));
-}
-
-.tooltip.arrow-top .tooltip-arrow {
-  top: -14px;
-  left: 16px;
-  border-bottom-color: var(--scout-tooltip-background-color, var(--scout-palette-gray-9));
-}
-
-.tooltip.arrow-left .tooltip-arrow {
-  left: -14px;
-  top: 12px;
-  border-right-color: var(--scout-tooltip-background-color, var(--scout-palette-gray-9));
-}
-
-.tooltip.arrow-right .tooltip-arrow {
-  right: -14px;
-  top: 12px;
-  border-left-color: var(--scout-tooltip-background-color, var(--scout-palette-gray-9));
-}
-
-.tooltip.severity-error.arrow-bottom .tooltip-arrow { border-top-color: var(--scout-error-color); }
-.tooltip.severity-error.arrow-top .tooltip-arrow { border-bottom-color: var(--scout-error-color); }
-.tooltip.severity-error.arrow-left .tooltip-arrow { border-right-color: var(--scout-error-color); }
-.tooltip.severity-error.arrow-right .tooltip-arrow { border-left-color: var(--scout-error-color); }
+.tooltip-arrow.arrow-bottom { bottom: 0; left: 50%; transform: translate(-50%, 50%) rotate(45deg); }
+.tooltip-arrow.arrow-top { top: 0; left: 50%; transform: translate(-50%, -50%) rotate(45deg); }
+.tooltip-arrow.arrow-left { left: 0; top: 50%; transform: translate(-50%, -50%) rotate(45deg); }
+.tooltip-arrow.arrow-right { right: 0; top: 50%; transform: translate(50%, -50%) rotate(45deg); }
 
 .heatmap-field-box {
   height: 100%;

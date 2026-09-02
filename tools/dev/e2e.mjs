@@ -384,13 +384,69 @@ const overlapProbe = async () => page.evaluate(() => {
 await page.click('.es-toolbar .es-menu-button .es-button:has-text("File")');
 await page.click('.es-dropdown-item:has-text("Widget gallery")');
 await page.waitForTimeout(400);
+// Intersecting boxes are only half the story: a widget whose *content* is
+// taller than the box it was given spills over the widget below it without the
+// two rectangles ever crossing. That is how the chart used to overlap the form.
+const overflowProbe = async () => page.evaluate(() => {
+  const found = new Set();
+  document.querySelectorAll('.es-canvas-host .logical-grid, .es-canvas-host .group-box-body').forEach(box => {
+    if (getComputedStyle(box).overflowY !== 'visible') return;
+    if (box.scrollHeight > box.clientHeight + 1) {
+      found.add(`${box.className} overflows by ${box.scrollHeight - box.clientHeight}px`);
+    }
+  });
+  return [...found];
+});
+
 const overlapReport = [];
+const overflowReport = [];
 for (const view of [0, 1, 2, 3, 4]) {
   await page.evaluate(v => window.esMockup.store.setProperty(window.esMockup.store.doc.root.id, 'selectedView', v), view);
   await page.waitForTimeout(250);
   overlapReport.push(...(await overlapProbe()));
+  overflowReport.push(...(await overflowProbe()));
 }
 check('no widget overlaps another in the logical grid', overlapReport.length === 0, overlapReport.join('; '));
+check('no widget content overflows its box', overflowReport.length === 0, overflowReport.join('; '));
+
+// --- 13. the workspace panels collapse and resize --------------------------
+const panelWidth = side => page.evaluate(
+  selector => Math.round(document.querySelector(selector)?.getBoundingClientRect().width ?? -1),
+  side === 'left' ? '.es-side-left' : '.es-properties'
+);
+
+const leftBefore = await panelWidth('left');
+await page.keyboard.press('[');
+await page.waitForTimeout(120);
+const leftCollapsed = await page.isHidden('.es-side-left');
+const railVisible = await page.isVisible('.es-splitter-left.collapsed .es-splitter-label');
+check('“[” collapses the element palette into a rail', leftCollapsed && railVisible);
+
+await page.click('.es-splitter-left .es-splitter-grip');
+await page.waitForTimeout(120);
+check('the rail grip brings the palette back', (await panelWidth('left')) === leftBefore, `${await panelWidth('left')} vs ${leftBefore}`);
+
+await page.keyboard.press(']');
+await page.waitForTimeout(120);
+check('“]” collapses the property panel', await page.isHidden('.es-properties'));
+await page.keyboard.press(']');
+await page.waitForTimeout(120);
+
+const splitter = await page.locator('.es-splitter-left').boundingBox();
+await page.mouse.move(splitter.x + splitter.width / 2, splitter.y + splitter.height / 2);
+await page.mouse.down();
+await page.mouse.move(splitter.x + splitter.width / 2 + 60, splitter.y + splitter.height / 2, {steps: 6});
+await page.mouse.up();
+await page.waitForTimeout(120);
+const leftDragged = await panelWidth('left');
+check('dragging the splitter resizes the palette', leftDragged === leftBefore + 60, `${leftBefore} -> ${leftDragged}`);
+
+const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('es-mockup.layout.v1') ?? '{}'));
+check('the panel width is persisted', stored.leftWidth === leftDragged, JSON.stringify(stored));
+
+await page.dblclick('.es-splitter-left', {position: {x: 2, y: 120}});
+await page.waitForTimeout(120);
+check('double clicking the splitter restores the default width', (await panelWidth('left')) === leftBefore, String(await panelWidth('left')));
 
 await page.screenshot({path: join(outDir, 'editor.png')});
 await writeFile(join(outDir, 'result.json'), JSON.stringify(checks, null, 2));
