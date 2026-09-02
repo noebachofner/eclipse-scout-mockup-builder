@@ -13,11 +13,14 @@
     "scout:tokens": "node tools/extract-scout-tokens.mjs .scout/package src/styles/scout-tokens.generated.css",
     "scout:icons": "node tools/extract-scout-icons.mjs .scout/package src/model/scoutIcons.generated.ts",
     "scout:colors": "node tools/extract-scout-colors.mjs .scout/package src/model/scoutColors.generated.ts",
-    "test": "node tools/verify-colors.mjs",
+    "test": "node tools/verify-colors.mjs && npm run test:unit",
     "e2e": "node tools/dev/e2e.mjs e2e-out",
     "gallery": "node tools/dev/gallery.mjs gallery",
     "screenshot": "node tools/dev/screenshot.mjs screenshot.png",
-    "verify": "npm run typecheck && npm test && npm run build && npm run e2e"
+    "verify": "npm run typecheck && npm test && npm run build && npm run e2e && npm run visual",
+    "test:unit": "node --test \"tools/test/*.test.mjs\"",
+    "visual": "node tools/dev/visual.mjs",
+    "visual:update": "node tools/dev/visual.mjs --update"
   },
   "devDependencies": {
     "less": "^4.2.0",
