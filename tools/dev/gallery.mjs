@@ -42,7 +42,7 @@ await page.reload({waitUntil: 'networkidle'});
 await page.waitForSelector('.es-canvas-host .desktop');
 
 // Switch to the gallery template through the New menu, like a user would.
-await page.click('.es-menu-button .es-button');
+await page.click('.es-toolbar .es-menu-button .es-button:has-text("File")');
 await page.click('.es-dropdown-item:has-text("Widget gallery")');
 await page.waitForTimeout(300);
 

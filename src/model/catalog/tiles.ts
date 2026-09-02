@@ -116,6 +116,46 @@ const defs: WidgetDef[] = [
     }
   },
   {
+    objectType: 'TileAccordion',
+    label: 'Tile accordion',
+    category: 'Tiles & Layout',
+    icon: 'group-plus',
+    description: 'Tiles grouped into collapsible sections - the TileAccordionField of the widgets demo.',
+    jsClass: 'TileAccordionField',
+    isFormField: true,
+    defaults: formFieldDefaults({
+      label: 'Tiles',
+      labelVisible: false,
+      'gridDataHints.w': 2,
+      'gridDataHints.h': 8,
+      gridColumnCount: 4,
+      exclusiveExpand: false,
+      selectable: false
+    }),
+    props: formFieldProps(
+      {name: 'gridColumnCount', label: 'Tile columns', type: 'number', group: GROUP_LAYOUT, min: 1, max: 8},
+      {name: 'exclusiveExpand', label: 'Exclusive expand', type: 'boolean', group: GROUP_CONTENT},
+      {name: 'selectable', label: 'Selectable', type: 'boolean', group: GROUP_CONTENT}
+    ),
+    slots: [{name: 'groups', label: 'Groups', accepts: ['Group'], layout: 'stack'}],
+    defaultGridH: 8,
+    render(ctx, node) {
+      const accordion = div('accordion tile-accordion');
+      const groups = ctx.childrenOf(node, 'groups');
+      groups.forEach(group => {
+        // The columns of the accordion win over the ones of a single group.
+        const el = ctx.renderNode(group, node);
+        const grid = el.querySelector<HTMLElement>('.tile-grid');
+        if (grid) {
+          grid.style.gridTemplateColumns = `repeat(${Math.max(1, Number(ctx.prop<number>(node, 'gridColumnCount', 4)))}, minmax(0, 1fr))`;
+        }
+        accordion.appendChild(el);
+      });
+      if (!groups.length) accordion.classList.add('empty-container');
+      return accordion;
+    }
+  },
+  {
     objectType: 'Accordion',
     label: 'Accordion',
     category: 'Tiles & Layout',
@@ -153,7 +193,10 @@ const defs: WidgetDef[] = [
       {name: 'collapsed', label: 'Collapsed', type: 'boolean', group: GROUP_CONTENT},
       {name: 'gridColumnCount', label: 'Grid column count', type: 'number', group: GROUP_LAYOUT, min: 1, max: 8}
     ],
-    slots: [{name: 'fields', label: 'Body', accepts: ['*'], layout: 'grid'}],
+    slots: [
+      {name: 'fields', label: 'Body', accepts: ['*'], layout: 'grid'},
+      {name: 'tiles', label: 'Tiles', accepts: ['Tile', 'FormFieldTile'], layout: 'grid'}
+    ],
     render(ctx, node) {
       const group = div('group');
       const collapsed = ctx.prop<boolean>(node, 'collapsed', false);
@@ -168,7 +211,20 @@ const defs: WidgetDef[] = [
       if (sub) titles.appendChild(span('group-sub-title', sub));
       header.appendChild(titles);
       group.appendChild(header);
-      if (!collapsed) group.appendChild(renderBody(ctx, node, div('group-body')));
+      if (!collapsed) {
+        // A Scout group body is either a logical grid of fields or a tile grid.
+        const tiles = ctx.childrenOf(node, 'tiles');
+        if (tiles.length) {
+          const grid = div('tile-grid');
+          grid.style.gridTemplateColumns = `repeat(${Math.max(1, Number(ctx.prop<number>(node, 'gridColumnCount', 4)))}, minmax(0, 1fr))`;
+          tiles.forEach(tile => grid.appendChild(ctx.renderNode(tile, node)));
+          const body = div('group-body');
+          body.appendChild(grid);
+          group.appendChild(body);
+        } else {
+          group.appendChild(renderBody(ctx, node, div('group-body')));
+        }
+      }
       return group;
     }
   },

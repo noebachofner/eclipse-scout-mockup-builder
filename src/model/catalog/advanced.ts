@@ -347,3 +347,177 @@ const defs: WidgetDef[] = [
 ];
 
 registerWidgets(defs);
+
+/*
+ * Widgets the official demo apps show that are not part of the core form field
+ * hierarchy: floating popups and tooltips, and the heat map from
+ * `org.eclipse.scout.widgets.heatmap`.
+ */
+registerWidgets([
+  {
+    objectType: 'Popup',
+    label: 'Popup',
+    category: 'Advanced',
+    icon: 'file',
+    description: 'Floating panel anchored somewhere on the desktop. Unlike a dialog it does not dim the background.',
+    jsClass: 'WidgetPopup',
+    isFormField: false,
+    defaults: {
+      ...WIDGET_DEFAULTS,
+      title: 'Popup',
+      content: 'Any widget can be placed inside a popup.',
+      closable: true,
+      movable: false,
+      resizable: false,
+      'bounds.x': 420,
+      'bounds.y': 220,
+      'bounds.width': 320,
+      'bounds.height': 160
+    },
+    props: [
+      ...WIDGET_PROPS,
+      {name: 'title', label: 'Title', type: 'string', group: GROUP_CONTENT},
+      {name: 'content', label: 'Content', type: 'text', group: GROUP_CONTENT},
+      {name: 'closable', label: 'Closable', type: 'boolean', group: GROUP_CONTENT},
+      {name: 'movable', label: 'Movable', type: 'boolean', group: GROUP_CONTENT},
+      {name: 'resizable', label: 'Resizable', type: 'boolean', group: GROUP_CONTENT},
+      {name: 'bounds.x', label: 'X (px)', type: 'number', group: GROUP_STYLE},
+      {name: 'bounds.y', label: 'Y (px)', type: 'number', group: GROUP_STYLE},
+      {name: 'bounds.width', label: 'Width (px)', type: 'number', group: GROUP_STYLE, min: 80},
+      {name: 'bounds.height', label: 'Height (px)', type: 'number', group: GROUP_STYLE, min: 40}
+    ],
+    slots: [{name: 'fields', label: 'Content widgets', accepts: ['*'], layout: 'grid'}],
+    render(ctx, node) {
+      const popup = div('widget-popup');
+      popup.style.left = `${Number(ctx.prop<number>(node, 'bounds.x', 420))}px`;
+      popup.style.top = `${Number(ctx.prop<number>(node, 'bounds.y', 220))}px`;
+      popup.style.width = `${Number(ctx.prop<number>(node, 'bounds.width', 320))}px`;
+      popup.style.height = `${Number(ctx.prop<number>(node, 'bounds.height', 160))}px`;
+
+      const title = ctx.prop<string>(node, 'title', '');
+      if (title || ctx.prop<boolean>(node, 'closable', true)) {
+        const header = div('widget-popup-header');
+        header.appendChild(span('widget-popup-title', title));
+        if (ctx.prop<boolean>(node, 'closable', true)) {
+          const closer = renderIcon('remove', 'closer');
+          if (closer) header.appendChild(closer);
+        }
+        popup.appendChild(header);
+      }
+
+      const body = div('widget-popup-body');
+      const children = ctx.childrenOf(node, 'fields');
+      if (children.length) {
+        children.forEach(child => body.appendChild(ctx.renderNode(child, node)));
+      } else {
+        body.appendChild(div('widget-popup-content', ctx.prop<string>(node, 'content', '')));
+      }
+      popup.appendChild(body);
+      if (ctx.prop<boolean>(node, 'resizable', false)) popup.appendChild(div('widget-popup-resize-handle'));
+      return popup;
+    }
+  },
+  {
+    objectType: 'Tooltip',
+    label: 'Tooltip',
+    category: 'Advanced',
+    icon: 'info',
+    description: 'Small dark bubble with a pointer, used for hints and field messages.',
+    jsClass: 'Tooltip',
+    isFormField: false,
+    defaults: {
+      ...WIDGET_DEFAULTS,
+      text: 'This is a tooltip.',
+      severity: 'info',
+      arrowPosition: 'bottom',
+      'bounds.x': 480,
+      'bounds.y': 320
+    },
+    props: [
+      ...WIDGET_PROPS,
+      {name: 'text', label: 'Text', type: 'text', group: GROUP_CONTENT},
+      {name: 'severity', label: 'Severity', type: 'enum', group: GROUP_STYLE, options: [
+        {value: 'info', label: 'INFO (dark)'},
+        {value: 'error', label: 'ERROR'}
+      ]},
+      {name: 'arrowPosition', label: 'Arrow position', type: 'enum', group: GROUP_STYLE, options: [
+        {value: 'bottom', label: 'BOTTOM'},
+        {value: 'top', label: 'TOP'},
+        {value: 'left', label: 'LEFT'},
+        {value: 'right', label: 'RIGHT'}
+      ]},
+      {name: 'bounds.x', label: 'X (px)', type: 'number', group: GROUP_STYLE},
+      {name: 'bounds.y', label: 'Y (px)', type: 'number', group: GROUP_STYLE}
+    ],
+    slots: [],
+    render(ctx, node) {
+      const tooltip = div(`tooltip severity-${ctx.prop<string>(node, 'severity', 'info')} arrow-${ctx.prop<string>(node, 'arrowPosition', 'bottom')}`);
+      tooltip.style.left = `${Number(ctx.prop<number>(node, 'bounds.x', 480))}px`;
+      tooltip.style.top = `${Number(ctx.prop<number>(node, 'bounds.y', 320))}px`;
+      tooltip.appendChild(div('tooltip-content', ctx.prop<string>(node, 'text', '')));
+      tooltip.appendChild(div('tooltip-arrow'));
+      return tooltip;
+    }
+  },
+  {
+    objectType: 'HeatmapField',
+    label: 'Heatmap field',
+    category: 'Advanced',
+    icon: 'world',
+    description: 'Map with heat points, from the widgets demo module org.eclipse.scout.widgets.heatmap.',
+    javaClass: 'org.eclipse.scout.widgets.heatmap.client.ui.form.fields.AbstractHeatmapField',
+    jsClass: 'HeatmapField',
+    isFormField: true,
+    defaults: formFieldDefaults({
+      label: 'Heatmap',
+      labelVisible: false,
+      'gridDataHints.w': 2,
+      'gridDataHints.h': 8,
+      zoomLevel: 6,
+      centerLatitude: 49.42527,
+      centerLongitude: 6.97632,
+      heatPoints: '30, 22, 0.9\n52, 34, 1\n68, 58, 0.8\n44, 70, 0.6',
+      attribution: 'Leaflet | © OpenStreetMap contributors'
+    }),
+    props: formFieldProps(
+      {name: 'centerLatitude', label: 'Center latitude', type: 'number', group: GROUP_CONTENT, step: 0.00001},
+      {name: 'centerLongitude', label: 'Center longitude', type: 'number', group: GROUP_CONTENT, step: 0.00001},
+      {name: 'zoomLevel', label: 'Zoom level', type: 'number', group: GROUP_CONTENT, min: 1, max: 19},
+      {
+        name: 'heatPoints',
+        label: 'Heat points (x%, y%, intensity)',
+        type: 'lines',
+        group: GROUP_CONTENT,
+        description: 'Position in percent of the map area, intensity between 0 and 1.'
+      },
+      {name: 'attribution', label: 'Attribution', type: 'string', group: GROUP_STYLE}
+    ),
+    slots: [],
+    defaultGridH: 8,
+    render(ctx, node) {
+      const root = div('heatmap-field-box');
+      const map = div('heatmap-map');
+      // A stylised map: the mockup must not fetch real tiles.
+      map.appendChild(div('heatmap-tiles'));
+      for (const line of lines(ctx.prop<string>(node, 'heatPoints', ''), [])) {
+        const [x, y, intensity] = line.split(',').map(part => Number(part.trim()));
+        if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+        const point = div('heat-point');
+        point.style.left = `${x}%`;
+        point.style.top = `${y}%`;
+        const strength = Number.isFinite(intensity) ? Math.min(1, Math.max(0.1, intensity)) : 0.8;
+        point.style.setProperty('--heat', String(strength));
+        point.style.width = `${60 + strength * 60}px`;
+        point.style.height = `${60 + strength * 60}px`;
+        map.appendChild(point);
+      }
+      const zoom = div('heatmap-zoom');
+      zoom.appendChild(div('heatmap-zoom-button', '+'));
+      zoom.appendChild(div('heatmap-zoom-button', '−'));
+      map.appendChild(zoom);
+      map.appendChild(div('heatmap-attribution', ctx.prop<string>(node, 'attribution', '')));
+      root.appendChild(map);
+      return root;
+    }
+  }
+]);

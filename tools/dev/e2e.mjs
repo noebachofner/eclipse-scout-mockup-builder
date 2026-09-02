@@ -177,8 +177,10 @@ const roundTrip = await page.evaluate(() => {
 });
 check('document serializes to the .esmockup format', roundTrip.ok, `${roundTrip.size} bytes`);
 
+// The file commands live in the File menu now.
 const savePromise = page.waitForEvent('download');
-await page.click('.es-toolbar .es-button:text-is("Save")');
+await page.click('.es-toolbar .es-menu-button .es-button:has-text("File")');
+await page.click('.es-dropdown-item:has-text("Save")');
 const saved = await savePromise;
 const savedPath = join(outDir, 'roundtrip.esmockup');
 await saved.saveAs(savedPath);
@@ -193,7 +195,8 @@ const savedName = await page.evaluate(() => {
 check('meta edit applied before reload', savedName === 'Round trip probe');
 
 const chooserPromise = page.waitForEvent('filechooser');
-await page.click('.es-toolbar .es-button:text-is("Open…")');
+await page.click('.es-toolbar .es-menu-button .es-button:has-text("File")');
+await page.click('.es-dropdown-item:has-text("Open…")');
 const chooser = await chooserPromise;
 await chooser.setFiles(savedPath);
 await page.waitForTimeout(400);
@@ -212,7 +215,8 @@ check('open restores the full widget tree', loaded.nodes === after + 1, `${loade
 const badPath = join(outDir, 'not-a-mockup.json');
 await writeFile(badPath, JSON.stringify({hello: 'world'}));
 const badChooserPromise = page.waitForEvent('filechooser');
-await page.click('.es-toolbar .es-button:text-is("Open…")');
+await page.click('.es-toolbar .es-menu-button .es-button:has-text("File")');
+await page.click('.es-dropdown-item:has-text("Open…")');
 (await badChooserPromise).setFiles(badPath);
 await page.waitForTimeout(400);
 check('a foreign JSON file is rejected with a message',
@@ -221,7 +225,7 @@ check('a foreign JSON file is rejected with a message',
 
 // --- 8. HTML export ------------------------------------------------------
 const htmlPromise = page.waitForEvent('download');
-await page.click('.es-toolbar .es-menu-button:has-text("Export") .es-button');
+await page.click('.es-toolbar .es-menu-button .es-button:has-text("Export")');
 await page.click('.es-dropdown-item:has-text("HTML file")');
 const htmlDownload = await htmlPromise;
 const htmlPath = join(outDir, 'export.html');
@@ -247,14 +251,146 @@ await exportPage.close();
 
 // --- 9. PNG export -------------------------------------------------------
 const pngPromise = page.waitForEvent('download', {timeout: 30000});
-await page.click('.es-toolbar .es-menu-button:has-text("Export") .es-button');
-await page.click('.es-dropdown-item:has-text("PNG image (1")');
+await page.click('.es-toolbar .es-menu-button .es-button:has-text("Export")');
+await page.click('.es-dropdown-item:has-text("PNG image, 1")');
 const pngDownload = await pngPromise;
 const pngPath = join(outDir, 'export-canvas.png');
 await pngDownload.saveAs(pngPath);
 const png = await readFile(pngPath);
 check('PNG export produces a PNG', png.length > 5000 && png[0] === 0x89 && png[1] === 0x50,
   `${Math.round(png.length / 1024)} KB`);
+
+// --- 10. editor usability -------------------------------------------------
+await page.keyboard.press('Escape');
+await page.keyboard.press('Shift+Slash');
+await page.waitForTimeout(200);
+check('“?” opens the shortcut help', (await page.locator('.es-modal:has-text("Keyboard shortcuts")').count()) === 1);
+await page.keyboard.press('Escape');
+await page.waitForTimeout(150);
+check('Escape closes the shortcut help', (await page.locator('.es-modal-backdrop').count()) === 0);
+
+await page.keyboard.press('Slash');
+await page.waitForTimeout(150);
+check('“/” focuses the widget search',
+  await page.evaluate(() => document.activeElement?.classList.contains('es-search') === true));
+await page.keyboard.press('Escape');
+
+const groupsBefore = await page.locator('.es-palette-group').count();
+await page.click('.es-palette-group-title:has-text("Value fields")');
+await page.waitForTimeout(150);
+check('palette categories collapse',
+  (await page.locator('.es-palette-group:has(.es-palette-group-title:has-text("Value fields")) .es-palette-item').count()) === 0
+  && (await page.locator('.es-palette-group').count()) === groupsBefore);
+await page.click('.es-palette-group-title:has-text("Value fields")');
+
+await page.click('.es-structure-row:has-text("First name")');
+await page.waitForTimeout(150);
+await page.fill('.es-property-filter .es-search', 'label');
+await page.waitForTimeout(200);
+const filtered = await page.$$eval('.es-property-row .es-property-label', els => els.map(e => e.textContent));
+check('property filter narrows the list',
+  filtered.length > 0 && filtered.every(label => /label/i.test(label ?? '')), filtered.join(', '));
+await page.fill('.es-property-filter .es-search', '');
+
+await page.click('.es-structure-row:has-text("Last name")', {button: 'right'});
+await page.waitForTimeout(200);
+check('structure tree has a context menu', (await page.locator('.es-context-menu').count()) === 1);
+const nodesBeforeDuplicate = await countNodes();
+await page.click('.es-context-menu-item:has-text("Duplicate")');
+await page.waitForTimeout(200);
+check('context menu duplicates a widget', (await countNodes()) === nodesBeforeDuplicate + 1);
+await page.keyboard.press('Control+z');
+await page.waitForTimeout(150);
+
+// --- 11. free placement: resize with the handles --------------------------
+await page.click('.es-structure-row:has-text("Personal data")');
+await page.waitForTimeout(150);
+await page.locator('.es-property-row:has(.es-property-label:text-is("Layout mode")) select').first()
+  .selectOption({label: 'Free placement (sketch)'});
+await page.waitForTimeout(350);
+const seeded = await page.evaluate(() => {
+  const parent = window.esMockup.store.selectedNode;
+  const ys = parent.children.map(child => child.properties['bounds.y']);
+  return {count: ys.length, distinct: new Set(ys).size};
+});
+check('switching to free placement keeps the widgets where they were',
+  seeded.distinct > 1, `${seeded.distinct} distinct y positions for ${seeded.count} widgets`);
+
+await page.click('.es-structure-row:has-text("First name")');
+await page.waitForTimeout(200);
+const handleNames = await page.$$eval('.es-selection-box .es-resize-handle', els => els.map(e => e.dataset.handle));
+check('a free-form widget has eight resize handles', handleNames.length === 8, handleNames.join(','));
+
+const readBounds = () => page.evaluate(() => {
+  const n = window.esMockup.store.selectedNode;
+  return {
+    x: Number(n.properties['bounds.x']), y: Number(n.properties['bounds.y']),
+    w: Number(n.properties['bounds.width']), h: Number(n.properties['bounds.height'])
+  };
+});
+const boundsBefore = await readBounds();
+let handleBox = await page.locator('.es-selection-box .es-handle-se').boundingBox();
+await page.mouse.move(handleBox.x + 4, handleBox.y + 4);
+await page.mouse.down();
+await page.mouse.move(handleBox.x + 104, handleBox.y + 54, {steps: 8});
+await page.mouse.up();
+await page.waitForTimeout(250);
+const afterSe = await readBounds();
+check('the south-east handle resizes the widget',
+  afterSe.w > boundsBefore.w + 50 && afterSe.h > boundsBefore.h + 20,
+  `${boundsBefore.w}×${boundsBefore.h} -> ${afterSe.w}×${afterSe.h}`);
+
+handleBox = await page.locator('.es-selection-box .es-handle-nw').boundingBox();
+await page.mouse.move(handleBox.x + 4, handleBox.y + 4);
+await page.mouse.down();
+await page.mouse.move(handleBox.x + 44, handleBox.y + 24, {steps: 6});
+await page.mouse.up();
+await page.waitForTimeout(250);
+const afterNw = await readBounds();
+check('the north-west handle moves the origin and shrinks the widget',
+  afterNw.x > afterSe.x && afterNw.y > afterSe.y && afterNw.w < afterSe.w && afterNw.h < afterSe.h,
+  JSON.stringify(afterNw));
+
+await page.keyboard.press('Shift+ArrowRight');
+await page.keyboard.press('ArrowDown');
+await page.waitForTimeout(200);
+const afterKeys = await readBounds();
+check('arrow keys move and Shift+arrows resize',
+  afterKeys.w === afterNw.w + 5 && afterKeys.y === afterNw.y + 5, JSON.stringify(afterKeys));
+
+await page.keyboard.press('Control+z');
+await page.keyboard.press('Control+z');
+await page.keyboard.press('Control+z');
+await page.keyboard.press('Control+z');
+await page.waitForTimeout(250);
+
+// --- 12. no widget may overlap another in the logical grid ----------------
+const overlapProbe = async () => page.evaluate(() => {
+  const found = new Set();
+  document.querySelectorAll('.es-canvas-host .logical-grid').forEach(grid => {
+    const items = [...grid.children].map(el => ({el, rect: el.getBoundingClientRect()}));
+    for (const a of items) {
+      for (const b of items) {
+        if (a.el === b.el) continue;
+        const overlaps = a.rect.left < b.rect.right - 1 && b.rect.left < a.rect.right - 1
+          && a.rect.top < b.rect.bottom - 1 && b.rect.top < a.rect.bottom - 1;
+        if (overlaps) found.add(`${a.el.dataset.objectType ?? a.el.className} / ${b.el.dataset.objectType ?? b.el.className}`);
+      }
+    }
+  });
+  return [...found];
+});
+
+await page.click('.es-toolbar .es-menu-button .es-button:has-text("File")');
+await page.click('.es-dropdown-item:has-text("Widget gallery")');
+await page.waitForTimeout(400);
+const overlapReport = [];
+for (const view of [0, 1, 2, 3, 4]) {
+  await page.evaluate(v => window.esMockup.store.setProperty(window.esMockup.store.doc.root.id, 'selectedView', v), view);
+  await page.waitForTimeout(250);
+  overlapReport.push(...(await overlapProbe()));
+}
+check('no widget overlaps another in the logical grid', overlapReport.length === 0, overlapReport.join('; '));
 
 await page.screenshot({path: join(outDir, 'editor.png')});
 await writeFile(join(outDir, 'result.json'), JSON.stringify(checks, null, 2));

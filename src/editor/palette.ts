@@ -1,6 +1,7 @@
 import {allWidgets, CATEGORY_ORDER, type WidgetDef} from '../model/catalog/registry';
 import {div, h, span} from '../render/dom';
 import {renderIcon} from '../render/icons';
+import {editorIcon} from './icons';
 import type {Canvas} from './canvas';
 import {DRAG_MIME} from './canvas';
 import {createNode} from '../model/document';
@@ -16,7 +17,11 @@ export class Palette {
   readonly element: HTMLElement;
   private readonly list: HTMLElement;
   private readonly search: HTMLInputElement;
+  private readonly hint: HTMLElement;
   private filter = '';
+  private collapsed = new Set<string>();
+  /** Object types added recently, most recent first. */
+  private recent: string[] = [];
 
   constructor(private store: Store, private canvas: Canvas) {
     this.element = div('es-panel es-palette');
@@ -24,17 +29,36 @@ export class Palette {
     header.appendChild(span('es-panel-title', 'Elements'));
     this.element.appendChild(header);
 
+    const searchWrapper = div('es-search-wrapper');
+    searchWrapper.appendChild(editorIcon('search', 'es-search-icon'));
     this.search = h('input', 'es-search');
     this.search.type = 'search';
-    this.search.placeholder = 'Search widgets…';
+    this.search.placeholder = 'Search widgets…  (/)';
+    this.search.setAttribute('aria-label', 'Search widgets');
     this.search.addEventListener('input', () => {
       this.filter = this.search.value.trim().toLowerCase();
       this.renderList();
     });
-    this.element.appendChild(this.search);
+    this.search.addEventListener('keydown', event => {
+      if (event.key === 'Escape') {
+        this.search.value = '';
+        this.filter = '';
+        this.renderList();
+        this.search.blur();
+      }
+      if (event.key === 'Enter') {
+        // Enter adds the first match - fast keyboard-only building.
+        const first = this.list.querySelector<HTMLElement>('.es-palette-item:not(.es-unavailable)');
+        first?.click();
+      }
+    });
+    searchWrapper.appendChild(this.search);
+    this.element.appendChild(searchWrapper);
 
     this.list = div('es-palette-list');
     this.element.appendChild(this.list);
+    this.hint = div('es-panel-footer', 'Click to add to the selection, or drag onto the canvas.');
+    this.element.appendChild(this.hint);
     this.renderList();
     store.subscribe((_, reason) => {
       if (reason === 'selection' || reason === 'document') this.updateEnablement();
@@ -50,20 +74,50 @@ export class Palette {
       list.push(def);
       byCategory.set(def.category, list);
     }
+    // A "Recently used" section keeps the widgets of the current task close by.
+    if (!this.filter && this.recent.length) {
+      const recentDefs = this.recent
+        .map(objectType => allWidgets().find(def => def.objectType === objectType))
+        .filter((def): def is WidgetDef => !!def)
+        .slice(0, 6);
+      if (recentDefs.length) this.list.appendChild(this.renderGroup('Recently used', recentDefs, false));
+    }
+
     for (const category of CATEGORY_ORDER) {
       const defs = byCategory.get(category);
       if (!defs?.length) continue;
-      const group = div('es-palette-group');
-      group.appendChild(div('es-palette-group-title', category));
-      for (const def of defs.sort((a, b) => a.label.localeCompare(b.label))) {
-        group.appendChild(this.renderItem(def));
-      }
-      this.list.appendChild(group);
+      this.list.appendChild(this.renderGroup(category, [...defs].sort((a, b) => a.label.localeCompare(b.label)), true));
     }
     if (!this.list.childElementCount) {
-      this.list.appendChild(div('es-empty-hint', 'No widget matches the search.'));
+      this.list.appendChild(div('es-empty-hint', `No widget matches “${this.search.value}”.`));
     }
     this.updateEnablement();
+  }
+
+  /** One collapsible category. Searching expands everything automatically. */
+  private renderGroup(title: string, defs: WidgetDef[], collapsible: boolean): HTMLElement {
+    const group = div('es-palette-group');
+    const isCollapsed = collapsible && !this.filter && this.collapsed.has(title);
+    const header = h('button', 'es-palette-group-title');
+    header.type = 'button';
+    header.setAttribute('aria-expanded', String(!isCollapsed));
+    if (collapsible) {
+      header.appendChild(editorIcon(isCollapsed ? 'chevronRight' : 'chevronDown', 'es-palette-group-caret'));
+      header.addEventListener('click', () => {
+        if (this.collapsed.has(title)) this.collapsed.delete(title);
+        else this.collapsed.add(title);
+        this.renderList();
+      });
+    } else {
+      header.classList.add('static');
+    }
+    header.appendChild(span('es-palette-group-label', title));
+    header.appendChild(span('es-palette-group-count', String(defs.length)));
+    group.appendChild(header);
+    if (!isCollapsed) {
+      for (const def of defs) group.appendChild(this.renderItem(def));
+    }
+    return group;
   }
 
   private renderItem(def: WidgetDef): HTMLElement {
@@ -108,8 +162,15 @@ export class Palette {
         index = parent.children.indexOf(selected) + 1;
       }
       this.store.insert(parent.id, node, slot.name, index);
+      this.remember(def.objectType);
       return;
     }
+  }
+
+  /** Called by the canvas after a drop so both ways of adding count as "used". */
+  remember(objectType: string): void {
+    this.recent = [objectType, ...this.recent.filter(type => type !== objectType)].slice(0, 8);
+    this.renderList();
   }
 
   private updateEnablement(): void {
@@ -123,5 +184,10 @@ export class Palette {
       item.title = item.title.replace(/\n\nCannot be added.*$/, '');
       if (!accepted) item.title += '\n\nCannot be added to the current selection - drag it onto a matching container instead.';
     });
+    const available = this.list.querySelectorAll('.es-palette-item:not(.es-unavailable)').length;
+    const total = this.list.querySelectorAll('.es-palette-item').length;
+    this.hint.textContent = total
+      ? `${available} of ${total} can be added to the selection. Click to add, or drag onto the canvas.`
+      : '';
   }
 }

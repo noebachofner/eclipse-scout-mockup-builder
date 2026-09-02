@@ -3,7 +3,7 @@ import {renderDocument} from '../render/render';
 import {themeCssVariables} from '../editor/theme';
 import tokensCss from '../styles/scout-tokens.generated.css?raw';
 import renderCss from '../styles/scout-render.css?raw';
-import iconFontUrl from '../../public/fonts/scoutIcons.woff?url';
+import iconFontUrl from '../assets/scoutIcons.woff?url';
 
 /**
  * Builds a standalone HTML file of the mockup.

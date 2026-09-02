@@ -154,13 +154,26 @@ export function gridTemplate(placement: GridPlacement, rowHeight: string): GridT
     .map(weight => (weight > 0 ? `minmax(0, ${round(weight)}fr)` : 'max-content'))
     .join(' ');
 
-  const growing = new Array<boolean>(Math.max(rowCount, 1)).fill(false);
+  const rowTotal = Math.max(rowCount, 1);
+  const growing = new Array<boolean>(rowTotal).fill(false);
+  const used = new Array<boolean>(rowTotal).fill(false);
   for (const cell of cells) {
-    if (cell.weightY <= 0) continue;
-    for (let i = 0; i < cell.h; i++) growing[cell.y + i] = true;
+    for (let i = 0; i < cell.h; i++) {
+      used[cell.y + i] = true;
+      if (cell.weightY > 0) growing[cell.y + i] = true;
+    }
   }
+
+  // The minimum must be `auto`, not a fixed length: CSS grid only grows a track
+  // to fit its items when the track's *minimum* is an intrinsic function. With
+  // `minmax(30px, max-content)` the base stays at 30px and tall content spills
+  // into the next row. The `min-height` on the grid items keeps the logical row
+  // height as the effective floor.
   const rows = growing
-    .map(grows => (grows ? `minmax(${rowHeight}, auto)` : `minmax(${rowHeight}, max-content)`))
+    .map((grows, index) => {
+      if (!used[index]) return rowHeight;
+      return grows ? 'auto' : 'minmax(auto, max-content)';
+    })
     .join(' ');
 
   return {columns, rows: rows || rowHeight, stretchRows: growing.some(Boolean)};
@@ -230,14 +243,24 @@ export function renderFreeForm(
   nodes: MockupNode[]
 ): void {
   container.classList.add('free-form');
-  for (const node of nodes) {
+  nodes.forEach((node, index) => {
     const el = ctx.renderNode(node, parent);
     el.style.position = 'absolute';
+    // Nodes without bounds are staggered so they stay individually reachable.
     el.style.left = `${num(node.properties['bounds.x'], 20)}px`;
-    el.style.top = `${num(node.properties['bounds.y'], 20)}px`;
+    el.style.top = `${num(node.properties['bounds.y'], 20 + index * 40)}px`;
     el.style.width = `${num(node.properties['bounds.width'], 320)}px`;
     el.style.height = `${num(node.properties['bounds.height'], 30)}px`;
     el.style.alignSelf = 'auto';
     container.appendChild(el);
-  }
+  });
+
+  // Absolutely positioned children do not stretch their parent, so the
+  // container has to reserve the space itself - otherwise it collapses and the
+  // widgets spill over whatever follows.
+  const bottom = nodes.reduce((max, node, index) => Math.max(
+    max,
+    num(node.properties['bounds.y'], 20 + index * 40) + num(node.properties['bounds.height'], 30)
+  ), 0);
+  container.style.minHeight = `${Math.max(120, bottom + 20)}px`;
 }

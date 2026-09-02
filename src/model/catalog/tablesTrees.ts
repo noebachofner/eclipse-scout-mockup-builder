@@ -36,9 +36,14 @@ function renderTable(ctx: RenderContext, node: MockupNode): HTMLElement {
   const headerVisible = ctx.prop<boolean>(node, 'headerVisible', true);
   const footerVisible = ctx.prop<boolean>(node, 'footerVisible', false);
   const groupedColumn = Number(ctx.prop<number>(node, 'sortedColumn', -1));
+  const multilineText = ctx.prop<boolean>(node, 'multilineText', false);
+  const rowIconVisible = ctx.prop<boolean>(node, 'rowIconVisible', false);
+  const checkableStyle = ctx.prop<string>(node, 'checkableStyle', 'checkbox');
+  const showCheckColumn = checkable && checkableStyle !== 'table_row';
 
   const root = div('table');
-  const menus = ctx.renderSlot(node, 'menus');
+  if (ctx.prop<boolean>(node, 'compact', false)) root.classList.add('compact');
+  const menus = ctx.prop<boolean>(node, 'menuBarVisible', true) ? ctx.renderSlot(node, 'menus') : [];
   if (menus.length) {
     const bar = div('menubar menubar-top');
     const box = div('menubar-box');
@@ -52,7 +57,7 @@ function renderTable(ctx: RenderContext, node: MockupNode): HTMLElement {
   // fixed width, a trailing filler keeps the header, rows and footer aligned.
   const hasFlexible = columns.some(c => !c.width);
   const template = [
-    checkable ? '34px' : '',
+    showCheckColumn ? '34px' : '',
     ...columns.map(c => (c.width ? `${c.width}px` : 'minmax(0, 1fr)')),
     hasFlexible ? '' : 'minmax(0, 1fr)'
   ].filter(Boolean).join(' ');
@@ -60,8 +65,9 @@ function renderTable(ctx: RenderContext, node: MockupNode): HTMLElement {
 
   if (headerVisible) {
     const header = div('table-header');
+    if (!ctx.prop<boolean>(node, 'headerEnabled', true)) header.classList.add('disabled');
     header.style.gridTemplateColumns = template;
-    if (checkable) header.appendChild(div('table-header-item check'));
+    if (showCheckColumn) header.appendChild(div('table-header-item check'));
     columns.forEach((column, i) => {
       const item = div(`table-header-item halign-${column.align}`);
       item.appendChild(span('text', column.text));
@@ -80,20 +86,50 @@ function renderTable(ctx: RenderContext, node: MockupNode): HTMLElement {
     const tr = div('table-row');
     tr.style.gridTemplateColumns = template;
     if (rowIndex === selectedRow) tr.classList.add('selected');
-    if (checkable) {
+    if (checkable && checkedRows.has(rowIndex) && checkableStyle !== 'checkbox') tr.classList.add('checked');
+    if (showCheckColumn) {
       const cell = div('table-cell check');
       cell.appendChild(checkBox(checkedRows.has(rowIndex)));
       tr.appendChild(cell);
     }
     columns.forEach((column, colIndex) => {
       const cell = div(`table-cell halign-${column.align}`, row[colIndex] ?? '');
+      if (multilineText) cell.classList.add('multiline');
+      if (colIndex === 0 && rowIconVisible) {
+        const icon = renderIcon('file', 'row-icon');
+        if (icon) cell.insertBefore(icon, cell.firstChild);
+        cell.classList.add('has-row-icon');
+      }
       tr.appendChild(cell);
     });
     if (!hasFlexible) tr.appendChild(div('table-cell filler'));
     grid.appendChild(tr);
   });
   if (!rows.length) grid.appendChild(div('table-empty', 'No data'));
+
+  const aggregate = ctx.prop<string>(node, 'aggregateRow', '');
+  if (aggregate) {
+    const aggregateRow = div('table-aggregate-row');
+    aggregateRow.style.gridTemplateColumns = template;
+    if (showCheckColumn) aggregateRow.appendChild(div('table-cell'));
+    const values = aggregate.split('|').map(c => c.trim());
+    columns.forEach((column, i) => aggregateRow.appendChild(div(`table-cell halign-${column.align}`, values[i] ?? '')));
+    if (!hasFlexible) aggregateRow.appendChild(div('table-cell filler'));
+    if (ctx.prop<string>(node, 'groupingStyle', 'bottom') === 'top') {
+      grid.insertBefore(aggregateRow, grid.firstChild);
+    } else {
+      grid.appendChild(aggregateRow);
+    }
+  }
   root.appendChild(grid);
+
+  if (ctx.prop<boolean>(node, 'textFilterEnabled', false)) {
+    const filter = div('filter-field table-filter-field');
+    const icon = renderIcon('search');
+    if (icon) filter.appendChild(icon);
+    filter.appendChild(span('filter-field-text', 'Filter'));
+    root.appendChild(filter);
+  }
 
   if (footerVisible) {
     const footer = div('table-footer');
@@ -116,8 +152,26 @@ const TABLE_PROPS = [
   {name: 'sortedColumn', label: 'Sorted column index', type: 'number' as const, group: GROUP_CONTENT, min: -1},
   {name: 'checkable', label: 'Checkable', type: 'boolean' as const, group: GROUP_CONTENT},
   {name: 'checkedRows', label: 'Checked row indexes (one per line)', type: 'lines' as const, group: GROUP_CONTENT, visibleWhen: (p: Record<string, PropertyValue>) => p.checkable === true},
+  {name: 'checkableStyle', label: 'Checkable style', type: 'enum' as const, group: GROUP_CONTENT, options: [
+    {value: 'checkbox', label: 'CHECKBOX'},
+    {value: 'checkbox_table_row', label: 'CHECKBOX_TABLE_ROW'},
+    {value: 'table_row', label: 'TABLE_ROW'}
+  ], visibleWhen: (p: Record<string, PropertyValue>) => p.checkable === true},
+  {name: 'multiSelect', label: 'Multi select', type: 'boolean' as const, group: GROUP_CONTENT},
+  {name: 'multilineText', label: 'Multiline text', type: 'boolean' as const, group: GROUP_CONTENT},
   {name: 'headerVisible', label: 'Header visible', type: 'boolean' as const, group: GROUP_STYLE},
-  {name: 'footerVisible', label: 'Footer visible', type: 'boolean' as const, group: GROUP_STYLE}
+  {name: 'headerEnabled', label: 'Header enabled', type: 'boolean' as const, group: GROUP_STYLE},
+  {name: 'footerVisible', label: 'Footer visible', type: 'boolean' as const, group: GROUP_STYLE},
+  {name: 'menuBarVisible', label: 'Menu bar visible', type: 'boolean' as const, group: GROUP_STYLE},
+  {name: 'rowIconVisible', label: 'Row icon visible', type: 'boolean' as const, group: GROUP_STYLE},
+  {name: 'compact', label: 'Compact', type: 'boolean' as const, group: GROUP_STYLE, description: 'Scout collapses all columns into one cell per row - the layout used on small screens.'},
+  {name: 'textFilterEnabled', label: 'Text filter enabled', type: 'boolean' as const, group: GROUP_CONTENT},
+  {name: 'groupingStyle', label: 'Grouping style', type: 'enum' as const, group: GROUP_STYLE, options: [
+    {value: 'bottom', label: 'BOTTOM'},
+    {value: 'top', label: 'TOP'}
+  ]},
+  {name: 'aggregateRow', label: 'Aggregate row (cells separated by |)', type: 'string' as const, group: GROUP_CONTENT,
+    description: 'Shown as the aggregate row of the grouped column.'}
 ];
 
 const TABLE_DEFAULTS = {
@@ -126,8 +180,17 @@ const TABLE_DEFAULTS = {
   selectedRow: -1,
   sortedColumn: -1,
   checkable: false,
+  checkableStyle: 'checkbox',
+  multiSelect: true,
+  multilineText: false,
   headerVisible: true,
-  footerVisible: false
+  headerEnabled: true,
+  footerVisible: false,
+  menuBarVisible: true,
+  rowIconVisible: false,
+  compact: false,
+  textFilterEnabled: false,
+  groupingStyle: 'bottom'
 };
 
 function parseTreeNodes(raw: unknown): {level: number; text: string; expanded: boolean}[] {
@@ -201,7 +264,14 @@ const defs: WidgetDef[] = [
     props: formFieldProps(
       {name: 'nodes', label: 'Nodes (two spaces per level, "+" = collapsed)', type: 'lines', group: GROUP_CONTENT},
       {name: 'selectedNode', label: 'Selected node index', type: 'number', group: GROUP_CONTENT, min: -1},
-      {name: 'checkable', label: 'Checkable', type: 'boolean', group: GROUP_CONTENT}
+      {name: 'checkable', label: 'Checkable', type: 'boolean', group: GROUP_CONTENT},
+      {name: 'multiCheck', label: 'Multi check', type: 'boolean', group: GROUP_CONTENT, visibleWhen: (p: Record<string, PropertyValue>) => p.checkable === true},
+      {name: 'autoCheckChildren', label: 'Auto check children', type: 'boolean', group: GROUP_CONTENT, visibleWhen: (p: Record<string, PropertyValue>) => p.checkable === true},
+      {name: 'checkableStyle', label: 'Checkable style', type: 'enum', group: GROUP_CONTENT, options: [
+        {value: 'checkbox', label: 'CHECKBOX'},
+        {value: 'checkbox_tree_node', label: 'CHECKBOX_TREE_NODE'}
+      ], visibleWhen: (p: Record<string, PropertyValue>) => p.checkable === true},
+      {name: 'textFilterEnabled', label: 'Text filter enabled', type: 'boolean', group: GROUP_CONTENT}
     ),
     slots: [{name: 'menus', label: 'Menus', accepts: ['Menu'], layout: 'inline'}],
     defaultGridH: 6,

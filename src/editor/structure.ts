@@ -5,6 +5,8 @@ import type {Store} from './store';
 import type {Canvas} from './canvas';
 import {DRAG_MIME} from './canvas';
 import {renderIcon} from '../render/icons';
+import {editorIcon} from './icons';
+import {h} from '../render/dom';
 
 /** Tree view of the widget hierarchy - the reliable way to reach nested nodes. */
 export class StructureTree {
@@ -16,6 +18,20 @@ export class StructureTree {
     this.element = div('es-panel es-structure');
     const header = div('es-panel-header');
     header.appendChild(span('es-panel-title', 'Structure'));
+    const actions = div('es-panel-actions');
+    actions.appendChild(this.action('up', 'Move the selection up', () => {
+      if (this.store.selectedId) this.store.reorder(this.store.selectedId, -1);
+    }));
+    actions.appendChild(this.action('down', 'Move the selection down', () => {
+      if (this.store.selectedId) this.store.reorder(this.store.selectedId, 1);
+    }));
+    actions.appendChild(this.action('copy', 'Duplicate the selection (Ctrl+D)', () => {
+      if (this.store.selectedId) this.store.duplicate(this.store.selectedId);
+    }));
+    actions.appendChild(this.action('trash', 'Remove the selection (Delete)', () => {
+      if (this.store.selectedId) this.store.remove(this.store.selectedId);
+    }));
+    header.appendChild(actions);
     this.element.appendChild(header);
     this.body = div('es-structure-body');
     this.element.appendChild(this.body);
@@ -26,6 +42,7 @@ export class StructureTree {
   render(): void {
     this.body.replaceChildren();
     this.renderNode(this.store.doc.root, 0, null);
+    this.body.querySelector('.es-structure-row.selected')?.scrollIntoView({block: 'nearest'});
   }
 
   private renderNode(node: MockupNode, depth: number, parent: MockupNode | null): void {
@@ -55,6 +72,11 @@ export class StructureTree {
     row.appendChild(span('es-structure-type', def?.label ?? node.objectType));
 
     row.addEventListener('click', () => this.store.select(node.id));
+    row.addEventListener('contextmenu', event => {
+      event.preventDefault();
+      this.store.select(node.id);
+      this.showContextMenu(node, event.clientX, event.clientY);
+    });
 
     if (parent) {
       row.draggable = true;
@@ -69,6 +91,64 @@ export class StructureTree {
     this.body.appendChild(row);
     if (this.collapsed.has(node.id)) return;
     for (const child of node.children) this.renderNode(child, depth + 1, node);
+  }
+
+  private action(icon: string, title: string, onClick: () => void): HTMLButtonElement {
+    const button = h('button', 'es-icon-action');
+    button.type = 'button';
+    button.title = title;
+    button.setAttribute('aria-label', title);
+    button.appendChild(editorIcon(icon));
+    button.addEventListener('click', event => {
+      event.stopPropagation();
+      onClick();
+    });
+    return button;
+  }
+
+  /** Right-click menu with the actions people expect on a tree row. */
+  private showContextMenu(node: MockupNode, x: number, y: number): void {
+    document.querySelector('.es-context-menu')?.remove();
+    const isRoot = node.id === this.store.doc.root.id;
+    const menu = div('es-context-menu');
+    menu.style.left = `${x}px`;
+    menu.style.top = `${y}px`;
+
+    const entries: {label: string; icon: string; disabled?: boolean; action: () => void}[] = [
+      {label: 'Duplicate', icon: 'copy', disabled: isRoot, action: () => this.store.duplicate(node.id)},
+      {label: 'Move up', icon: 'up', disabled: isRoot, action: () => this.store.reorder(node.id, -1)},
+      {label: 'Move down', icon: 'down', disabled: isRoot, action: () => this.store.reorder(node.id, 1)},
+      {label: 'Remove', icon: 'trash', disabled: isRoot, action: () => this.store.remove(node.id)}
+    ];
+    for (const entry of entries) {
+      const item = h('button', 'es-context-menu-item');
+      item.type = 'button';
+      item.disabled = !!entry.disabled;
+      item.appendChild(editorIcon(entry.icon));
+      item.appendChild(span('es-context-menu-label', entry.label));
+      item.addEventListener('click', () => {
+        menu.remove();
+        entry.action();
+      });
+      menu.appendChild(item);
+    }
+    document.body.appendChild(menu);
+
+    // Keep the menu inside the window.
+    const rect = menu.getBoundingClientRect();
+    if (rect.right > window.innerWidth) menu.style.left = `${window.innerWidth - rect.width - 8}px`;
+    if (rect.bottom > window.innerHeight) menu.style.top = `${window.innerHeight - rect.height - 8}px`;
+
+    const dismiss = (event: MouseEvent | KeyboardEvent): void => {
+      if (event instanceof MouseEvent && menu.contains(event.target as Node)) return;
+      menu.remove();
+      document.removeEventListener('mousedown', dismiss);
+      document.removeEventListener('keydown', dismiss);
+    };
+    setTimeout(() => {
+      document.addEventListener('mousedown', dismiss);
+      document.addEventListener('keydown', dismiss);
+    });
   }
 
   private labelOf(node: MockupNode, fallback: string): string {

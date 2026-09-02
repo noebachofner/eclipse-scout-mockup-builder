@@ -8,16 +8,32 @@ import type {Store} from './store';
 import {THEME_COLOR_FIELDS, THEME_PRESETS} from './theme';
 import {DEFAULT_SCOUT_COLORS} from '../render/colorSystem';
 import {TEMPLATES} from '../model/templates';
+import {editorIcon} from './icons';
 
 type Tab = 'properties' | 'theme' | 'document';
+
+/**
+ * Groups that are collapsed away behind "Show advanced properties". They matter
+ * for a faithful mockup but get in the way while sketching.
+ */
+const ADVANCED_GROUPS = new Set(['Logical grid', 'Appearance']);
+
+export interface PropertyPanelCallbacks {
+  /** Current on-screen bounds of a container's children, relative to its body. */
+  measureChildBounds(parentId: string): Record<string, Record<string, number>>;
+}
 
 export class PropertyPanel {
   readonly element: HTMLElement;
   private readonly tabsEl: HTMLElement;
   private readonly body: HTMLElement;
   private tab: Tab = 'properties';
+  private propertyFilter = '';
+  /** Property groups the user collapsed, remembered across selections. */
+  private collapsedGroups = new Set<string>();
+  private showAdvanced = false;
 
-  constructor(private store: Store) {
+  constructor(private store: Store, private callbacks: PropertyPanelCallbacks) {
     this.element = div('es-panel es-properties');
     this.tabsEl = div('es-tabs');
     (['properties', 'theme', 'document'] as Tab[]).forEach(tab => {
@@ -73,19 +89,94 @@ export class PropertyPanel {
     this.body.appendChild(this.renderActions(node));
     this.renderLayoutWarning(node);
 
+    this.body.appendChild(this.renderFilter());
+
+    const filter = this.propertyFilter;
     const groups = new Map<string, PropDef[]>();
+    let hidden = 0;
     for (const prop of def.props) {
       if (prop.visibleWhen && !prop.visibleWhen(this.effectiveProps(node, def.defaults))) continue;
+      if (!this.showAdvanced && ADVANCED_GROUPS.has(prop.group) && !filter) {
+        hidden++;
+        continue;
+      }
+      if (filter && !`${prop.label} ${prop.name}`.toLowerCase().includes(filter)) continue;
       const list = groups.get(prop.group) ?? [];
       list.push(prop);
       groups.set(prop.group, list);
     }
+
     for (const [group, props] of groups) {
+      const collapsed = this.collapsedGroups.has(group) && !filter;
       const section = div('es-property-group');
-      section.appendChild(div('es-property-group-title', group));
-      for (const prop of props) section.appendChild(this.renderRow(node, prop, def.defaults));
+      if (collapsed) section.classList.add('collapsed');
+      const title = h('button', 'es-property-group-title');
+      title.type = 'button';
+      title.setAttribute('aria-expanded', String(!collapsed));
+      title.appendChild(editorIcon(collapsed ? 'chevronRight' : 'chevronDown', 'es-property-group-caret'));
+      title.appendChild(span('es-property-group-label', group));
+      const overrides = props.filter(prop => node.properties[prop.name] !== undefined).length;
+      if (overrides) title.appendChild(span('es-property-group-badge', String(overrides)));
+      title.addEventListener('click', () => {
+        if (this.collapsedGroups.has(group)) this.collapsedGroups.delete(group);
+        else this.collapsedGroups.add(group);
+        this.render();
+      });
+      section.appendChild(title);
+      if (!collapsed) {
+        for (const prop of props) section.appendChild(this.renderRow(node, prop, def.defaults));
+      }
       this.body.appendChild(section);
     }
+
+    if (!groups.size) {
+      this.body.appendChild(div('es-empty-hint', filter
+        ? `No property matches “${filter}”.`
+        : 'This widget has no configurable properties.'));
+    }
+
+    if (hidden && !filter) {
+      const toggle = h('button', 'es-button block subtle');
+      toggle.type = 'button';
+      toggle.textContent = `Show ${hidden} advanced propert${hidden === 1 ? 'y' : 'ies'} (logical grid, appearance)`;
+      toggle.addEventListener('click', () => {
+        this.showAdvanced = true;
+        this.render();
+      });
+      this.body.appendChild(toggle);
+    } else if (this.showAdvanced && !filter) {
+      const toggle = h('button', 'es-button block subtle');
+      toggle.type = 'button';
+      toggle.textContent = 'Hide advanced properties';
+      toggle.addEventListener('click', () => {
+        this.showAdvanced = false;
+        this.render();
+      });
+      this.body.appendChild(toggle);
+    }
+  }
+
+  /** Filter box above the property groups. */
+  private renderFilter(): HTMLElement {
+    const wrapper = div('es-search-wrapper es-property-filter');
+    wrapper.appendChild(editorIcon('search', 'es-search-icon'));
+    const input = h('input', 'es-search');
+    input.type = 'search';
+    input.placeholder = 'Filter properties…';
+    input.value = this.propertyFilter;
+    input.setAttribute('aria-label', 'Filter properties');
+    input.addEventListener('input', () => {
+      this.propertyFilter = input.value.trim().toLowerCase();
+      this.render();
+      // Re-focus after the re-render so typing is not interrupted.
+      const next = this.body.querySelector<HTMLInputElement>('.es-property-filter .es-search');
+      if (next) {
+        next.focus();
+        next.setSelectionRange(next.value.length, next.value.length);
+      }
+    });
+    wrapper.appendChild(input);
+    return wrapper;
   }
 
   private effectiveProps(node: MockupNode, defaults: Record<string, PropertyValue>): Record<string, PropertyValue> {
@@ -145,7 +236,15 @@ export class PropertyPanel {
     const current = node.properties[prop.name];
     const fallback = defaults[prop.name];
     const value = current !== undefined ? current : fallback;
-    const set = (next: PropertyValue): void => this.store.setProperty(node.id, prop.name, next);
+    const set = (next: PropertyValue): void => {
+      if (prop.name === 'layoutMode' && next === 'free') {
+        // Seed the children with the position the logical grid just gave them,
+        // otherwise they would all jump onto the same default spot.
+        this.store.setPropertyWithChildren(node.id, prop.name, next, this.callbacks.measureChildBounds(node.id));
+        return;
+      }
+      this.store.setProperty(node.id, prop.name, next);
+    };
 
     row.appendChild(this.renderEditor(prop, value, set));
 

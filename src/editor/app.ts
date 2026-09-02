@@ -7,9 +7,12 @@ import {PropertyPanel} from './properties';
 import {Toolbar} from './toolbar';
 import {defaultDesktopTemplate} from '../model/templates';
 import {readAutosave, readProjectFile, writeAutosave} from '../io/project';
+import {showShortcutsDialog} from './shortcuts';
 
 export class App {
   readonly store: Store;
+  private canvas!: Canvas;
+  private toolbar!: Toolbar;
   private readonly toast: HTMLElement;
   private toastTimer = 0;
 
@@ -18,13 +21,18 @@ export class App {
     this.store = new Store(restored ?? defaultDesktopTemplate());
 
     const canvas = new Canvas(this.store);
+    this.canvas = canvas;
     const toolbar = new Toolbar(this.store, {
       notify: (message, kind) => this.notify(message, kind),
-      fitZoom: () => canvas.fitZoom()
+      fitZoom: () => canvas.fitZoom(),
+      showShortcuts: () => showShortcutsDialog()
     });
+    this.toolbar = toolbar;
     const palette = new Palette(this.store, canvas);
     const structure = new StructureTree(this.store, canvas);
-    const properties = new PropertyPanel(this.store);
+    const properties = new PropertyPanel(this.store, {
+      measureChildBounds: parentId => canvas.measureChildBounds(parentId)
+    });
 
     const left = div('es-side es-side-left');
     left.appendChild(palette.element);
@@ -67,32 +75,85 @@ export class App {
       const target = event.target as HTMLElement | null;
       const typing = !!target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
       const meta = event.ctrlKey || event.metaKey;
+      const key = event.key;
 
-      if (meta && event.key.toLowerCase() === 'z') {
-        event.preventDefault();
-        if (event.shiftKey) this.store.redo();
-        else this.store.undo();
-        return;
-      }
-      if (meta && event.key.toLowerCase() === 'y') {
-        event.preventDefault();
-        this.store.redo();
-        return;
+      if (meta) {
+        // File and view commands stay available while typing in a field.
+        switch (key.toLowerCase()) {
+          case 'z':
+            event.preventDefault();
+            if (event.shiftKey) this.store.redo();
+            else this.store.undo();
+            return;
+          case 'y':
+            event.preventDefault();
+            this.store.redo();
+            return;
+          case 's':
+            event.preventDefault();
+            this.toolbar.save();
+            return;
+          case 'o':
+            event.preventDefault();
+            void this.toolbar.open();
+            return;
+          case 'e':
+            event.preventDefault();
+            if (event.shiftKey) void this.toolbar.exportPng(2);
+            else void this.toolbar.exportHtml();
+            return;
+          case '0':
+            event.preventDefault();
+            this.store.updateCanvas({zoom: 1});
+            return;
+          case '1':
+            event.preventDefault();
+            this.store.updateCanvas({zoom: this.canvas.fitZoom()});
+            return;
+          case '+':
+          case '=':
+            event.preventDefault();
+            this.store.updateCanvas({zoom: Math.min(2, Math.round((this.store.doc.canvas.zoom + 0.1) * 100) / 100)});
+            return;
+          case '-':
+            event.preventDefault();
+            this.store.updateCanvas({zoom: Math.max(0.25, Math.round((this.store.doc.canvas.zoom - 0.1) * 100) / 100)});
+            return;
+          default:
+            break;
+        }
       }
       if (typing) return;
 
-      if (meta && event.key.toLowerCase() === 'd') {
+      if (key === '?' || (key === '/' && event.shiftKey)) {
+        event.preventDefault();
+        showShortcutsDialog();
+        return;
+      }
+      if (key === '/') {
+        event.preventDefault();
+        this.root.querySelector<HTMLInputElement>('.es-palette .es-search')?.focus();
+        return;
+      }
+      if (meta && key.toLowerCase() === 'd') {
         event.preventDefault();
         if (this.store.selectedId) this.store.duplicate(this.store.selectedId);
         return;
       }
-      if (event.key === 'Delete' || event.key === 'Backspace') {
+      if (key === 'Delete' || key === 'Backspace') {
         if (!this.store.selectedId) return;
         event.preventDefault();
         this.store.remove(this.store.selectedId);
         return;
       }
-      if (event.key === 'Escape') {
+      if (key.startsWith('Arrow')) {
+        // Free placement only: nudge or resize the selected widget.
+        if (this.canvas.nudgeSelection(key, event.shiftKey, !event.altKey)) {
+          event.preventDefault();
+        }
+        return;
+      }
+      if (key === 'Escape') {
         this.store.select(this.store.doc.root.id);
       }
     });

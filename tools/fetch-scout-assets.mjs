@@ -19,12 +19,12 @@ execFileSync('npm', ['pack', `@eclipse-scout/core@${VERSION}`], {cwd: dir, stdio
 const tgz = readdirSync(dir).find(f => f.endsWith('.tgz'));
 execFileSync('tar', ['xzf', tgz], {cwd: dir, stdio: 'inherit'});
 
-mkdirSync('public/fonts', {recursive: true});
-for (const font of ['scoutIcons.woff', 'scoutIcons-light.woff']) {
-  const src = join(dir, 'package', 'res', 'fonts', font);
-  if (existsSync(src)) {
-    copyFileSync(src, join('public', 'fonts', font));
-    console.log(`Copied ${font} -> public/fonts/`);
-  }
+// The font is bundled as a regular asset so it is emitted (and cached) once,
+// instead of being served both from public/ and from the hashed bundle.
+mkdirSync('src/assets', {recursive: true});
+const font = join(dir, 'package', 'res', 'fonts', 'scoutIcons.woff');
+if (existsSync(font)) {
+  copyFileSync(font, join('src', 'assets', 'scoutIcons.woff'));
+  console.log('Copied scoutIcons.woff -> src/assets/');
 }
 console.log('Done. Now run: npm run scout:tokens && npm run scout:icons');

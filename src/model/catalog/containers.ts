@@ -1,5 +1,5 @@
 import {registerWidgets, type RenderContext, type WidgetDef} from './registry';
-import {formFieldDefaults, formFieldProps, GROUP_CONTENT, GROUP_LAYOUT, GROUP_STYLE, WIDGET_DEFAULTS, WIDGET_PROPS} from './common';
+import {formFieldDefaults, formFieldProps, GROUP_BOX_PROPS, GROUP_CONTENT, GROUP_LAYOUT, GROUP_STYLE, WIDGET_DEFAULTS, WIDGET_PROPS} from './common';
 import {div, span} from '../../render/dom';
 import {renderFreeForm, renderLogicalGrid} from '../../render/layout';
 import type {MockupNode} from '../types';
@@ -28,6 +28,10 @@ const LAYOUT_PROPS = [
 /** Renders the children of a container's `fields` slot, honouring the layout mode. */
 export function renderBody(ctx: RenderContext, node: MockupNode, body: HTMLElement, slot = 'fields'): HTMLElement {
   const children = ctx.childrenOf(node, slot);
+  // GroupBox.responsive is tri-state: null inherits, true/false force it.
+  const responsive = ctx.prop<string>(node, 'responsive', 'inherit');
+  if (responsive === 'true') body.classList.add('responsive-on');
+  if (responsive === 'false') body.classList.add('responsive-off');
   if (ctx.prop<string>(node, 'layoutMode', 'grid') === 'free') {
     renderFreeForm(ctx, body, node, children);
   } else {
@@ -38,6 +42,7 @@ export function renderBody(ctx: RenderContext, node: MockupNode, body: HTMLEleme
 }
 
 function renderMenuBar(ctx: RenderContext, node: MockupNode, position: 'top' | 'bottom' | 'title'): HTMLElement | null {
+  if (!ctx.prop<boolean>(node, 'menuBarVisible', true)) return null;
   const menus = ctx.renderSlot(node, 'menus');
   if (!menus.length) return null;
   const bar = div(`menubar menubar-${position}`);
@@ -68,10 +73,15 @@ const defs: WidgetDef[] = [
       expandable: false,
       expanded: true,
       menuBarPosition: 'auto',
+      menuBarVisible: true,
+      menuBarEllipsisPosition: 'right',
+      responsive: 'inherit',
+      notificationSeverity: 'info',
       'gridDataHints.w': 2,
       'gridDataHints.h': 2
     }),
     props: formFieldProps(
+      ...GROUP_BOX_PROPS,
       ...LAYOUT_PROPS,
       {name: 'borderVisible', label: 'Border visible', type: 'boolean', group: GROUP_STYLE},
       {name: 'borderDecoration', label: 'Border decoration', type: 'enum', group: GROUP_STYLE, options: [
@@ -87,7 +97,18 @@ const defs: WidgetDef[] = [
         {value: 'bottom', label: 'BOTTOM'},
         {value: 'title', label: 'TITLE'}
       ]},
-      {name: 'scrollable', label: 'Scrollable', type: 'boolean', group: GROUP_LAYOUT}
+      {name: 'menuBarEllipsisPosition', label: 'Menu bar ellipsis position', type: 'enum', group: GROUP_LAYOUT, options: [
+        {value: 'right', label: 'RIGHT'},
+        {value: 'left', label: 'LEFT'}
+      ]},
+      {name: 'scrollable', label: 'Scrollable', type: 'boolean', group: GROUP_LAYOUT},
+      {name: 'notification', label: 'Notification text', type: 'string', group: GROUP_CONTENT, description: "Scout can show a notification inside a group box; leave empty for none."},
+      {name: 'notificationSeverity', label: 'Notification severity', type: 'enum', group: GROUP_CONTENT, options: [
+        {value: 'ok', label: 'OK'},
+        {value: 'info', label: 'INFO'},
+        {value: 'warning', label: 'WARNING'},
+        {value: 'error', label: 'ERROR'}
+      ], visibleWhen: p => !!p.notification}
     ),
     slots: [
       {name: 'fields', label: 'Fields', accepts: FIELD_TYPES, layout: 'grid'},
@@ -128,6 +149,20 @@ const defs: WidgetDef[] = [
       if (menuBarPosition === 'top' || menuBarPosition === 'auto') {
         const bar = renderMenuBar(ctx, node, 'top');
         if (bar) root.appendChild(bar);
+      }
+
+      const notification = ctx.prop<string>(node, 'notification', '');
+      if (notification) {
+        const severity = ctx.prop<string>(node, 'notificationSeverity', 'info');
+        const box = div(`notification ${severity}`);
+        const badge = div('notification-icon');
+        const icon = renderIcon(severity === 'ok' ? 'checked-bold' : severity === 'info' ? 'info' : 'exclamation-mark-bold');
+        if (icon) badge.appendChild(icon);
+        box.appendChild(badge);
+        box.appendChild(div('notification-message', notification));
+        const wrapper = div('group-box-notification');
+        wrapper.appendChild(box);
+        root.appendChild(wrapper);
       }
 
       if (!expandable || expanded) {
@@ -211,7 +246,7 @@ const defs: WidgetDef[] = [
       ...WIDGET_PROPS,
       {name: 'label', label: 'Title', type: 'string', group: GROUP_CONTENT},
       {name: 'subLabel', label: 'Sub title', type: 'string', group: GROUP_CONTENT},
-      {name: 'marked', label: 'Marked', type: 'boolean', group: GROUP_STYLE},
+      {name: 'marked', label: 'Marked', type: 'boolean', group: GROUP_STYLE, description: 'Scout marks a tab whose content changed with a small bar under the title.'},
       ...LAYOUT_PROPS
     ],
     slots: [{name: 'fields', label: 'Fields', accepts: FIELD_TYPES, layout: 'grid'}],
@@ -353,7 +388,11 @@ const defs: WidgetDef[] = [
       gridColumnCount: 2,
       layoutMode: 'grid',
       closable: true,
+      modal: true,
+      headerVisible: true,
       saveNeeded: false,
+      askIfNeedSave: true,
+      notificationBadgeText: '',
       dialogWidth: 640,
       dialogHeight: 420
     },
@@ -367,8 +406,12 @@ const defs: WidgetDef[] = [
         {value: 'dialog', label: 'DIALOG (modal)'},
         {value: 'popup-window', label: 'POPUP_WINDOW'}
       ]},
+      {name: 'notificationBadgeText', label: 'Notification badge', type: 'string', group: GROUP_CONTENT, description: 'Small badge on the view tab, e.g. an unread count.'},
+      {name: 'headerVisible', label: 'Header visible', type: 'boolean', group: GROUP_LAYOUT, visibleWhen: p => p.displayHint !== 'view'},
       {name: 'closable', label: 'Closable', type: 'boolean', group: GROUP_CONTENT},
+      {name: 'modal', label: 'Modal', type: 'boolean', group: GROUP_LAYOUT, visibleWhen: p => p.displayHint === 'dialog'},
       {name: 'saveNeeded', label: 'Save needed marker', type: 'boolean', group: GROUP_CONTENT},
+      {name: 'askIfNeedSave', label: 'Ask if need save', type: 'boolean', group: GROUP_CONTENT},
       {name: 'dialogWidth', label: 'Dialog width (px)', type: 'number', group: GROUP_LAYOUT, min: 200, visibleWhen: p => p.displayHint === 'dialog'},
       {name: 'dialogHeight', label: 'Dialog height (px)', type: 'number', group: GROUP_LAYOUT, min: 120, visibleWhen: p => p.displayHint === 'dialog'},
       ...LAYOUT_PROPS
@@ -383,6 +426,8 @@ const defs: WidgetDef[] = [
       if (dialog) {
         root.style.width = `${ctx.prop<number>(node, 'dialogWidth', 640)}px`;
         root.style.height = `${ctx.prop<number>(node, 'dialogHeight', 420)}px`;
+      }
+      if (dialog && ctx.prop<boolean>(node, 'headerVisible', true)) {
         const header = div('form-header');
         const icon = renderIcon(ctx.prop<string>(node, 'iconId', ''));
         if (icon) header.appendChild(icon);

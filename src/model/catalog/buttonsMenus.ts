@@ -74,13 +74,25 @@ const defs: WidgetDef[] = [
       selected: false,
       displayStyle: 'default',
       horizontalAlignment: -1,
-      keyStroke: ''
+      keyStroke: '',
+      toggleAction: false,
+      textPosition: 'default',
+      actionStyle: 0
     },
     props: [
       ...WIDGET_PROPS,
       {name: 'text', label: 'Text', type: 'string', group: GROUP_CONTENT},
       {name: 'iconId', label: 'Icon', type: 'icon', group: GROUP_CONTENT},
       {name: 'keyStroke', label: 'Key stroke', type: 'string', group: GROUP_CONTENT, placeholder: 'ctrl-n'},
+      {name: 'toggleAction', label: 'Toggle action', type: 'boolean', group: GROUP_CONTENT, description: 'A toggle action stays selected after it was pressed.'},
+      {name: 'textPosition', label: 'Text position', type: 'enum', group: GROUP_STYLE, options: [
+        {value: 'default', label: 'DEFAULT'},
+        {value: 'bottom', label: 'BOTTOM'}
+      ]},
+      {name: 'actionStyle', label: 'Action style', type: 'enum', group: GROUP_STYLE, options: [
+        {value: 0, label: 'DEFAULT'},
+        {value: 1, label: 'BUTTON'}
+      ]},
       {name: 'displayStyle', label: 'Display style', type: 'enum', group: GROUP_STYLE, options: [
         {value: 'default', label: 'DEFAULT'},
         {value: 'avatar', label: 'AVATAR (round icon, e.g. the user menu)'}
@@ -101,6 +113,8 @@ const defs: WidgetDef[] = [
       const displayStyle = ctx.prop<string>(node, 'displayStyle', 'default');
       const item = div('menu-item');
       if (displayStyle === 'avatar') item.classList.add('avatar-menu');
+      if (Number(ctx.prop<number>(node, 'actionStyle', 0)) === 1) item.classList.add('menu-button');
+      if (ctx.prop<string>(node, 'textPosition', 'default') === 'bottom') item.classList.add('text-position-bottom');
       if (ctx.prop<boolean>(node, 'selected', false)) item.classList.add('selected');
       if (!ctx.prop<boolean>(node, 'enabled', true)) item.classList.add('disabled');
       if (Number(ctx.prop<number>(node, 'horizontalAlignment', -1)) === 1) item.classList.add('right-aligned');
