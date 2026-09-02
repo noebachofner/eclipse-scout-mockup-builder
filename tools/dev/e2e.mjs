@@ -384,6 +384,15 @@ const overlapProbe = async () => page.evaluate(() => {
 await page.click('.es-toolbar .es-menu-button .es-button:has-text("File")');
 await page.click('.es-dropdown-item:has-text("Widget gallery")');
 await page.waitForTimeout(400);
+// This used to be swallowed by a confirm() dialog Playwright auto-dismisses,
+// which left the checks below inspecting the default desktop instead.
+const galleryNodes = await page.evaluate(() => {
+  let count = 0;
+  const walk = node => { count++; node.children.forEach(walk); };
+  walk(window.esMockup.store.doc.root);
+  return count;
+});
+check('the widget gallery template loads', galleryNodes > 60, `${galleryNodes} nodes`);
 // Intersecting boxes are only half the story: a widget whose *content* is
 // taller than the box it was given spills over the widget below it without the
 // two rectangles ever crossing. That is how the chart used to overlap the form.
@@ -391,8 +400,12 @@ const overflowProbe = async () => page.evaluate(() => {
   const found = new Set();
   document.querySelectorAll('.es-canvas-host .logical-grid, .es-canvas-host .group-box-body').forEach(box => {
     if (getComputedStyle(box).overflowY !== 'visible') return;
+    // Scout scrolls a form's main box, so a form taller than the canvas is
+    // normal. Everything inside it must fit the box it was given.
+    if (box.parentElement?.classList.contains('root-group-box')) return;
     if (box.scrollHeight > box.clientHeight + 1) {
-      found.add(`${box.className} overflows by ${box.scrollHeight - box.clientHeight}px`);
+      const owner = box.closest('[data-object-type]');
+      found.add(`${owner?.dataset.objectType ?? box.className} needs ${box.scrollHeight}px but has ${box.clientHeight}px`);
     }
   });
   return [...found];
@@ -409,7 +422,28 @@ for (const view of [0, 1, 2, 3, 4]) {
 check('no widget overlaps another in the logical grid', overlapReport.length === 0, overlapReport.join('; '));
 check('no widget content overflows its box', overflowReport.length === 0, overflowReport.join('; '));
 
-// --- 13. the workspace panels collapse and resize --------------------------
+// --- 13. a share link carries the document in its fragment -----------------
+await page.evaluate(() => window.esMockup.store.updateMeta({name: 'Shared mockup'}));
+const shareUrl = await page.evaluate(() => window.esMockup.shareUrl());
+check('the share link fits in a URL', shareUrl.length < 8000, `${shareUrl.length} characters`);
+check('the share link is gzip encoded', shareUrl.includes('#m=z'), shareUrl.slice(0, 60));
+
+const shared = await browser.newPage();
+await shared.goto(shareUrl, {waitUntil: 'networkidle'});
+await shared.waitForSelector('.es-canvas-host .desktop');
+await shared.waitForTimeout(300);
+const sharedName = await shared.evaluate(() => window.esMockup.store.doc.meta.name);
+const sharedNodes = await shared.evaluate(() => {
+  let count = 0;
+  const walk = n => { count++; n.children.forEach(walk); };
+  walk(window.esMockup.store.doc.root);
+  return count;
+});
+check('opening the share link restores the document', sharedName === 'Shared mockup' && sharedNodes > 20, `${sharedName}, ${sharedNodes} nodes`);
+check('the fragment is dropped after loading', (await shared.evaluate(() => location.hash)) === '');
+await shared.close();
+
+// --- 14. the workspace panels collapse and resize --------------------------
 const panelWidth = side => page.evaluate(
   selector => Math.round(document.querySelector(selector)?.getBoundingClientRect().width ?? -1),
   side === 'left' ? '.es-side-left' : '.es-properties'

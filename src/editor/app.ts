@@ -6,7 +6,8 @@ import {StructureTree} from './structure';
 import {PropertyPanel} from './properties';
 import {Toolbar} from './toolbar';
 import {defaultDesktopTemplate} from '../model/templates';
-import {readAutosave, readProjectFile, writeAutosave} from '../io/project';
+import {newSlotId, readAutosave, readProjectFile, writeAutosave} from '../io/project';
+import {buildShareUrl, readShareUrl} from '../io/share';
 import {showShortcutsDialog} from './shortcuts';
 import {Workspace} from './panels';
 import {pathTo} from '../model/document';
@@ -16,12 +17,18 @@ export class App {
   private canvas!: Canvas;
   private toolbar!: Toolbar;
   private workspace!: Workspace;
+  /**
+   * Autosave slot this session writes to. A new or opened mockup gets its own,
+   * so the previous one stays recoverable from File > Recent.
+   */
+  private slotId: string;
   private readonly toast: HTMLElement;
   private toastTimer = 0;
 
   constructor(private root: HTMLElement) {
     const restored = readAutosave();
-    this.store = new Store(restored ?? defaultDesktopTemplate());
+    this.slotId = restored?.slotId ?? newSlotId();
+    this.store = new Store(restored?.doc ?? defaultDesktopTemplate());
 
     const canvas = new Canvas(this.store);
     this.canvas = canvas;
@@ -29,7 +36,16 @@ export class App {
       notify: (message, kind) => this.notify(message, kind),
       fitZoom: () => canvas.fitZoom(),
       showShortcuts: () => showShortcutsDialog(),
-      selectedFormId: () => this.selectedFormId()
+      selectedFormId: () => this.selectedFormId(),
+      newDocument: doc => {
+        this.slotId = newSlotId();
+        this.store.replace(doc);
+      },
+      openDocument: (doc, slotId) => {
+        this.slotId = slotId;
+        this.store.replace(doc);
+      },
+      currentSlotId: () => this.slotId
     });
     this.toolbar = toolbar;
     const palette = new Palette(this.store, canvas);
@@ -57,7 +73,7 @@ export class App {
 
     this.root.replaceChildren(layout);
 
-    this.store.subscribe(() => writeAutosave(this.store.doc));
+    this.store.subscribe(() => writeAutosave(this.store.doc, this.slotId));
     this.installShortcuts();
     this.installFileDrop();
     this.installUnloadGuard();
@@ -65,6 +81,30 @@ export class App {
     if (restored) {
       this.notify('Restored your last mockup from this browser.');
     }
+    void this.loadSharedDocument();
+  }
+
+  /**
+   * A share link carries the document in the fragment. It wins over the
+   * autosave, and the fragment is dropped afterwards so a later reload shows
+   * the edited version rather than the shared original.
+   */
+  private async loadSharedDocument(): Promise<void> {
+    if (!location.hash.startsWith('#m=')) return;
+    const shared = await readShareUrl(location.hash);
+    history.replaceState(null, '', `${location.pathname}${location.search}`);
+    if (!shared) {
+      this.notify('That share link could not be read - it may have been cut short on the way.', 'error');
+      return;
+    }
+    this.slotId = newSlotId();
+    this.store.replace(shared);
+    this.notify(`Opened "${shared.meta.name}" from a share link.`);
+  }
+
+  /** Share URL for the current document. Also the hook the dev tooling uses. */
+  shareUrl(): Promise<string> {
+    return buildShareUrl(this.store.doc);
   }
 
   /** The innermost form the selection sits in, so the Java dialog preselects it. */
@@ -194,6 +234,7 @@ export class App {
       event.preventDefault();
       try {
         const result = await readProjectFile(file);
+        this.slotId = newSlotId();
         this.store.replace(result.doc, result.fileName);
         this.notify(`Opened ${result.fileName}.`);
       } catch (e) {

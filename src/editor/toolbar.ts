@@ -1,7 +1,9 @@
 import {div, h, span} from '../render/dom';
 import type {Store} from './store';
 import {TEMPLATES} from '../model/templates';
-import {saveProject, openProject, clearAutosave} from '../io/project';
+import type {MockupDocument} from '../model/types';
+import {saveProject, openProject, listAutosaves, restoreAutosave} from '../io/project';
+import {buildShareUrl, COMFORTABLE_URL_LENGTH} from '../io/share';
 import {buildHtmlExport} from '../io/exportHtml';
 import {exportPng} from '../io/exportPng';
 import {downloadBlob, downloadText, sanitizeFileName} from '../io/files';
@@ -18,6 +20,24 @@ export interface ToolbarCallbacks {
   showShortcuts(): void;
   /** Id of the form the current selection belongs to, if any. */
   selectedFormId(): string | undefined;
+  /** Replaces the document and starts a fresh autosave slot. */
+  newDocument(doc: MockupDocument): void;
+  /** Replaces the document and keeps writing into `slotId`. */
+  openDocument(doc: MockupDocument, slotId: string): void;
+  /** Autosave slot the session is currently writing to. */
+  currentSlotId(): string;
+}
+
+/** `Autosaved 4 minutes ago` - relative while it is recent, absolute after. */
+function formatWhen(iso: string): string {
+  const then = new Date(iso).getTime();
+  const minutes = Math.round((Date.now() - then) / 60_000);
+  if (!Number.isFinite(minutes)) return 'earlier';
+  if (minutes < 1) return 'moments ago';
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'} ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+  return new Date(iso).toLocaleString();
 }
 
 const ZOOM_STEPS = [0.25, 0.5, 0.67, 0.75, 0.9, 1, 1.25, 1.5, 2];
@@ -93,6 +113,21 @@ export class Toolbar {
     this.update();
   }
 
+  /** Copies a link that carries the document in its fragment. */
+  async copyShareLink(): Promise<void> {
+    try {
+      const url = await buildShareUrl(this.store.doc);
+      await navigator.clipboard.writeText(url);
+      if (url.length > COMFORTABLE_URL_LENGTH) {
+        this.callbacks.notify(`Link copied, but it is ${Math.round(url.length / 1024)} KB long - some chat and mail clients cut links that long. Send the .esmockup file instead if it does not open.`);
+      } else {
+        this.callbacks.notify(`Share link copied (${url.length} characters).`);
+      }
+    } catch (e) {
+      this.callbacks.notify(`Could not copy the link: ${(e as Error).message}`, 'error');
+    }
+  }
+
   /** Opens the Java dialog, preselecting the form the selection sits in. */
   exportJava(): void {
     showJavaExportDialog(
@@ -142,9 +177,9 @@ export class Toolbar {
       icon: 'file',
       separatorBefore: index === 0 ? false : undefined,
       action: () => {
-        if (this.store.dirty && !confirm('Start a new mockup? Unsaved changes are lost.')) return;
-        this.store.replace(template.create());
-        clearAutosave();
+        // The current mockup stays in its autosave slot and is reachable
+        // through "Recent", so this no longer needs a confirmation.
+        this.callbacks.newDocument(template.create());
         this.callbacks.notify(`New mockup from "${template.label}".`);
       }
     }));
@@ -155,6 +190,32 @@ export class Toolbar {
       shortcut: 'Ctrl+O',
       separatorBefore: true,
       action: () => void this.open()
+    });
+    const recent = listAutosaves().filter(slot => slot.id !== this.callbacks.currentSlotId());
+    recent.slice(0, 5).forEach((slot, index) => {
+      entries.push({
+        label: `Recent: ${slot.name}`,
+        description: `Autosaved ${formatWhen(slot.savedAt)}.`,
+        icon: 'undo',
+        separatorBefore: index === 0,
+        action: () => {
+          const doc = restoreAutosave(slot.id);
+          if (!doc) {
+            this.callbacks.notify('That autosave could no longer be read.', 'error');
+            return;
+          }
+          this.callbacks.openDocument(doc, slot.id);
+          this.callbacks.notify(`Restored "${slot.name}".`);
+        }
+      });
+    });
+
+    entries.push({
+      label: 'Copy share link',
+      description: 'Puts the whole mockup into a URL. Nothing is uploaded - the document travels in the link itself.',
+      icon: 'copy',
+      separatorBefore: true,
+      action: () => void this.copyShareLink()
     });
     entries.push({
       label: 'Check mockup…',

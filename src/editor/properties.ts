@@ -10,6 +10,7 @@ import {DEFAULT_SCOUT_COLORS} from '../render/colorSystem';
 import {TEMPLATES} from '../model/templates';
 import {editorIcon} from './icons';
 import {pickFile, readAsDataUrl} from '../io/files';
+import {renderTableEditor} from './tableEditor';
 
 type Tab = 'properties' | 'theme' | 'document';
 
@@ -264,7 +265,7 @@ export class PropertyPanel {
       this.store.setProperty(node.id, prop.name, next);
     };
 
-    row.appendChild(this.renderEditor(prop, value, set));
+    row.appendChild(this.renderEditor(prop, value, set, node));
 
     if (current !== undefined) {
       row.classList.add('overridden');
@@ -281,7 +282,7 @@ export class PropertyPanel {
     return row;
   }
 
-  private renderEditor(prop: PropDef, value: PropertyValue | undefined, set: (v: PropertyValue) => void): HTMLElement {
+  private renderEditor(prop: PropDef, value: PropertyValue | undefined, set: (v: PropertyValue) => void, node: MockupNode): HTMLElement {
     switch (prop.type) {
       case 'boolean': {
         const wrapper = div('es-property-control');
@@ -360,6 +361,16 @@ export class PropertyPanel {
       }
       case 'image': {
         return this.renderImageEditor(value, set);
+      }
+      case 'columns': {
+        return renderTableEditor(node, {
+          read: (target, name) => {
+            const own = target.properties[name];
+            if (own !== undefined && own !== null) return String(own);
+            return String(getWidget(target.objectType)?.defaults[name] ?? '');
+          },
+          write: (target, values) => this.store.setProperties(target.id, values)
+        });
       }
       case 'text':
       case 'lines': {

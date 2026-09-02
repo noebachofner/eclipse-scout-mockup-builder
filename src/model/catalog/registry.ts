@@ -9,6 +9,7 @@ export type PropType =
   | 'color'
   | 'icon'
   | 'image'
+  | 'columns'
   | 'lines';
 
 export interface PropOption {
