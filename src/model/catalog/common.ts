@@ -67,6 +67,13 @@ export const FORM_FIELD_PROPS: PropDef[] = [
   ]},
   {name: 'errorStatus', label: 'Status severity', type: 'enum', group: GROUP_STATE, options: SEVERITY_OPTIONS},
   {name: 'errorStatusMessage', label: 'Status message', type: 'string', group: GROUP_STATE, visibleWhen: p => p.errorStatus !== 'none' && p.errorStatus !== undefined},
+  {
+    name: 'statusTooltipVisible',
+    label: 'Show status tooltip',
+    type: 'boolean',
+    group: GROUP_STATE,
+    description: 'Scout shows the message in a tooltip when the status icon is clicked. Turn this on to capture that state in the mockup.'
+  },
   {name: 'statusVisible', label: 'Status visible', type: 'boolean', group: GROUP_STATE},
   {name: 'statusPosition', label: 'Status position', type: 'enum', group: GROUP_STATE, options: [
     {value: 'default', label: 'DEFAULT'},
@@ -107,6 +114,7 @@ export const FORM_FIELD_DEFAULTS: Record<string, PropertyValue> = {
   statusPosition: 'default',
   tooltipAnchor: 'default',
   errorStatus: 'none',
+  statusTooltipVisible: false,
   fieldStyle: 'alternative',
   loading: false,
   'gridDataHints.w': 1,

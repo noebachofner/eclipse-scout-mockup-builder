@@ -468,6 +468,11 @@ export class Canvas {
     return result;
   }
 
+  /** Re-measures the selection frame after the surrounding layout moved. */
+  refreshOverlay(): void {
+    this.updateSelection();
+  }
+
   /** Zoom factor at which the whole mockup fits into the visible canvas area. */
   fitZoom(): number {
     const style = getComputedStyle(this.element);

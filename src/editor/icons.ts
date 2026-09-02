@@ -24,6 +24,8 @@ const PATHS: Record<string, string> = {
   down: 'M8 3.5v9M4.5 9 8 12.5 11.5 9',
   search: 'M7 12.5a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11ZM11 11l3.5 3.5',
   reset: 'M13 8a5 5 0 1 1-1.6-3.6M13 1.5V5h-3.5',
+  panelLeft: 'M1.5 2.5h13v11h-13zM6.5 2.5v11M3 6h2M3 8.5h2',
+  panelRight: 'M1.5 2.5h13v11h-13zM9.5 2.5v11M11 6h2M11 8.5h2',
   chevronDown: 'M4 6.5 8 10.5l4-4',
   chevronRight: 'M6.5 4 10.5 8l-4 4'
 };

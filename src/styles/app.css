@@ -266,10 +266,97 @@ body {
   flex-direction: column;
   flex: none;
   width: 260px;
-  border-right: 1px solid var(--es-ui-border);
   background-color: var(--es-ui-bg-raised);
   min-height: 0;
 }
+
+/* `display: flex` above wins over the `hidden` attribute, so restate it. */
+.es-side[hidden],
+.es-properties[hidden] { display: none; }
+
+/* ------------------------------------------------------------- splitters */
+/*
+ * One splitter sits between the canvas and each side panel. Dragging it
+ * resizes the panel, double clicking restores the default width and the grip
+ * in the middle collapses the panel into a labelled rail.
+ */
+.es-splitter {
+  position: relative;
+  flex: none;
+  width: 5px;
+  border-left: 1px solid var(--es-ui-border);
+  border-right: 1px solid var(--es-ui-border);
+  background-color: var(--es-ui-bg-raised);
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.es-splitter:hover,
+.es-splitter.dragging { background-color: var(--es-ui-accent-dim); }
+
+.es-splitter-grip {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid var(--es-ui-border);
+  border-radius: 5px;
+  background-color: var(--es-ui-bg-raised);
+  color: var(--es-ui-text-dim);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 120ms;
+  z-index: 2;
+}
+
+.es-splitter:hover .es-splitter-grip,
+.es-splitter-grip:focus-visible { opacity: 1; }
+
+.es-splitter-grip:hover { color: var(--es-ui-text); border-color: var(--es-ui-accent); }
+
+.es-splitter-label { display: none; }
+
+/* Collapsed: the splitter becomes a rail that says what is hidden behind it. */
+.es-splitter.collapsed {
+  width: 26px;
+  cursor: pointer;
+  background-color: var(--es-ui-bg);
+}
+
+.es-splitter.collapsed:hover { background-color: var(--es-ui-bg-panel); }
+
+.es-splitter.collapsed .es-splitter-grip {
+  opacity: 1;
+  border-color: transparent;
+  background: transparent;
+}
+
+.es-splitter.collapsed .es-splitter-label {
+  position: absolute;
+  top: 44px;
+  left: 50%;
+  display: block;
+  transform: translateX(-50%) rotate(180deg);
+  writing-mode: vertical-rl;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--es-ui-text-dim);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* While dragging, nothing under the pointer may grab the text cursor. */
+body.es-resizing-columns { cursor: col-resize; user-select: none; }
+body.es-resizing-columns * { pointer-events: none; }
+body.es-resizing-columns .es-splitter { pointer-events: auto; }
 
 .es-panel {
   display: flex;
@@ -614,7 +701,6 @@ body.es-dragging * {
 .es-properties {
   flex: none;
   width: 320px;
-  border-left: 1px solid var(--es-ui-border);
   background-color: var(--es-ui-bg-raised);
 }
 
@@ -886,6 +972,11 @@ body.es-dragging * {
 @media (max-width: 1200px) {
   .es-side { width: 210px; }
   .es-properties { width: 280px; }
+}
+
+.es-button.es-toggle.active {
+  background-color: var(--es-ui-accent-dim);
+  color: var(--es-ui-text);
 }
 
 /* ----------------------------------------------------------------- modal */

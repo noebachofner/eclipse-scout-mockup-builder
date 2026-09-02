@@ -8,11 +8,13 @@ import {Toolbar} from './toolbar';
 import {defaultDesktopTemplate} from '../model/templates';
 import {readAutosave, readProjectFile, writeAutosave} from '../io/project';
 import {showShortcutsDialog} from './shortcuts';
+import {Workspace} from './panels';
 
 export class App {
   readonly store: Store;
   private canvas!: Canvas;
   private toolbar!: Toolbar;
+  private workspace!: Workspace;
   private readonly toast: HTMLElement;
   private toastTimer = 0;
 
@@ -38,14 +40,14 @@ export class App {
     left.appendChild(palette.element);
     left.appendChild(structure.element);
 
-    const main = div('es-main');
-    main.appendChild(left);
-    main.appendChild(canvas.element);
-    main.appendChild(properties.element);
+    const workspace = new Workspace(left, canvas.element, properties.element);
+    this.workspace = workspace;
+    toolbar.bindPanelToggles(workspace);
+    workspace.onChange(() => canvas.refreshOverlay());
 
     const layout = div('es-app');
     layout.appendChild(toolbar.element);
-    layout.appendChild(main);
+    layout.appendChild(workspace.element);
 
     this.toast = div('es-toast');
     layout.appendChild(this.toast);
@@ -128,6 +130,16 @@ export class App {
       if (key === '?' || (key === '/' && event.shiftKey)) {
         event.preventDefault();
         showShortcutsDialog();
+        return;
+      }
+      if (key === '[') {
+        event.preventDefault();
+        this.workspace.toggle('left');
+        return;
+      }
+      if (key === ']') {
+        event.preventDefault();
+        this.workspace.toggle('right');
         return;
       }
       if (key === '/') {

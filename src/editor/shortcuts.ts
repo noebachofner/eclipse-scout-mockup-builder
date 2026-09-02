@@ -32,7 +32,10 @@ const GROUPS: ShortcutGroup[] = [
       ['Ctrl+ +  /  Ctrl+ −', 'Zoom in and out'],
       ['Ctrl+0', 'Zoom to 100 %'],
       ['Ctrl+1', 'Fit the mockup into the window'],
-      ['/', 'Jump to the widget search']
+      ['/', 'Jump to the widget search'],
+      ['[', 'Show or hide the element palette'],
+      [']', 'Show or hide the property panel'],
+      ['Drag a splitter', 'Resize a side panel (double click resets it)']
     ]
   },
   {

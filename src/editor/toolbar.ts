@@ -7,6 +7,7 @@ import {exportPng} from '../io/exportPng';
 import {downloadBlob, downloadText, sanitizeFileName} from '../io/files';
 import {DropdownMenu, type MenuEntry} from './menu';
 import {editorIcon, shortcutLabel} from './icons';
+import type {PanelSide, Workspace} from './panels';
 
 export interface ToolbarCallbacks {
   notify(message: string, kind?: 'info' | 'error'): void;
@@ -23,6 +24,7 @@ export class Toolbar {
   private readonly undoButton: HTMLButtonElement;
   private readonly redoButton: HTMLButtonElement;
   private readonly zoomLabel: HTMLElement;
+  private readonly panelButtons: Record<PanelSide, HTMLButtonElement>;
 
   constructor(private store: Store, private callbacks: ToolbarCallbacks) {
     this.element = h('header', 'es-toolbar');
@@ -69,6 +71,13 @@ export class Toolbar {
     }));
     this.element.appendChild(zoomGroup);
 
+    // --- panels -------------------------------------------------------------
+    this.panelButtons = {
+      left: this.toggleButton('panelLeft', 'Element palette', '['),
+      right: this.toggleButton('panelRight', 'Property panel', ']')
+    };
+    this.element.appendChild(this.group([this.panelButtons.left, this.panelButtons.right]));
+
     // --- right hand side ----------------------------------------------------
     this.status = div('es-status');
     this.element.appendChild(this.status);
@@ -84,6 +93,21 @@ export class Toolbar {
     const group = div('es-toolbar-group');
     children.forEach(child => group.appendChild(child));
     return group;
+  }
+
+  /** Lets the workspace drive (and be driven by) the two panel buttons. */
+  bindPanelToggles(workspace: Workspace): void {
+    workspace.bindToggle('left', this.panelButtons.left);
+    workspace.bindToggle('right', this.panelButtons.right);
+  }
+
+  private toggleButton(icon: string, title: string, shortcut: string): HTMLButtonElement {
+    const button = h('button', 'es-button icon-only es-toggle');
+    button.type = 'button';
+    button.title = `${title} (${shortcut})`;
+    button.setAttribute('aria-label', title);
+    button.appendChild(editorIcon(icon));
+    return button;
   }
 
   private iconButton(icon: string, title: string, shortcut: string, action: () => void): HTMLButtonElement {
