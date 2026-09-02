@@ -8,6 +8,8 @@ import {applyTheme} from './theme';
 import type {Store} from './store';
 import {describeRefusal, findSlot, resolveDropTarget} from './dropTarget';
 import {div} from '../render/dom';
+import {showContextMenu} from './contextMenu';
+import {buildWidgetMenu} from './widgetMenu';
 
 export const DRAG_MIME = 'application/x-es-mockup-widget';
 
@@ -85,6 +87,7 @@ export class Canvas {
     // Listen on the page, not on the host: the resize handles live in the
     // overlay, which is a sibling of the host.
     this.page.addEventListener('pointerdown', e => this.onPointerDown(e));
+    this.page.addEventListener('contextmenu', e => this.onContextMenu(e));
     this.element.addEventListener('dragover', e => this.onDragOver(e));
     this.element.addEventListener('dragleave', e => this.onDragLeave(e));
     this.element.addEventListener('drop', e => this.onDrop(e));
@@ -207,6 +210,19 @@ export class Canvas {
     const id = el.dataset.nodeId;
     if (!id) return [];
     return pathTo(this.store.doc.root, id);
+  }
+
+  /**
+   * The editor's own right-click menu. The browser menu offers nothing useful
+   * over a mockup, so it is replaced with the actions that belong on a widget.
+   */
+  private onContextMenu(event: MouseEvent): void {
+    event.preventDefault();
+    const chain = this.nodeChainAt(event.target);
+    const node = chain[chain.length - 1] ?? this.store.doc.root;
+    const parent = chain[chain.length - 2] ?? null;
+    this.store.select(node.id);
+    showContextMenu(buildWidgetMenu(this.store, node, parent), event.clientX, event.clientY);
   }
 
   /** Canvas coordinates of a pointer event, in the mockup's own pixel space. */

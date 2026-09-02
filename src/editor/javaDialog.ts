@@ -1,19 +1,26 @@
 import {div, h, span} from '../render/dom';
 import type {MockupNode} from '../model/types';
-import {collectForms, generateFormJava, suggestClassName, type JavaExportOptions} from '../io/exportJava';
+import {collectForms, generateFormJava, suggestClassName, type JavaExportOptions, type PropertyDetail} from '../io/exportJava';
 import {downloadText} from '../io/files';
 import {editorIcon} from './icons';
 
 const STORAGE_KEY = 'es-mockup.java.v1';
 
+const DETAILS: Array<{value: PropertyDetail; label: string; hint: string}> = [
+  {value: 'changed', label: 'Only what differs from the default', hint: 'The most compact output, like a hand written form.'},
+  {value: 'layout', label: 'Include the layout', hint: 'Writes the logical grid of every field, even where it is the Scout default.'},
+  {value: 'all', label: 'Everything the generator can map', hint: 'Every mapped property, defaults included. Verbose, but nothing is implied.'}
+];
+
 interface Persisted {
   packageName: string;
   useTexts: boolean;
   includeGetters: boolean;
+  detail: PropertyDetail;
 }
 
 function readPersisted(): Persisted {
-  const fallback: Persisted = {packageName: '', useTexts: false, includeGetters: true};
+  const fallback: Persisted = {packageName: '', useTexts: false, includeGetters: true, detail: 'layout'};
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return fallback;
@@ -21,7 +28,8 @@ function readPersisted(): Persisted {
     return {
       packageName: String(parsed.packageName ?? ''),
       useTexts: !!parsed.useTexts,
-      includeGetters: parsed.includeGetters !== false
+      includeGetters: parsed.includeGetters !== false,
+      detail: DETAILS.some(entry => entry.value === parsed.detail) ? (parsed.detail as PropertyDetail) : 'layout'
     };
   } catch {
     return fallback;
@@ -93,6 +101,17 @@ export function showJavaExportDialog(root: MockupNode, notify: (message: string,
   textsInput.checked = persisted.useTexts;
   options.appendChild(checkbox('Wrap texts in TEXTS.get()', textsInput));
 
+  const detailSelect = h('select', 'es-java-select') as HTMLSelectElement;
+  DETAILS.forEach(entry => {
+    const option = document.createElement('option');
+    option.value = entry.value;
+    option.textContent = entry.label;
+    option.title = entry.hint;
+    detailSelect.appendChild(option);
+  });
+  detailSelect.value = persisted.detail;
+  options.appendChild(field('Properties', detailSelect));
+
   const gettersInput = h('input', '') as HTMLInputElement;
   gettersInput.type = 'checkbox';
   gettersInput.checked = persisted.includeGetters;
@@ -132,6 +151,7 @@ export function showJavaExportDialog(root: MockupNode, notify: (message: string,
 
   const regenerate = (): void => {
     const exportOptions: JavaExportOptions = {
+      detail: detailSelect.value as PropertyDetail,
       packageName: packageInput.value,
       className: classInput.value.trim() || suggestClassName(selected),
       useTexts: textsInput.checked,
@@ -151,7 +171,8 @@ export function showJavaExportDialog(root: MockupNode, notify: (message: string,
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         packageName: packageInput.value,
         useTexts: textsInput.checked,
-        includeGetters: gettersInput.checked
+        includeGetters: gettersInput.checked,
+        detail: detailSelect.value
       }));
     } catch {
       // Persisting the settings is a convenience, never a requirement.
@@ -165,6 +186,7 @@ export function showJavaExportDialog(root: MockupNode, notify: (message: string,
   });
   [classInput, packageInput].forEach(input => input.addEventListener('input', regenerate));
   [textsInput, gettersInput].forEach(input => input.addEventListener('change', regenerate));
+  detailSelect.addEventListener('change', regenerate);
 
   copyButton.addEventListener('click', async () => {
     try {

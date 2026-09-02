@@ -422,7 +422,45 @@ for (const view of [0, 1, 2, 3, 4]) {
 check('no widget overlaps another in the logical grid', overlapReport.length === 0, overlapReport.join('; '));
 check('no widget content overflows its box', overflowReport.length === 0, overflowReport.join('; '));
 
-// --- 13. review callouts ---------------------------------------------------
+// --- 13. the canvas context menu -------------------------------------------
+await page.click('.es-toolbar .es-menu-button .es-button:has-text("File")');
+await page.click('.es-dropdown-item:has-text("New: Scout desktop")');
+await page.waitForTimeout(300);
+const menuBox = await page.locator('.es-canvas-page').boundingBox();
+await page.mouse.click(menuBox.x + 700, menuBox.y + 240, {button: 'right'});
+await page.waitForTimeout(250);
+check('right click opens the editor menu instead of the browser one', await page.isVisible('.es-context-menu'));
+const menuItems = await page.locator('.es-context-menu-item').allTextContents();
+check('the menu names the widget and offers the usual actions',
+  menuItems[0]?.trim() === 'String field' && menuItems.some(item => item.startsWith('Duplicate')) && menuItems.some(item => item.startsWith('Remove')),
+  menuItems.join(' | '));
+
+await page.hover('.es-context-menu-item:has-text("Add widget")');
+await page.waitForTimeout(300);
+const categories = await page.locator('.es-context-menu[data-depth="1"] .es-context-menu-item').allTextContents();
+check('the add submenu groups the widgets by category', categories.length >= 5, categories.join(', '));
+
+await page.hover('.es-context-menu[data-depth="1"] .es-context-menu-item:has-text("Value fields")');
+await page.waitForTimeout(300);
+const rowsBeforeInsert = await page.evaluate(() => document.querySelectorAll('.es-structure-row').length);
+await page.click('.es-context-menu[data-depth="2"] .es-context-menu-item:has-text("Number field")');
+await page.waitForTimeout(300);
+const rowsAfterInsert = await page.evaluate(() => document.querySelectorAll('.es-structure-row').length);
+check('adding from the submenu inserts the widget', rowsAfterInsert === rowsBeforeInsert + 1, `${rowsBeforeInsert} -> ${rowsAfterInsert}`);
+check('the menu closes after an action', !(await page.isVisible('.es-context-menu')));
+
+// The menu has to be usable without a mouse.
+await page.mouse.click(menuBox.x + 700, menuBox.y + 240, {button: 'right'});
+await page.waitForTimeout(250);
+await page.keyboard.press('ArrowDown');
+await page.keyboard.press('ArrowDown');
+const focused = await page.evaluate(() => document.activeElement?.textContent?.trim());
+check('the arrow keys move through the menu', (focused ?? '').startsWith('Copy'), (focused ?? '').slice(0, 40));
+await page.keyboard.press('Escape');
+await page.waitForTimeout(150);
+check('Escape closes the menu', !(await page.isVisible('.es-context-menu')));
+
+// --- 14. review callouts ---------------------------------------------------
 await page.click('.es-toolbar .es-menu-button .es-button:has-text("File")');
 await page.click('.es-dropdown-item:has-text("New: Scout desktop")');
 await page.waitForTimeout(300);
@@ -463,7 +501,7 @@ const annotatedHtml = await readFile(annotatedPath, 'utf8');
 check('the HTML export carries the callouts',
   annotatedHtml.includes('annotation-marker') && annotatedHtml.includes('Check this field'));
 
-// --- 14. a share link carries the document in its fragment -----------------
+// --- 15. a share link carries the document in its fragment -----------------
 await page.evaluate(() => window.esMockup.store.updateMeta({name: 'Shared mockup'}));
 const shareUrl = await page.evaluate(() => window.esMockup.shareUrl());
 check('the share link fits in a URL', shareUrl.length < 8000, `${shareUrl.length} characters`);
@@ -484,7 +522,7 @@ check('opening the share link restores the document', sharedName === 'Shared moc
 check('the fragment is dropped after loading', (await shared.evaluate(() => location.hash)) === '');
 await shared.close();
 
-// --- 15. the workspace panels collapse and resize --------------------------
+// --- 16. the workspace panels collapse and resize --------------------------
 const panelWidth = side => page.evaluate(
   selector => Math.round(document.querySelector(selector)?.getBoundingClientRect().width ?? -1),
   side === 'left' ? '.es-side-left' : '.es-properties'

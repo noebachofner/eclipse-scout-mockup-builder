@@ -3,7 +3,7 @@ import type {Store} from './store';
 import {TEMPLATES} from '../model/templates';
 import type {MockupDocument} from '../model/types';
 import {saveProject, openProject, listAutosaves, restoreAutosave} from '../io/project';
-import {buildShareUrl, COMFORTABLE_URL_LENGTH} from '../io/share';
+import {buildShareUrl, findEmbeddedImages, COMFORTABLE_URL_LENGTH} from '../io/share';
 import {buildHtmlExport} from '../io/exportHtml';
 import {exportPng} from '../io/exportPng';
 import {downloadBlob, downloadText, sanitizeFileName} from '../io/files';
@@ -120,6 +120,17 @@ export class Toolbar {
 
   /** Copies a link that carries the document in its fragment. */
   async copyShareLink(): Promise<void> {
+    const images = findEmbeddedImages(this.store.doc);
+    if (images.length) {
+      // gzip cannot shrink an already compressed picture, so this link would be
+      // unusable however it is encoded.
+      const kilobytes = Math.round(images.reduce((sum, image) => sum + image.bytes, 0) / 1024);
+      this.callbacks.notify(
+        `This mockup embeds ${images.length} image${images.length === 1 ? '' : 's'} (~${kilobytes} KB), which no share link can carry. Send the .esmockup file instead - Ctrl+S saves it.`,
+        'error'
+      );
+      return;
+    }
     try {
       const url = await buildShareUrl(this.store.doc);
       await navigator.clipboard.writeText(url);

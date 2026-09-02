@@ -127,6 +127,33 @@ export class Store {
     this.emit('document');
   }
 
+  /* ------------------------------------------------------------- clipboard */
+
+  /**
+   * An in-editor clipboard. The system clipboard is not used: it would need
+   * permission prompts and would carry no widget structure anyway.
+   */
+  private clipboard: MockupNode | null = null;
+
+  copyToClipboard(nodeId: string): boolean {
+    const node = findNode(this.state.doc.root, nodeId);
+    if (!node) return false;
+    this.clipboard = cloneNode(node);
+    return true;
+  }
+
+  get clipboardType(): string | null {
+    return this.clipboard?.objectType ?? null;
+  }
+
+  /** Pastes the clipboard into `parentId`; returns the new node's id. */
+  pasteInto(parentId: string, slot: string): string | null {
+    if (!this.clipboard) return null;
+    const copy = cloneNode(this.clipboard);
+    this.insert(parentId, copy, slot);
+    return copy.id;
+  }
+
   /* ----------------------------------------------------------- annotations */
 
   addAnnotation(x: number, y: number): string {

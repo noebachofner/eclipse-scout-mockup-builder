@@ -7,7 +7,7 @@
  * of kilobytes; `CompressionStream` is used when the browser has it and the
  * plain JSON is encoded otherwise, with a one character marker saying which.
  */
-import type {MockupDocument} from '../model/types';
+import type {MockupDocument, MockupNode} from '../model/types';
 import {parseDocument, serializeDocument} from '../model/document';
 
 const PREFIX = '#m=';
@@ -50,6 +50,28 @@ async function through(stream: ReadableStream<Uint8Array>): Promise<Uint8Array> 
     offset += chunk.length;
   }
   return result;
+}
+
+/**
+ * Embedded pictures are data URIs, and gzip barely dents an already compressed
+ * PNG or JPEG. A mockup carrying one is past any usable URL length before it
+ * starts, so the caller is told to send the file instead of producing a link
+ * that gets cut short on the way.
+ */
+export function findEmbeddedImages(doc: MockupDocument): Array<{path: string; bytes: number}> {
+  const found: Array<{path: string; bytes: number}> = [];
+  const walk = (node: MockupNode, trail: string[]): void => {
+    const label = String(node.properties.label ?? node.properties.title ?? '') || node.objectType;
+    const path = [...trail, label];
+    for (const [name, value] of Object.entries(node.properties)) {
+      if (typeof value === 'string' && value.startsWith('data:')) {
+        found.push({path: `${path.join(' › ')} (${name})`, bytes: value.length});
+      }
+    }
+    node.children.forEach(child => walk(child, path));
+  };
+  walk(doc.root, []);
+  return found;
 }
 
 /** Builds the full share URL for `doc`, based on the current location. */

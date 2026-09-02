@@ -979,6 +979,42 @@ body.es-dragging * {
   color: var(--es-ui-text);
 }
 
+/* ---------------------------------------------------------- context menu */
+.es-context-menu-separator {
+  height: 1px;
+  margin: 4px 0;
+  background-color: var(--es-ui-border);
+}
+
+.es-context-menu-shortcut {
+  margin-left: auto;
+  padding-left: 16px;
+  color: var(--es-ui-text-dim);
+  font-size: 11px;
+}
+
+.es-context-menu-caret { margin-left: auto; opacity: 0.7; }
+
+.es-context-menu-item:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* The first entry names the widget the menu belongs to. */
+.es-context-menu-item:disabled:first-child {
+  opacity: 1;
+  font-weight: 600;
+  color: var(--es-ui-text-dim);
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.es-context-menu-item:focus-visible {
+  outline: none;
+  background-color: var(--es-ui-accent-dim);
+}
+
 /* ------------------------------------------------------- annotation layer */
 .es-annotation-layer {
   position: absolute;

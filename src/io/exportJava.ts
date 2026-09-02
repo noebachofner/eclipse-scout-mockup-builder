@@ -16,7 +16,19 @@
 import type {MockupNode, PropertyValue} from '../model/types';
 import {getWidget} from '../model/catalog';
 
+/**
+ * How much of the configuration ends up in the generated file.
+ *
+ * `changed` writes only what differs from the Scout default, which is what a
+ * hand written form looks like. `layout` adds the logical grid of every field
+ * even where it is still the default, so the layout is visible in the code
+ * rather than implied. `all` writes every property the generator can map.
+ */
+export type PropertyDetail = 'changed' | 'layout' | 'all';
+
 export interface JavaExportOptions {
+  /** How much configuration to write out. Defaults to `layout` in the dialog. */
+  detail: PropertyDetail;
   /** Java package the class is placed in. Empty writes no package statement. */
   packageName: string;
   /** Class name of the generated form, e.g. `PersonForm`. */
@@ -428,18 +440,59 @@ class Writer {
 }
 
 /** Emits the `getConfigured*` overrides a node needs, skipping catalog defaults. */
+/**
+ * Properties that describe the layout. In `layout` detail these are written out
+ * for every field even when they still hold the Scout default, because that is
+ * the part a developer wants to see spelled out next to the structure.
+ */
+const LAYOUT_PROPS = [
+  'gridDataHints.w',
+  'gridDataHints.h',
+  'gridDataHints.weightX',
+  'gridDataHints.weightY',
+  'gridDataHints.useUiWidth',
+  'gridDataHints.useUiHeight',
+  'gridDataHints.fillHorizontal',
+  'gridDataHints.fillVertical',
+  'gridDataHints.horizontalAlignment',
+  'gridDataHints.verticalAlignment',
+  'gridColumnCount',
+  'labelPosition',
+  'labelVisible',
+  'labelWidthInPixel'
+];
+
 function emitOverrides(writer: Writer, node: MockupNode, indent: number, ctx: EmitContext): number {
   const def = getWidget(node.objectType);
   const defaults = def?.defaults ?? {};
-  let count = 0;
+  const detail = ctx.options.detail;
 
-  for (const [name, value] of Object.entries(node.properties)) {
+  // Everything the node carries, plus - depending on the detail level - the
+  // properties it merely inherits from the catalog default.
+  const names = new Set(Object.keys(node.properties));
+  if (detail === 'all') {
+    Object.keys(defaults).forEach(name => names.add(name));
+  } else if (detail === 'layout') {
+    LAYOUT_PROPS.forEach(name => {
+      if (defaults[name] !== undefined) names.add(name);
+    });
+  }
+
+  let count = 0;
+  for (const name of names) {
     const emitter = EMITTERS[name];
     if (!emitter) continue;
     if (emitter.only && !emitter.only.includes(node.objectType)) continue;
-    // The label names the field, so it is always written out even when it still
-    // matches the catalog default.
-    if (name !== 'label' && JSON.stringify(value) === JSON.stringify(defaults[name])) continue;
+    const value = node.properties[name] ?? defaults[name];
+    if (value === undefined) continue;
+
+    const isDefault = JSON.stringify(value) === JSON.stringify(defaults[name]);
+    // The label names the field, so it is always written out. Layout and `all`
+    // deliberately repeat the defaults; `changed` keeps the file minimal.
+    const forced = name === 'label'
+      || (detail === 'all')
+      || (detail === 'layout' && LAYOUT_PROPS.includes(name));
+    if (isDefault && !forced) continue;
 
     const expression = emitter.express(value, ctx);
     if (expression === null) continue;

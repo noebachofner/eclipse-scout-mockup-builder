@@ -12,7 +12,7 @@ const java = await importTs('src/io/exportJava.ts');
 const templates = await importTs('src/model/templates.ts');
 const docModule = await importTs('src/model/document.ts');
 
-const OPTIONS = {packageName: 'org.example.client', className: 'PersonForm', useTexts: false, includeGetters: true};
+const OPTIONS = {detail: 'changed', packageName: 'org.example.client', className: 'PersonForm', useTexts: false, includeGetters: true};
 const generate = (form, options = {}) => java.generateFormJava(form, {...OPTIONS, ...options});
 
 const personForm = () => java.collectForms(templates.defaultDesktopTemplate().root)[0];
@@ -165,4 +165,37 @@ test('a column name cannot collide with a field name', () => {
   const {code} = generate(doc, {className: 'OrderForm'});
   const classes = [...code.matchAll(/public class (\w+) extends/g)].map(match => match[1]);
   assert.deepEqual(classes, [...new Set(classes)], `duplicate class: ${classes.join(', ')}`);
+});
+
+test('layout detail writes the logical grid of every field', () => {
+  const {code} = generate(personForm(), {detail: 'layout'});
+  const firstName = code.slice(code.indexOf('class FirstNameField'), code.indexOf('class LastNameField'));
+  // These are all still the Scout defaults; layout detail writes them anyway so
+  // the layout is visible in the code rather than implied.
+  assert.match(firstName, /protected int getConfiguredGridW\(\) \{\s*return 1;/);
+  assert.match(firstName, /protected int getConfiguredGridH\(\) \{\s*return 1;/);
+  assert.match(firstName, /protected double getConfiguredGridWeightX\(\) \{\s*return -1\.0;/);
+  assert.match(firstName, /protected boolean getConfiguredFillHorizontal\(\) \{\s*return true;/);
+});
+
+test('changed detail leaves the defaults out', () => {
+  const {code} = generate(personForm(), {detail: 'changed'});
+  const firstName = code.slice(code.indexOf('class FirstNameField'), code.indexOf('class LastNameField'));
+  assert.doesNotMatch(firstName, /getConfiguredGridW\b/);
+  assert.match(firstName, /getConfiguredMandatory/);
+});
+
+test('all detail adds the non-layout defaults too', () => {
+  const {code} = generate(personForm(), {detail: 'all'});
+  const firstName = code.slice(code.indexOf('class FirstNameField'), code.indexOf('class LastNameField'));
+  assert.match(firstName, /getConfiguredStatusVisible/);
+  assert.match(firstName, /getConfiguredFieldStyle/);
+  assert.match(firstName, /getConfiguredGridW/);
+});
+
+test('every detail level still produces balanced braces', () => {
+  for (const detail of ['changed', 'layout', 'all']) {
+    const {code} = generate(personForm(), {detail});
+    assert.equal((code.match(/\{/g) ?? []).length, (code.match(/\}/g) ?? []).length, detail);
+  }
 });
