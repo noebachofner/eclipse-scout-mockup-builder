@@ -28,32 +28,35 @@ export function showContextMenu(entries: ContextMenuEntry[], x: number, y: numbe
   place(menu, x, y);
   focusItem(menu, 0);
 
-  function close(): void {
-    closeContextMenus();
-    restoreFocusTo?.focus();
-  }
-
   const dismiss = (event: Event): void => {
     // Submenus are separate elements on the body, not children of the root
     // menu, so asking the root whether it contains the target dismissed the
     // whole thing on mousedown before the click could reach a submenu entry.
     if (event.target instanceof Element && event.target.closest('.es-context-menu')) return;
-    closeContextMenus();
-    document.removeEventListener('mousedown', dismiss, true);
-    window.removeEventListener('blur', dismiss);
+    close();
   };
   const onEscape = (event: KeyboardEvent): void => {
     if (event.key !== 'Escape') return;
     event.preventDefault();
     event.stopPropagation();
     close();
-    document.removeEventListener('keydown', onEscape, true);
   };
   setTimeout(() => {
     document.addEventListener('mousedown', dismiss, true);
     document.addEventListener('keydown', onEscape, true);
     window.addEventListener('blur', dismiss);
   });
+
+  // Every path out of the menu goes through here, so the document level
+  // listeners cannot outlive it - a stray Escape handler would otherwise
+  // swallow the next Escape the editor itself wanted to see.
+  function close(): void {
+    document.removeEventListener('mousedown', dismiss, true);
+    document.removeEventListener('keydown', onEscape, true);
+    window.removeEventListener('blur', dismiss);
+    closeContextMenus();
+    restoreFocusTo?.focus();
+  }
 }
 
 export function closeContextMenus(): void {

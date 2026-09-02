@@ -13,6 +13,7 @@ import {buildWidgetMenu} from './widgetMenu';
 import {renderGridInspector} from './gridInspector';
 import {computeSnap, type Rect} from './alignment';
 import {reapplyPlacement} from '../render/layout';
+import {pageBoxOf, placeOver} from './geometry';
 
 export const DRAG_MIME = 'application/x-es-mockup-widget';
 
@@ -122,7 +123,7 @@ export class Canvas {
   private renderGridLayer(): void {
     this.gridLayer.replaceChildren();
     if (!this.gridInspector) return;
-    this.gridLayer.appendChild(renderGridInspector(this.host, this.page));
+    this.gridLayer.appendChild(renderGridInspector(this.host, this.page, this.store.doc.canvas.zoom));
   }
 
   /** Turns callout placement on or off. */
@@ -230,12 +231,11 @@ export class Canvas {
         const id = marker.dataset.annotationId;
         const annotation = this.store.doc.annotations.find(a => a.id === id);
         if (!annotation) return;
-        const zoom = this.store.doc.canvas.zoom || 1;
-        const pageRect = this.page.getBoundingClientRect();
+        const point = this.pagePoint(event);
         this.annotationDrag = {
           id: annotation.id,
-          offsetX: (event.clientX - pageRect.left) / zoom - annotation.x,
-          offsetY: (event.clientY - pageRect.top) / zoom - annotation.y
+          offsetX: point.x - annotation.x,
+          offsetY: point.y - annotation.y
         };
       });
     });
@@ -258,15 +258,10 @@ export class Canvas {
   }
 
   private selectionBox(el: HTMLElement, node: MockupNode, primary: boolean, multiple: boolean): HTMLElement {
-    const pageRect = this.page.getBoundingClientRect();
-    const rect = el.getBoundingClientRect();
-    const zoom = this.store.doc.canvas.zoom || 1;
+    const bounds = pageBoxOf(el, this.page, this.store.doc.canvas.zoom);
     const box = div(`es-selection-box${primary ? '' : ' secondary'}`);
     box.dataset.nodeId = node.id;
-    box.style.left = `${(rect.left - pageRect.left) / zoom}px`;
-    box.style.top = `${(rect.top - pageRect.top) / zoom}px`;
-    box.style.width = `${rect.width / zoom}px`;
-    box.style.height = `${rect.height / zoom}px`;
+    placeOver(box, bounds);
 
     const def = getWidget(node.objectType);
     if (primary) {
@@ -287,7 +282,7 @@ export class Canvas {
           el.dataset.handle = handle;
           box.appendChild(el);
         }
-        box.appendChild(div('es-size-badge', `${Math.round(rect.width / zoom)} × ${Math.round(rect.height / zoom)}`));
+        box.appendChild(div('es-size-badge', `${Math.round(bounds.width)} × ${Math.round(bounds.height)}`));
       }
     }
     return box;
@@ -407,20 +402,17 @@ export class Canvas {
     this.element.style.cursor = '';
     if (band.right - band.left < 4 && band.bottom - band.top < 4) return;
 
-    const pageRect = this.page.getBoundingClientRect();
-    const zoom = this.store.doc.canvas.zoom || 1;
+    const zoom = this.store.doc.canvas.zoom;
     const hits: string[] = [];
     for (const [id, el] of this.nodeElements) {
       const node = findNode(this.store.doc.root, id);
       if (!node || !this.isFreeFormChild(node)) continue;
-      const rect = el.getBoundingClientRect();
-      const left = (rect.left - pageRect.left) / zoom;
-      const top = (rect.top - pageRect.top) / zoom;
+      const box = pageBoxOf(el, this.page, zoom);
       // Fully enclosed, not merely touched: a band that grabs everything it
       // brushes past is impossible to aim.
-      if (left >= band.left && top >= band.top
-        && left + rect.width / zoom <= band.right
-        && top + rect.height / zoom <= band.bottom) {
+      if (box.left >= band.left && box.top >= band.top
+        && box.left + box.width <= band.right
+        && box.top + box.height <= band.bottom) {
         hits.push(id);
       }
     }
@@ -543,45 +535,36 @@ export class Canvas {
     const container = parent ? this.nodeElements.get(parent.id) : null;
     const body = container?.querySelector<HTMLElement>('.free-form') ?? container;
     if (!body) return;
-    const pageRect = this.page.getBoundingClientRect();
-    const rect = body.getBoundingClientRect();
-    const zoom = this.store.doc.canvas.zoom || 1;
-    const left = (rect.left - pageRect.left) / zoom;
-    const top = (rect.top - pageRect.top) / zoom;
+    const box = pageBoxOf(body, this.page, this.store.doc.canvas.zoom);
 
     for (const x of verticals) {
       const line = div('es-guide vertical');
-      line.style.left = `${left + x}px`;
-      line.style.top = `${top}px`;
-      line.style.height = `${rect.height / zoom}px`;
+      line.style.left = `${box.left + x}px`;
+      line.style.top = `${box.top}px`;
+      line.style.height = `${box.height}px`;
       this.guideLayer.appendChild(line);
     }
     for (const y of horizontals) {
       const line = div('es-guide horizontal');
-      line.style.top = `${top + y}px`;
-      line.style.left = `${left}px`;
-      line.style.width = `${rect.width / zoom}px`;
+      line.style.top = `${box.top + y}px`;
+      line.style.left = `${box.left}px`;
+      line.style.width = `${box.width}px`;
       this.guideLayer.appendChild(line);
     }
   }
 
   /** Re-measures every selection box after a drag moved the elements. */
-  private updateSelectionBoxes(bounds?: FreeBounds): void {
-    const pageRect = this.page.getBoundingClientRect();
-    const zoom = this.store.doc.canvas.zoom || 1;
+  private updateSelectionBoxes(dragged?: FreeBounds): void {
+    const zoom = this.store.doc.canvas.zoom;
     this.overlay.querySelectorAll<HTMLElement>('.es-selection-box').forEach(box => {
       const el = box.dataset.nodeId ? this.nodeElements.get(box.dataset.nodeId) : null;
       if (!el) return;
-      const rect = el.getBoundingClientRect();
-      box.style.left = `${(rect.left - pageRect.left) / zoom}px`;
-      box.style.top = `${(rect.top - pageRect.top) / zoom}px`;
-      box.style.width = `${rect.width / zoom}px`;
-      box.style.height = `${rect.height / zoom}px`;
+      const bounds = pageBoxOf(el, this.page, zoom);
+      placeOver(box, bounds);
       const badge = box.querySelector('.es-size-badge');
       if (badge) {
-        badge.textContent = bounds
-          ? `${Math.round(bounds.width)} × ${Math.round(bounds.height)}`
-          : `${Math.round(rect.width / zoom)} × ${Math.round(rect.height / zoom)}`;
+        const shown = dragged ?? bounds;
+        badge.textContent = `${Math.round(shown.width)} × ${Math.round(shown.height)}`;
       }
     });
   }

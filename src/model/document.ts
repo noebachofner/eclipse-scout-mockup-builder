@@ -92,14 +92,6 @@ export function walk(root: MockupNode, visit: (node: MockupNode, parent: MockupN
   root.children.forEach(child => walk(child, visit, root));
 }
 
-export function removeNode(root: MockupNode, id: string): MockupNode | null {
-  const parent = findParent(root, id);
-  if (!parent) return null;
-  const index = parent.children.findIndex(child => child.id === id);
-  if (index < 0) return null;
-  return parent.children.splice(index, 1)[0] ?? null;
-}
-
 /** True when `candidate` is `node` or one of its descendants (drop-target guard). */
 export function containsNode(node: MockupNode, candidateId: string): boolean {
   return !!findNode(node, candidateId);

@@ -118,25 +118,3 @@ export interface GridDataHints {
   verticalAlignment: -1 | 0 | 1;
 }
 
-export const DEFAULT_GRID_DATA_HINTS: GridDataHints = {
-  x: -1,
-  y: -1,
-  w: 1,
-  h: 1,
-  weightX: -1,
-  weightY: -1,
-  useUiWidth: false,
-  useUiHeight: false,
-  fillHorizontal: true,
-  fillVertical: true,
-  horizontalAlignment: -1,
-  verticalAlignment: -1
-};
-
-/** Absolute placement, used only when a container opts out of the logical grid. */
-export interface FreeFormBounds {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}

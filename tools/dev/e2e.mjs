@@ -460,6 +460,19 @@ await page.keyboard.press('Escape');
 await page.waitForTimeout(150);
 check('Escape closes the menu', !(await page.isVisible('.es-context-menu')));
 
+// The menu's document-level listeners must not outlive it: a stray Escape
+// handler would swallow the next Escape the editor itself wanted to see.
+await page.mouse.click(menuBox.x + 700, menuBox.y + 240, {button: 'right'});
+await page.waitForTimeout(200);
+await page.click('.es-context-menu-item:has-text("Copy")');
+await page.waitForTimeout(200);
+await page.keyboard.press('?');
+await page.waitForTimeout(200);
+check('the shortcut dialog still opens after using the menu', await page.isVisible('.es-modal'));
+await page.keyboard.press('Escape');
+await page.waitForTimeout(200);
+check('Escape still reaches the editor after using the menu', !(await page.isVisible('.es-modal')));
+
 // --- 14. multi select, group drag and snapping -----------------------------
 await page.click('.es-toolbar .es-menu-button .es-button:has-text("File")');
 await page.click('.es-dropdown-item:has-text("New: Form only")');

@@ -11,6 +11,9 @@ import {getWidget} from './catalog';
 
 export type FindingSeverity = 'error' | 'warning' | 'info';
 
+/** Matches the fallback the renderer uses for a container without the property. */
+const DEFAULT_GRID_COLUMN_COUNT = 2;
+
 export interface Finding {
   severity: FindingSeverity;
   /** Node the finding belongs to, so clicking it can select the widget. */
@@ -43,7 +46,7 @@ export function validateDocument(doc: MockupDocument): Finding[] {
     // --- logical grid --------------------------------------------------------
     const width = Number(node.properties['gridDataHints.w'] ?? 1);
     if (parent && width > 1) {
-      const columns = Number(parent.properties.gridColumnCount ?? (parent.objectType === 'Form' ? 2 : 2));
+      const columns = Number(parent.properties.gridColumnCount ?? DEFAULT_GRID_COLUMN_COUNT);
       if (parent.properties.layoutMode !== 'free' && width > columns) {
         add('error', `Grid width ${width} is wider than the ${columns} columns of "${labelOf(parent)}". Scout clamps the field to the column count, so the mockup and the running form will differ.`);
       }

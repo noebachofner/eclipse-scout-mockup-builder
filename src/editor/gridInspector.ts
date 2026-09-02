@@ -1,4 +1,5 @@
 import {div, span} from '../render/dom';
+import {pageBoxOf, placeOver} from './geometry';
 
 /**
  * Draws Scout's logical grid on top of the mockup.
@@ -10,18 +11,12 @@ import {div, span} from '../render/dom';
  * (`data-grid-cell`) plus the used track sizes from the browser, so it shows
  * what actually happened rather than a second, possibly different, computation.
  */
-export function renderGridInspector(host: HTMLElement, page: HTMLElement): HTMLElement {
+export function renderGridInspector(host: HTMLElement, page: HTMLElement, zoom: number): HTMLElement {
   const layer = div('es-grid-inspector');
-  const pageRect = page.getBoundingClientRect();
-  const zoom = pageRect.width / (page.offsetWidth || 1) || 1;
 
   host.querySelectorAll<HTMLElement>('.logical-grid').forEach(grid => {
-    const rect = grid.getBoundingClientRect();
     const box = div('es-grid-box');
-    box.style.left = `${(rect.left - pageRect.left) / zoom}px`;
-    box.style.top = `${(rect.top - pageRect.top) / zoom}px`;
-    box.style.width = `${rect.width / zoom}px`;
-    box.style.height = `${rect.height / zoom}px`;
+    placeOver(box, pageBoxOf(grid, page, zoom));
 
     const style = getComputedStyle(grid);
     const columns = trackSizes(style.gridTemplateColumns);
@@ -60,10 +55,10 @@ export function renderGridInspector(host: HTMLElement, page: HTMLElement): HTMLE
   // One badge per placed widget, sitting in its top left corner.
   host.querySelectorAll<HTMLElement>('[data-grid-cell]').forEach(el => {
     const [x, y, w, h, weightX, weightY] = (el.dataset.gridCell ?? '').split(',');
-    const rect = el.getBoundingClientRect();
+    const cellBox = pageBoxOf(el, page, zoom);
     const badge = div('es-grid-badge');
-    badge.style.left = `${(rect.left - pageRect.left) / zoom}px`;
-    badge.style.top = `${(rect.top - pageRect.top) / zoom}px`;
+    badge.style.left = `${cellBox.left}px`;
+    badge.style.top = `${cellBox.top}px`;
     badge.appendChild(span('es-grid-badge-pos', `${x},${y}`));
     badge.appendChild(span('es-grid-badge-size', `${w}×${h}`));
     badge.title = `gridX ${x}, gridY ${y}, w ${w}, h ${h}\nweightX ${weightX}, weightY ${weightY}`;

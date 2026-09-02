@@ -1,4 +1,5 @@
 import {div, h, span} from '../render/dom';
+import {renderRowsEditor} from './rowsEditor';
 import type {MockupNode, PropertyValue} from '../model/types';
 
 export interface TableEditorHost {
@@ -128,41 +129,14 @@ export function renderTableEditor(node: MockupNode, host: TableEditorHost): HTML
 
   // --- rows -----------------------------------------------------------------
   wrapper.appendChild(span('es-table-editor-title', 'Rows'));
-  const grid = div('es-table-rows');
-  const scroller = div('es-table-rows-scroll');
-  const headerRow = div('es-table-row header');
-  columns.forEach(column => headerRow.appendChild(span('es-table-cell-head', column.text || '—')));
-  headerRow.appendChild(span('es-table-cell-head', ''));
-  scroller.appendChild(headerRow);
-
-  rows.forEach((cells, rowIndex) => {
-    const row = div('es-table-row');
-    columns.forEach((_, columnIndex) => {
-      const input = h('input', 'es-input es-table-cell') as HTMLInputElement;
-      input.value = cells[columnIndex] ?? '';
-      input.addEventListener('change', () => {
-        rows[rowIndex][columnIndex] = input.value;
-        commit();
-      });
-      row.appendChild(input);
-    });
-    row.appendChild(iconButton('✕', 'Remove the row', true, () => {
-      rows.splice(rowIndex, 1);
+  wrapper.appendChild(renderRowsEditor({
+    headers: columns.map(column => column.text || '—'),
+    value: rows,
+    onChange: next => {
+      rows = next;
       commit();
-    }));
-    scroller.appendChild(row);
-  });
-  grid.appendChild(scroller);
-  wrapper.appendChild(grid);
-
-  const addRow = h('button', 'es-mini-button');
-  addRow.type = 'button';
-  addRow.textContent = '+ Row';
-  addRow.addEventListener('click', () => {
-    rows.push(columns.map(() => ''));
-    commit();
-  });
-  wrapper.appendChild(addRow);
+    }
+  }));
 
   return wrapper;
 }

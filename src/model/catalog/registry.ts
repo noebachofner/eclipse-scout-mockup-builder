@@ -117,12 +117,6 @@ export function getWidget(objectType: string): WidgetDef | undefined {
   return registry.get(objectType);
 }
 
-export function requireWidget(objectType: string): WidgetDef {
-  const def = registry.get(objectType);
-  if (!def) throw new Error(`Unknown objectType: ${objectType}`);
-  return def;
-}
-
 export function allWidgets(): WidgetDef[] {
   return [...registry.values()];
 }

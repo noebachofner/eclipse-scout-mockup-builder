@@ -129,15 +129,6 @@ export function restoreAutosave(slotId: string): MockupDocument | null {
   }
 }
 
-export function clearAutosaves(): void {
-  try {
-    localStorage.removeItem(SLOTS_KEY);
-    localStorage.removeItem(AUTOSAVE_KEY);
-  } catch {
-    // ignore
-  }
-}
-
 /** A fresh slot id, so a new or opened mockup does not overwrite the last one. */
 export function newSlotId(): string {
   return `s${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
