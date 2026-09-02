@@ -1148,6 +1148,45 @@ body.es-dragging * {
 
 .es-annotation-row .es-input { padding: 5px 8px; font-size: 11px; }
 
+/* ----------------------------------------------------------- rows editor */
+.es-rows-editor {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.es-rows-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: min-content;
+  overflow-x: auto;
+}
+
+.es-rows-row { display: flex; gap: 3px; align-items: center; }
+
+.es-rows-cell {
+  width: 92px;
+  flex: none;
+  padding: 4px 6px;
+  font-size: 11px;
+}
+
+.es-rows-head {
+  width: 92px;
+  flex: none;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--es-ui-text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.es-rows-head.spacer { width: 20px; }
+
 /* ---------------------------------------------------------- table editor */
 .es-table-editor {
   grid-column: 1 / -1;

@@ -11,7 +11,7 @@ export interface StoreState {
   dirty: boolean;
 }
 
-type Listener = (state: StoreState, reason: ChangeReason) => void;
+type Listener = (state: StoreState, reason: ChangeReason, changedIds?: string[]) => void;
 
 export type ChangeReason = 'document' | 'selection' | 'meta';
 
@@ -71,18 +71,24 @@ export class Store {
     return () => this.listeners.delete(listener);
   }
 
-  private emit(reason: ChangeReason): void {
-    for (const listener of this.listeners) listener(this.state, reason);
+  private emit(reason: ChangeReason, changedIds?: string[]): void {
+    for (const listener of this.listeners) listener(this.state, reason, changedIds);
   }
 
-  /** Runs `mutator` against the document and records an undo snapshot. */
-  update(mutator: (doc: MockupDocument) => void): void {
+  /**
+   * Runs `mutator` against the document and records an undo snapshot.
+   *
+   * `changedIds` names the widgets whose own properties were touched. Listeners
+   * may use it to redraw less; leaving it out means "assume anything changed",
+   * which is what every structural mutation does.
+   */
+  update(mutator: (doc: MockupDocument) => void, changedIds?: string[]): void {
     this.undoStack.push(JSON.stringify(this.state.doc));
     this.trimUndoStack();
     this.redoStack.length = 0;
     mutator(this.state.doc);
     this.state.dirty = true;
-    this.emit('document');
+    this.emit('document', changedIds);
   }
 
   /** Drops the oldest snapshots once the stack is too deep or too large. */
@@ -233,7 +239,7 @@ export class Store {
       } else {
         target.properties[name] = value;
       }
-    });
+    }, [nodeId]);
   }
 
   /**
@@ -271,7 +277,7 @@ export class Store {
           else target.properties[name] = value;
         }
       }
-    });
+    }, ids);
   }
 
   setProperties(nodeId: string, values: Record<string, PropertyValue>): void {
@@ -279,7 +285,7 @@ export class Store {
       const target = findNode(doc.root, nodeId);
       if (!target) return;
       Object.assign(target.properties, values);
-    });
+    }, [nodeId]);
   }
 
   /** Inserts `child` into `parentId`'s `slot` at `index` (append when omitted). */

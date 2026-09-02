@@ -57,6 +57,7 @@ const GROUPS: ShortcutGroup[] = [
     title: 'Without a mouse',
     items: [
       ['Tab', 'Move between toolbar, palette, structure tree and properties'],
+      ['Arrows on the canvas', 'Walk the widget tree: siblings, parent, first child'],
       ['↑ ↓ in the palette', 'Walk the widget list, Enter adds the focused one'],
       ['↑ ↓ in the structure', 'Walk the widget tree, Enter selects'],
       ['← → in the structure', 'Collapse or expand, or step to parent and child'],

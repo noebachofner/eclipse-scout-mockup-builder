@@ -64,22 +64,42 @@ function readSlots(): AutosaveSlot[] {
   return [];
 }
 
-function writeSlots(slots: AutosaveSlot[]): void {
+export type AutosaveOutcome =
+  | {ok: true}
+  | {ok: false; reason: 'too-large' | 'storage'};
+
+function writeSlots(slots: AutosaveSlot[]): AutosaveOutcome {
   try {
     localStorage.setItem(SLOTS_KEY, JSON.stringify(slots.slice(0, MAX_SLOTS)));
     localStorage.removeItem(AUTOSAVE_KEY);
+    return {ok: true};
   } catch {
-    // Quota exceeded or storage disabled - autosave is best effort.
+    // The oldest slots are worth less than the current one, so give up on them
+    // before giving up on saving at all.
+    for (let keep = slots.length - 1; keep >= 1; keep--) {
+      try {
+        localStorage.setItem(SLOTS_KEY, JSON.stringify(slots.slice(0, keep)));
+        return {ok: true};
+      } catch {
+        continue;
+      }
+    }
+    return {ok: false, reason: 'storage'};
   }
 }
 
-/** Upserts the slot `slotId`, moving it to the front of the list. */
-export function writeAutosave(doc: MockupDocument, slotId: string): void {
+/**
+ * Upserts the slot `slotId`, moving it to the front of the list.
+ *
+ * The outcome is returned rather than swallowed: a mockup that is silently not
+ * being saved is worse than one that says so.
+ */
+export function writeAutosave(doc: MockupDocument, slotId: string): AutosaveOutcome {
   const text = serializeDocument(doc);
-  if (text.length > MAX_SLOT_BYTES) return;
+  if (text.length > MAX_SLOT_BYTES) return {ok: false, reason: 'too-large'};
   const slots = readSlots().filter(slot => slot.id !== slotId);
   slots.unshift({id: slotId, name: doc.meta.name, savedAt: new Date().toISOString(), text});
-  writeSlots(slots);
+  return writeSlots(slots);
 }
 
 /** The most recently autosaved document, or null when there is none. */

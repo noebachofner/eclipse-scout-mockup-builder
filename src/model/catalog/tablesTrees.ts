@@ -1,7 +1,7 @@
 import {registerWidgets, type WidgetDef} from './registry';
 import {formFieldDefaults, formFieldProps, GROUP_CONTENT, GROUP_LAYOUT, GROUP_STYLE} from './common';
 import {div, span} from '../../render/dom';
-import {checkBox, lines} from '../../render/parts';
+import {checkBox, lines, rows} from '../../render/parts';
 import {renderIcon} from '../../render/icons';
 import type {RenderContext} from './registry';
 import type {MockupNode, PropertyValue} from '../types';
@@ -328,7 +328,11 @@ const defs: WidgetDef[] = [
       'gridDataHints.h': 8,
       displayMode: 'week',
       title: 'September 2026',
-      appointments: 'Mon|09:00|Sprint planning\nTue|14:00|Design review\nThu|11:30|Customer call'
+      appointments: [
+        ['Mon', '09:00', 'Sprint planning'],
+        ['Tue', '14:00', 'Design review'],
+        ['Thu', '11:30', 'Customer call']
+      ]
     }),
     props: formFieldProps(
       {name: 'title', label: 'Title', type: 'string', group: GROUP_CONTENT},
@@ -338,7 +342,7 @@ const defs: WidgetDef[] = [
         {value: 'workWeek', label: 'WORK_WEEK'},
         {value: 'month', label: 'MONTH'}
       ]},
-      {name: 'appointments', label: 'Appointments (Day|Time|Title)', type: 'lines', group: GROUP_CONTENT}
+      {name: 'appointments', label: 'Appointments', type: 'rows', group: GROUP_CONTENT, columns: ['Day', 'Time', 'Title']}
     ),
     slots: [],
     defaultGridH: 8,
@@ -388,8 +392,7 @@ const defs: WidgetDef[] = [
       }
       root.appendChild(body);
 
-      for (const line of lines(ctx.prop<string>(node, 'appointments', ''), [])) {
-        const [day, time, title] = line.split('|').map(p => p.trim());
+      for (const [day, time, title] of rows(ctx.prop<string[][]>(node, 'appointments', []))) {
         const hour = parseInt(time ?? '', 10);
         const slot = body.querySelector<HTMLElement>(`.calendar-slot[data-day="${day}"][data-hour="${hour}"]`);
         if (slot) {
@@ -416,11 +419,15 @@ const defs: WidgetDef[] = [
       labelVisible: false,
       'gridDataHints.w': 2,
       'gridDataHints.h': 8,
-      resources: 'Team A|2|4|Kick-off\nTeam B|5|3|Implementation\nTeam C|1|2|Analysis',
+      resources: [
+        ['Team A', '2', '4', 'Kick-off'],
+        ['Team B', '5', '3', 'Implementation'],
+        ['Team C', '1', '2', 'Analysis']
+      ],
       columnCount: 12
     }),
     props: formFieldProps(
-      {name: 'resources', label: 'Resources (Name|start|length|activity)', type: 'lines', group: GROUP_CONTENT},
+      {name: 'resources', label: 'Resources', type: 'rows', group: GROUP_CONTENT, columns: ['Name', 'Start', 'Length', 'Activity']},
       {name: 'columnCount', label: 'Timeline columns', type: 'number', group: GROUP_LAYOUT, min: 4, max: 40}
     ),
     slots: [],
@@ -434,8 +441,7 @@ const defs: WidgetDef[] = [
       for (let i = 1; i <= columnCount; i++) scale.appendChild(div('planner-scale-item', String(i)));
       root.appendChild(scale);
 
-      for (const line of lines(ctx.prop<string>(node, 'resources', ''), [])) {
-        const [name, start, length, activity] = line.split('|').map(p => p.trim());
+      for (const [name, start, length, activity] of rows(ctx.prop<string[][]>(node, 'resources', []))) {
         const row = div('planner-row');
         row.style.gridTemplateColumns = `160px repeat(${columnCount}, minmax(0, 1fr))`;
         row.appendChild(div('planner-resource', name ?? ''));

@@ -25,6 +25,7 @@ export class App {
   private readonly toast: HTMLElement;
   private toastTimer = 0;
   private autosaveTimer = 0;
+  private autosaveFailed = false;
 
   constructor(private root: HTMLElement) {
     const restored = readAutosave();
@@ -149,7 +150,25 @@ export class App {
    */
   private scheduleAutosave(): void {
     window.clearTimeout(this.autosaveTimer);
-    this.autosaveTimer = window.setTimeout(() => writeAutosave(this.store.doc, this.slotId), 600);
+    this.autosaveTimer = window.setTimeout(() => this.runAutosave(), 600);
+  }
+
+  /**
+   * Autosave is a convenience, so a failure must not interrupt the work - but
+   * it is reported once, because silently not saving is the worst of both.
+   */
+  private runAutosave(): void {
+    const outcome = writeAutosave(this.store.doc, this.slotId);
+    if (outcome.ok) {
+      this.autosaveFailed = false;
+      return;
+    }
+    if (this.autosaveFailed) return;
+    this.autosaveFailed = true;
+    this.notify(outcome.reason === 'too-large'
+      ? 'This mockup is too large to autosave in the browser. Save it with Ctrl+S - your work is only in this tab until you do.'
+      : 'Browser storage is full or blocked, so autosaving stopped. Save with Ctrl+S - your work is only in this tab until you do.',
+    'error');
   }
 
   private notify(message: string, kind: 'info' | 'error' = 'info'): void {
@@ -254,10 +273,12 @@ export class App {
         return;
       }
       if (key.startsWith('Arrow')) {
-        // Free placement only: nudge or resize the selected widget.
-        if (this.canvas.nudgeSelection(key, event.shiftKey, !event.altKey)) {
-          event.preventDefault();
-        }
+        // In free placement the arrows move the widget, with Alt for single
+        // pixels. Everywhere else they have nothing to move, so they walk the
+        // widget tree instead.
+        const handled = this.canvas.nudgeSelection(key, event.shiftKey, !event.altKey)
+          || this.canvas.navigateSelection(key);
+        if (handled) event.preventDefault();
         return;
       }
       if (key === 'Escape') {

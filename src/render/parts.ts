@@ -62,7 +62,9 @@ export function lines(value: unknown, fallback: string[] = []): string[] {
   return text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
 }
 
-/** Parses `Header|Header2` style column definitions used by table mockups. */
-export function cells(line: string): string[] {
-  return line.split('|').map(c => c.trim());
+/** Reads a tabular property: a list of rows, each a list of cell values. */
+export function rows(value: unknown, fallback: string[][] = []): string[][] {
+  if (!Array.isArray(value)) return fallback;
+  const parsed = value.filter(Array.isArray).map(row => row.map(cell => String(cell ?? '')));
+  return parsed.length ? parsed : fallback;
 }

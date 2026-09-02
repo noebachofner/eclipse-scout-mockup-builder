@@ -1,8 +1,8 @@
 import type {MockupNode} from '../model/types';
-import {renderDocument} from '../render/render';
+import {createRenderContext, renderDocument} from '../render/render';
 import {renderAnnotations} from '../render/annotations';
-import {getWidget} from '../model/catalog/registry';
-import {findNode, findParent, pathTo} from '../model/document';
+import {getWidget, type RenderContext} from '../model/catalog/registry';
+import {containsNode, findNode, findParent, pathTo} from '../model/document';
 import {createNode} from '../model/document';
 import {applyTheme} from './theme';
 import type {Store} from './store';
@@ -12,6 +12,7 @@ import {showContextMenu} from './contextMenu';
 import {buildWidgetMenu} from './widgetMenu';
 import {renderGridInspector} from './gridInspector';
 import {computeSnap, type Rect} from './alignment';
+import {reapplyPlacement} from '../render/layout';
 
 export const DRAG_MIME = 'application/x-es-mockup-widget';
 
@@ -71,6 +72,7 @@ export class Canvas {
   /** While on, a click on the canvas drops a numbered review callout. */
   private annotateMode = false;
   private annotationDrag: {id: string; offsetX: number; offsetY: number} | null = null;
+  private context: RenderContext | null = null;
 
   constructor(private store: Store) {
     this.element = div('es-canvas');
@@ -92,7 +94,7 @@ export class Canvas {
     this.element.appendChild(this.hint);
 
     this.attachEvents();
-    store.subscribe(() => this.render());
+    store.subscribe((_, reason, changedIds) => this.render(reason === 'document' ? changedIds : undefined));
     this.render();
   }
 
@@ -138,17 +140,33 @@ export class Canvas {
     this.dragPayload = payload;
   }
 
-  render(): void {
+  /**
+   * Redraws the canvas.
+   *
+   * `changedIds` names the widgets whose own properties changed. Only the
+   * container around each of them is rebuilt, because a container is where a
+   * child's grid hints are turned into a placement - that makes it the smallest
+   * unit that is still correct. Anything structural redraws the document.
+   */
+  render(changedIds?: string[]): void {
+    if (changedIds?.length && this.renderPartial(changedIds)) {
+      this.renderAnnotationLayer();
+      this.renderGridLayer();
+      this.updateSelection();
+      return;
+    }
+
     const doc = this.store.doc;
     this.nodeElements.clear();
     this.host.replaceChildren();
 
-    const rendered = renderDocument(doc, {
+    this.context = createRenderContext(doc, {
       onNode: (el, node) => {
         this.nodeElements.set(node.id, el);
         el.classList.add('es-node');
       }
     });
+    const rendered = renderDocument(doc, {context: this.context});
     applyTheme(rendered, doc.theme);
     this.host.appendChild(rendered);
 
@@ -162,6 +180,38 @@ export class Canvas {
     this.renderAnnotationLayer();
     this.renderGridLayer();
     this.updateSelection();
+  }
+
+  /**
+   * Rebuilds the container of every changed widget. Returns false when that is
+   * not possible - no context yet, the root itself changed, or a container that
+   * is not on screen - in which case the caller falls back to a full render.
+   */
+  private renderPartial(changedIds: string[]): boolean {
+    const ctx = this.context;
+    if (!ctx || ctx.doc !== this.store.doc) return false;
+
+    const containers: MockupNode[] = [];
+    for (const id of changedIds) {
+      const chain = pathTo(this.store.doc.root, id);
+      const parent = chain[chain.length - 2];
+      if (!parent || !this.nodeElements.has(parent.id)) return false;
+      if (!containers.some(known => known.id === parent.id)) containers.push(parent);
+    }
+    // A container nested inside another one on the list is rebuilt with it.
+    const outermost = containers.filter(candidate =>
+      !containers.some(other => other !== candidate && containsNode(other, candidate.id)));
+
+    for (const container of outermost) {
+      const chain = pathTo(this.store.doc.root, container.id);
+      const parent = chain[chain.length - 2] ?? null;
+      const oldElement = this.nodeElements.get(container.id);
+      if (!oldElement) return false;
+      const element = ctx.renderNode(container, parent);
+      if (parent) reapplyPlacement(ctx, parent, container, element);
+      oldElement.replaceWith(element);
+    }
+    return true;
   }
 
   /**
@@ -634,6 +684,44 @@ export class Canvas {
     }
     this.groupDrag = [];
     this.store.setPropertiesForNodes(changes);
+  }
+
+  /**
+   * Walks the widget tree from the canvas: left and right to the previous and
+   * next sibling, up to the parent, down to the first child. Only reached when
+   * the arrows had nothing to nudge, so free placement keeps them for moving.
+   */
+  navigateSelection(key: string): boolean {
+    const id = this.store.selectedId;
+    if (!id) return false;
+    const chain = pathTo(this.store.doc.root, id);
+    const node = chain[chain.length - 1];
+    const parent = chain[chain.length - 2];
+    if (!node) return false;
+
+    const siblings = parent?.children ?? [];
+    const index = siblings.indexOf(node);
+    let next: MockupNode | undefined;
+    switch (key) {
+      case 'ArrowUp':
+        next = parent;
+        break;
+      case 'ArrowDown':
+        next = node.children[0];
+        break;
+      case 'ArrowLeft':
+        next = siblings[index - 1];
+        break;
+      case 'ArrowRight':
+        next = siblings[index + 1];
+        break;
+      default:
+        return false;
+    }
+    if (!next) return true;
+    this.store.select(next.id);
+    this.nodeElements.get(next.id)?.scrollIntoView({block: 'nearest', inline: 'nearest'});
+    return true;
   }
 
   /**

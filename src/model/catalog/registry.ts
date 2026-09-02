@@ -10,6 +10,7 @@ export type PropType =
   | 'icon'
   | 'image'
   | 'columns'
+  | 'rows'
   | 'lines';
 
 export interface PropOption {
@@ -28,6 +29,8 @@ export interface PropDef {
   step?: number;
   placeholder?: string;
   description?: string;
+  /** Column headers for a `rows` editor, one per cell. */
+  columns?: string[];
   /** Hides the row unless the predicate matches the current property values. */
   visibleWhen?: (props: Record<string, PropertyValue>) => boolean;
 }

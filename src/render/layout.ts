@@ -198,9 +198,7 @@ export function renderLogicalGrid(
   // keeps `fillHorizontal: false` without the property having to be persisted.
   const read: PropReader = (child, name, fallback) => Number(ctx.prop(child, name, fallback));
   const placement = placeInGrid(nodes, columnCount, read);
-  const rowHeight = ctx.dense
-    ? 'var(--scout-logical-grid-row-height-dense)'
-    : 'var(--scout-logical-grid-row-height)';
+  const rowHeight = logicalRowHeight(ctx);
   const template = gridTemplate(placement, rowHeight);
 
   container.classList.add('logical-grid');
@@ -214,32 +212,84 @@ export function renderLogicalGrid(
 
   for (const cell of placement.cells) {
     const el = ctx.renderNode(cell.node, parent);
-    el.style.gridColumn = `${cell.x + 1} / span ${cell.w}`;
-    el.style.gridRow = `${cell.y + 1} / span ${cell.h}`;
-    if (!ctx.exportMode) {
-      // The editor's grid inspector reads the resolved placement back off the
-      // DOM instead of recomputing it, so what it draws is what was rendered.
-      el.dataset.gridCell = `${cell.x},${cell.y},${cell.w},${cell.h},${round(cell.weightX)},${round(cell.weightY)}`;
-    }
-    if (cell.h > 1) {
-      // Spanning several rows implies a minimum height. It goes on the field
-      // content, not on the grid item: on the item a specified minimum would
-      // *replace* its minimum contribution and stop the track from growing to
-      // fit taller content, on a child it merely raises the item's min-content.
-      const target = el.querySelector<HTMLElement>(':scope > .field') ?? el;
-      target.style.minHeight = `calc(${cell.h} * ${rowHeight} + ${cell.h - 1} * var(--es-grid-row-gap))`;
-    }
-    if (!ctx.prop<boolean>(cell.node, 'gridDataHints.fillVertical', false)) {
-      const valign = read(cell.node, 'gridDataHints.verticalAlignment', -1);
-      el.style.alignSelf = valign === 0 ? 'center' : valign === 1 ? 'end' : 'start';
-    }
-    if (!ctx.prop<boolean>(cell.node, 'gridDataHints.fillHorizontal', true)) {
-      const halign = read(cell.node, 'gridDataHints.horizontalAlignment', -1);
-      el.style.justifySelf = halign === 0 ? 'center' : halign === 1 ? 'end' : 'start';
-    }
+    applyGridCell(ctx, el, cell, rowHeight, read);
     container.appendChild(el);
   }
   return placement;
+}
+
+/** The logical row height in effect, as a CSS length expression. */
+export function logicalRowHeight(ctx: RenderContext): string {
+  return ctx.dense
+    ? 'var(--scout-logical-grid-row-height-dense)'
+    : 'var(--scout-logical-grid-row-height)';
+}
+
+/** Places one element into its grid cell. Shared by the full and partial paths. */
+export function applyGridCell(
+  ctx: RenderContext,
+  el: HTMLElement,
+  cell: GridCell,
+  rowHeight: string,
+  read: PropReader
+): void {
+  el.style.gridColumn = `${cell.x + 1} / span ${cell.w}`;
+  el.style.gridRow = `${cell.y + 1} / span ${cell.h}`;
+  if (!ctx.exportMode) {
+    // The editor's grid inspector reads the resolved placement back off the
+    // DOM instead of recomputing it, so what it draws is what was rendered.
+    el.dataset.gridCell = `${cell.x},${cell.y},${cell.w},${cell.h},${round(cell.weightX)},${round(cell.weightY)}`;
+  }
+  if (cell.h > 1) {
+    // Spanning several rows implies a minimum height. It goes on the field
+    // content, not on the grid item: on the item a specified minimum would
+    // *replace* its minimum contribution and stop the track from growing to
+    // fit taller content, on a child it merely raises the item's min-content.
+    const target = el.querySelector<HTMLElement>(':scope > .field') ?? el;
+    target.style.minHeight = `calc(${cell.h} * ${rowHeight} + ${cell.h - 1} * var(--es-grid-row-gap))`;
+  }
+  if (!ctx.prop<boolean>(cell.node, 'gridDataHints.fillVertical', false)) {
+    const valign = read(cell.node, 'gridDataHints.verticalAlignment', -1);
+    el.style.alignSelf = valign === 0 ? 'center' : valign === 1 ? 'end' : 'start';
+  }
+  if (!ctx.prop<boolean>(cell.node, 'gridDataHints.fillHorizontal', true)) {
+    const halign = read(cell.node, 'gridDataHints.horizontalAlignment', -1);
+    el.style.justifySelf = halign === 0 ? 'center' : halign === 1 ? 'end' : 'start';
+  }
+}
+
+/** Positions one absolutely placed element. Shared by the full and partial paths. */
+export function applyFreeBounds(el: HTMLElement, node: MockupNode, index: number): void {
+  el.style.position = 'absolute';
+  // Nodes without bounds are staggered so they stay individually reachable.
+  el.style.left = `${num(node.properties['bounds.x'], 20)}px`;
+  el.style.top = `${num(node.properties['bounds.y'], 20 + index * 40)}px`;
+  el.style.width = `${num(node.properties['bounds.width'], 320)}px`;
+  el.style.height = `${num(node.properties['bounds.height'], 30)}px`;
+  el.style.alignSelf = 'auto';
+}
+
+/**
+ * Re-applies the placement a container gives one of its children.
+ *
+ * The partial render path replaces a subtree's element, which loses the styles
+ * its container had set on it. Recomputing the placement is cheap and, more to
+ * the point, goes through the same two functions the full render uses, so the
+ * two cannot drift apart.
+ */
+export function reapplyPlacement(ctx: RenderContext, parent: MockupNode, node: MockupNode, el: HTMLElement): void {
+  const children = ctx.childrenOf(parent, 'fields');
+  const index = children.indexOf(node);
+  if (index < 0) return;
+
+  if (ctx.prop<string>(parent, 'layoutMode', 'grid') === 'free') {
+    applyFreeBounds(el, node, index);
+    return;
+  }
+  const read: PropReader = (child, name, fallback) => Number(ctx.prop(child, name, fallback));
+  const placement = placeInGrid(children, Number(ctx.prop<number>(parent, 'gridColumnCount', 2)), read);
+  const cell = placement.cells.find(entry => entry.node === node);
+  if (cell) applyGridCell(ctx, el, cell, logicalRowHeight(ctx), read);
 }
 
 /** Absolute placement for containers that opted out of the logical grid. */
@@ -252,13 +302,7 @@ export function renderFreeForm(
   container.classList.add('free-form');
   nodes.forEach((node, index) => {
     const el = ctx.renderNode(node, parent);
-    el.style.position = 'absolute';
-    // Nodes without bounds are staggered so they stay individually reachable.
-    el.style.left = `${num(node.properties['bounds.x'], 20)}px`;
-    el.style.top = `${num(node.properties['bounds.y'], 20 + index * 40)}px`;
-    el.style.width = `${num(node.properties['bounds.width'], 320)}px`;
-    el.style.height = `${num(node.properties['bounds.height'], 30)}px`;
-    el.style.alignSelf = 'auto';
+    applyFreeBounds(el, node, index);
     container.appendChild(el);
   });
 

@@ -118,7 +118,10 @@ export function defaultDesktopTemplate(name = 'New mockup'): MockupDocument {
                         chartType: 'bar',
                         'gridDataHints.h': 6,
                         categories: 'Q1, Q2, Q3, Q4',
-                        series: 'Revenue|120, 190, 150, 220\nCost|80, 110, 95, 130'
+                        series: [
+                          ['Revenue', '120, 190, 150, 220'],
+                          ['Cost', '80, 110, 95, 130']
+                        ]
                       }
                     }
                   ]
@@ -306,8 +309,8 @@ export function widgetGalleryTemplate(name = 'Widget gallery'): MockupDocument {
           children: [
             {objectType: 'ChartField', slot: 'fields', properties: {labelVisible: false, chartType: 'bar', 'gridDataHints.h': 6}},
             {objectType: 'ChartField', slot: 'fields', properties: {labelVisible: false, chartType: 'line', 'gridDataHints.h': 6}},
-            {objectType: 'ChartField', slot: 'fields', properties: {labelVisible: false, chartType: 'pie', 'gridDataHints.h': 6, series: 'Share|35, 25, 22, 18', categories: 'North, South, East, West'}},
-            {objectType: 'ChartField', slot: 'fields', properties: {labelVisible: false, chartType: 'doughnut', 'gridDataHints.h': 6, series: 'Share|40, 30, 30', categories: 'Web, Mobile, Desk'}},
+            {objectType: 'ChartField', slot: 'fields', properties: {labelVisible: false, chartType: 'pie', 'gridDataHints.h': 6, series: [['Share', '35, 25, 22, 18']], categories: 'North, South, East, West'}},
+            {objectType: 'ChartField', slot: 'fields', properties: {labelVisible: false, chartType: 'doughnut', 'gridDataHints.h': 6, series: [['Share', '40, 30, 30']], categories: 'Web, Mobile, Desk'}},
             {objectType: 'BrowserField', slot: 'fields', properties: {labelVisible: false, 'gridDataHints.w': 2, 'gridDataHints.h': 4}},
             {objectType: 'ClipboardField', slot: 'fields', properties: {label: 'Clipboard', 'gridDataHints.w': 2, 'gridDataHints.h': 3}},
             {objectType: 'HeatmapField', slot: 'fields', properties: {'gridDataHints.w': 2, 'gridDataHints.h': 8}}

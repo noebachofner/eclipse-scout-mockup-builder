@@ -567,7 +567,47 @@ check('the menu offers alignment for a multi selection', hasAlign === 1);
 await page.keyboard.press('Escape');
 await page.waitForTimeout(150);
 
-// --- 15. the logical grid inspector ----------------------------------------
+// --- 15. partial rendering keeps the layout intact -------------------------
+await page.click('.es-toolbar .es-menu-button .es-button:has-text("File")');
+await page.click('.es-dropdown-item:has-text("New: Scout desktop")');
+await page.waitForTimeout(300);
+
+const placementOf = selector => page.evaluate(css => {
+  const el = document.querySelector(css);
+  if (!el) return null;
+  return {gridColumn: el.style.gridColumn, gridRow: el.style.gridRow, cell: el.dataset.gridCell ?? ''};
+}, selector);
+
+const boxSelector = '.es-canvas-host [data-object-type="GroupBox"]';
+const placementBefore = await placementOf(boxSelector);
+await page.evaluate(() => {
+  const store = window.esMockup.store;
+  const find = node => node.objectType === 'StringField' ? node : node.children.map(find).find(Boolean);
+  store.setProperty(find(store.doc.root).id, 'label', 'Renamed by the partial path');
+});
+await page.waitForTimeout(250);
+const placementAfter = await placementOf(boxSelector);
+check('a rebuilt container keeps the placement its parent gave it',
+  JSON.stringify(placementAfter) === JSON.stringify(placementBefore),
+  `${JSON.stringify(placementBefore)} vs ${JSON.stringify(placementAfter)}`);
+check('the property change reached the canvas',
+  (await page.textContent('.es-canvas-host')).includes('Renamed by the partial path'));
+
+// A change to the grid hints has to re-flow the whole container, not just the field.
+await page.evaluate(() => {
+  const store = window.esMockup.store;
+  const find = node => node.objectType === 'StringField' ? node : node.children.map(find).find(Boolean);
+  store.setProperty(find(store.doc.root).id, 'gridDataHints.w', 2);
+});
+await page.waitForTimeout(250);
+const reflowed = await page.evaluate(() => {
+  const fields = [...document.querySelectorAll('.es-canvas-host [data-object-type="StringField"]')];
+  return fields.slice(0, 2).map(el => el.style.gridColumn);
+});
+check('widening a field re-flows its siblings', reflowed[0] === '1 / span 2' && reflowed[1] === '1 / span 1',
+  JSON.stringify(reflowed));
+
+// --- 16. the logical grid inspector ----------------------------------------
 // Back to a document that actually has logical grids.
 await page.click('.es-toolbar .es-menu-button .es-button:has-text("File")');
 await page.click('.es-dropdown-item:has-text("New: Scout desktop")');
@@ -588,7 +628,7 @@ await page.keyboard.press('Control+g');
 await page.waitForTimeout(200);
 check('the inspector can be turned off again', (await page.locator('.es-grid-box').count()) === 0);
 
-// --- 16. review callouts ---------------------------------------------------
+// --- 17. review callouts ---------------------------------------------------
 await page.click('.es-toolbar .es-menu-button .es-button:has-text("File")');
 await page.click('.es-dropdown-item:has-text("New: Scout desktop")');
 await page.waitForTimeout(300);
@@ -629,7 +669,7 @@ const annotatedHtml = await readFile(annotatedPath, 'utf8');
 check('the HTML export carries the callouts',
   annotatedHtml.includes('annotation-marker') && annotatedHtml.includes('Check this field'));
 
-// --- 17. a share link carries the document in its fragment -----------------
+// --- 18. a share link carries the document in its fragment -----------------
 await page.evaluate(() => window.esMockup.store.updateMeta({name: 'Shared mockup'}));
 const shareUrl = await page.evaluate(() => window.esMockup.shareUrl());
 check('the share link fits in a URL', shareUrl.length < 8000, `${shareUrl.length} characters`);
@@ -650,7 +690,7 @@ check('opening the share link restores the document', sharedName === 'Shared moc
 check('the fragment is dropped after loading', (await shared.evaluate(() => location.hash)) === '');
 await shared.close();
 
-// --- 18. keyboard operability ----------------------------------------------
+// --- 19. keyboard operability ----------------------------------------------
 await page.click('.es-toolbar .es-menu-button .es-button:has-text("File")');
 await page.click('.es-dropdown-item:has-text("New: Scout desktop")');
 await page.waitForTimeout(300);
@@ -694,6 +734,34 @@ const nodesAfterKey = await page.evaluate(() => {
 });
 check('Enter adds the focused widget', nodesAfterKey === nodesBeforeKey + 1, `${nodesBeforeKey} -> ${nodesAfterKey}`);
 
+// On the canvas the arrows walk the widget tree where they have nothing to move.
+await page.evaluate(() => {
+  const store = window.esMockup.store;
+  const form = store.doc.root.children.find(child => child.objectType === 'Form');
+  store.select(form.children[0].children[0].id);
+});
+await page.waitForTimeout(150);
+const navStart = await page.evaluate(() => window.esMockup.store.selectedId);
+await page.keyboard.press('ArrowRight');
+await page.waitForTimeout(150);
+const navSibling = await page.evaluate(() => window.esMockup.store.selectedId);
+check('an arrow moves to the next sibling', navSibling !== navStart, `${navStart} -> ${navSibling}`);
+await page.keyboard.press('ArrowLeft');
+await page.waitForTimeout(150);
+check('the opposite arrow moves back', (await page.evaluate(() => window.esMockup.store.selectedId)) === navStart);
+await page.keyboard.press('ArrowUp');
+await page.waitForTimeout(150);
+const navParent = await page.evaluate(() => {
+  const id = window.esMockup.store.selectedId;
+  const find = node => node.id === id ? node : node.children.map(find).find(Boolean);
+  return find(window.esMockup.store.doc.root)?.objectType;
+});
+check('an arrow up selects the parent', navParent === 'GroupBox', navParent);
+await page.keyboard.press('ArrowDown');
+await page.waitForTimeout(150);
+check('an arrow down steps back into the first child',
+  (await page.evaluate(() => window.esMockup.store.selectedId)) === navStart);
+
 // The structure tree is the keyboard route through the widget tree.
 await page.evaluate(() => document.querySelector('.es-structure-row').focus());
 await page.keyboard.press('ArrowDown');
@@ -729,7 +797,7 @@ await page.waitForTimeout(200);
 const restored = await focusInfo();
 check('closing the dialog gives the focus back', restored.cls.includes('es-button'), JSON.stringify(restored));
 
-// --- 19. the workspace panels collapse and resize --------------------------
+// --- 20. the workspace panels collapse and resize --------------------------
 const panelWidth = side => page.evaluate(
   selector => Math.round(document.querySelector(selector)?.getBoundingClientRect().width ?? -1),
   side === 'left' ? '.es-side-left' : '.es-properties'

@@ -1,7 +1,7 @@
 import {registerWidgets, type WidgetDef} from './registry';
 import {formFieldDefaults, formFieldProps, GROUP_CONTENT, GROUP_STYLE, WIDGET_DEFAULTS, WIDGET_PROPS} from './common';
 import {div, span} from '../../render/dom';
-import {lines} from '../../render/parts';
+import {lines, rows} from '../../render/parts';
 import {renderIcon} from '../../render/icons';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -27,12 +27,11 @@ interface Series {
   values: number[];
 }
 
-function parseSeries(raw: unknown, fallback: string[]): Series[] {
-  return lines(raw, fallback).map(line => {
-    const [label, ...rest] = line.split('|').map(p => p.trim());
-    const values = (rest[0] ?? '').split(/[,\s]+/).filter(Boolean).map(Number).filter(n => Number.isFinite(n));
-    return {label: label ?? '', values};
-  });
+function parseSeries(raw: unknown, fallback: string[][]): Series[] {
+  return rows(raw, fallback).map(([label = '', numbers = '']) => ({
+    label,
+    values: numbers.split(/[,\s]+/).filter(Boolean).map(Number).filter(value => Number.isFinite(value))
+  }));
 }
 
 const defs: WidgetDef[] = [
@@ -52,7 +51,10 @@ const defs: WidgetDef[] = [
       'gridDataHints.h': 6,
       chartType: 'bar',
       categories: 'Q1, Q2, Q3, Q4',
-      series: 'Revenue|120, 190, 150, 220\nCost|80, 110, 95, 130',
+      series: [
+        ['Revenue', '120, 190, 150, 220'],
+        ['Cost', '80, 110, 95, 130']
+      ],
       legendVisible: true,
       legendPosition: 'right'
     }),
@@ -66,7 +68,7 @@ const defs: WidgetDef[] = [
         {value: 'doughnut', label: 'DOUGHNUT'}
       ]},
       {name: 'categories', label: 'Categories (comma separated)', type: 'string', group: GROUP_CONTENT},
-      {name: 'series', label: 'Series (Name|v1, v2, v3)', type: 'lines', group: GROUP_CONTENT},
+      {name: 'series', label: 'Series', type: 'rows', group: GROUP_CONTENT, columns: ['Name', 'Values']},
       {name: 'legendVisible', label: 'Legend visible', type: 'boolean', group: GROUP_STYLE},
       {name: 'legendPosition', label: 'Legend position', type: 'enum', group: GROUP_STYLE, options: [
         {value: 'right', label: 'RIGHT'},
@@ -78,7 +80,7 @@ const defs: WidgetDef[] = [
     render(ctx, node) {
       const type = ctx.prop<string>(node, 'chartType', 'bar');
       const categories = String(ctx.prop<string>(node, 'categories', '')).split(',').map(c => c.trim()).filter(Boolean);
-      const series = parseSeries(ctx.prop<string>(node, 'series', ''), ['Series|10, 20, 30']);
+      const series = parseSeries(ctx.prop<string[][]>(node, 'series', []), [['Series', '10, 20, 30']]);
       const legendVisible = ctx.prop<boolean>(node, 'legendVisible', true);
       const legendPosition = ctx.prop<string>(node, 'legendPosition', 'right');
 

@@ -83,6 +83,36 @@ const SCENARIOS = [
     }
   },
   {
+    name: 'gallery-advanced',
+    template: 'Widget gallery',
+    description: 'Charts, heatmap and the other advanced widgets.',
+    tweak: () => {
+      const store = window.esMockup.store;
+      store.setProperty(store.doc.root.id, 'selectedView', 4);
+      store.updateCanvas({zoom: 0.5});
+    }
+  },
+  {
+    name: 'gallery-tiles',
+    template: 'Widget gallery',
+    description: 'Tiles, accordions and the layout containers.',
+    tweak: () => {
+      const store = window.esMockup.store;
+      store.setProperty(store.doc.root.id, 'selectedView', 3);
+      store.updateCanvas({zoom: 0.5});
+    }
+  },
+  {
+    name: 'gallery-selection',
+    template: 'Widget gallery',
+    description: 'Check boxes, radio groups, list and tree boxes.',
+    tweak: () => {
+      const store = window.esMockup.store;
+      store.setProperty(store.doc.root.id, 'selectedView', 1);
+      store.updateCanvas({zoom: 0.5});
+    }
+  },
+  {
     name: 'statuses-and-callouts',
     template: 'Form only',
     description: 'Field status icons plus a review callout.',

@@ -6,6 +6,8 @@ export interface RenderOptions {
   exportMode?: boolean;
   /** Called for every rendered node so the editor can attach selection handling. */
   onNode?: (el: HTMLElement, node: MockupNode, parent: MockupNode | null, def: WidgetDef | undefined) => void;
+  /** Reuses an existing context so partial renders share it with the full one. */
+  context?: RenderContext;
 }
 
 export function createRenderContext(doc: MockupDocument, options: RenderOptions = {}): RenderContext {
@@ -164,7 +166,7 @@ function slug(objectType: string): string {
 
 /** Renders a whole document into a detached element. */
 export function renderDocument(doc: MockupDocument, options: RenderOptions = {}): HTMLElement {
-  const ctx = createRenderContext(doc, options);
+  const ctx = options.context ?? createRenderContext(doc, options);
   const root = ctx.renderNode(doc.root, null);
   const host = div('scout es-mockup-root');
   if (doc.theme.dense) host.classList.add('dense');

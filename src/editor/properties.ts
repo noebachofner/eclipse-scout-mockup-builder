@@ -11,6 +11,7 @@ import {TEMPLATES} from '../model/templates';
 import {editorIcon} from './icons';
 import {pickFile, readAsDataUrl} from '../io/files';
 import {renderTableEditor} from './tableEditor';
+import {renderRowsEditor} from './rowsEditor';
 
 type Tab = 'properties' | 'theme' | 'document';
 
@@ -361,6 +362,15 @@ export class PropertyPanel {
       }
       case 'image': {
         return this.renderImageEditor(value, set);
+      }
+      case 'rows': {
+        const current = Array.isArray(value) ? (value as string[][]) : [];
+        const fallback = getWidget(node.objectType)?.defaults[prop.name];
+        return renderRowsEditor({
+          headers: prop.columns ?? ['Value'],
+          value: current.length ? current : (Array.isArray(fallback) ? (fallback as string[][]) : []),
+          onChange: next => set(next)
+        });
       }
       case 'columns': {
         return renderTableEditor(node, {
