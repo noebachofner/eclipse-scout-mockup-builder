@@ -121,6 +121,11 @@ export class App {
     this.toolbar.setGridInspector(on);
   }
 
+  /** Current on-screen bounds of a container's children. Used by the tooling. */
+  measureBounds(parentId: string): Record<string, Record<string, number>> {
+    return this.canvas.measureChildBounds(parentId);
+  }
+
   /** Share URL for the current document. Also the hook the dev tooling uses. */
   shareUrl(): Promise<string> {
     return buildShareUrl(this.store.doc);

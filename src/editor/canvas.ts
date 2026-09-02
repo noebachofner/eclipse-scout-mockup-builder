@@ -2,7 +2,7 @@ import type {MockupNode} from '../model/types';
 import {renderDocument} from '../render/render';
 import {renderAnnotations} from '../render/annotations';
 import {getWidget} from '../model/catalog/registry';
-import {findNode, pathTo} from '../model/document';
+import {findNode, findParent, pathTo} from '../model/document';
 import {createNode} from '../model/document';
 import {applyTheme} from './theme';
 import type {Store} from './store';
@@ -11,6 +11,7 @@ import {div} from '../render/dom';
 import {showContextMenu} from './contextMenu';
 import {buildWidgetMenu} from './widgetMenu';
 import {renderGridInspector} from './gridInspector';
+import {computeSnap, type Rect} from './alignment';
 
 export const DRAG_MIME = 'application/x-es-mockup-widget';
 
@@ -59,8 +60,12 @@ export class Canvas {
   private nodeElements = new Map<string, HTMLElement>();
   private dragPayload: DragPayload | null = null;
   private freeDrag: FreeDrag | null = null;
+  private marquee: {startX: number; startY: number; band: HTMLElement} | null = null;
+  /** Bounds of the other selected widgets when a group drag started. */
+  private groupDrag: Array<{id: string; el: HTMLElement; origin: FreeBounds}> = [];
   private readonly annotationLayer: HTMLElement;
   private readonly gridLayer: HTMLElement;
+  private readonly guideLayer: HTMLElement;
   /** Draws Scout's logical grid on top of the mockup. */
   private gridInspector = false;
   /** While on, a click on the canvas drops a numbered review callout. */
@@ -76,8 +81,10 @@ export class Canvas {
     this.hint = div('es-drop-hint');
     this.annotationLayer = div('es-annotation-layer');
     this.gridLayer = div('es-grid-layer');
+    this.guideLayer = div('es-guide-layer');
     this.page.appendChild(this.host);
     this.page.appendChild(this.gridLayer);
+    this.page.appendChild(this.guideLayer);
     this.page.appendChild(this.annotationLayer);
     this.page.appendChild(this.overlay);
     this.viewport.appendChild(this.page);
@@ -98,7 +105,7 @@ export class Canvas {
     this.element.addEventListener('dragleave', e => this.onDragLeave(e));
     this.element.addEventListener('drop', e => this.onDrop(e));
     window.addEventListener('pointermove', e => this.onPointerMove(e));
-    window.addEventListener('pointerup', () => this.onPointerUp());
+    window.addEventListener('pointerup', e => this.onPointerUp(e));
   }
 
   setGridInspector(on: boolean): void {
@@ -187,37 +194,53 @@ export class Canvas {
   private updateSelection(): void {
     this.overlay.replaceChildren();
     for (const el of this.nodeElements.values()) el.classList.remove('es-selected');
-    const id = this.store.selectedId;
-    if (!id) return;
-    const el = this.nodeElements.get(id);
-    const node = findNode(this.store.doc.root, id);
-    if (!el || !node) return;
-    el.classList.add('es-selected');
+    const ids = this.store.selectedIds;
+    if (!ids.length) return;
 
+    const primary = this.store.selectedId;
+    for (const id of ids) {
+      const el = this.nodeElements.get(id);
+      const node = findNode(this.store.doc.root, id);
+      if (!el || !node) continue;
+      el.classList.add('es-selected');
+      this.overlay.appendChild(this.selectionBox(el, node, id === primary, ids.length > 1));
+    }
+  }
+
+  private selectionBox(el: HTMLElement, node: MockupNode, primary: boolean, multiple: boolean): HTMLElement {
     const pageRect = this.page.getBoundingClientRect();
     const rect = el.getBoundingClientRect();
     const zoom = this.store.doc.canvas.zoom || 1;
-    const box = div('es-selection-box');
+    const box = div(`es-selection-box${primary ? '' : ' secondary'}`);
+    box.dataset.nodeId = node.id;
     box.style.left = `${(rect.left - pageRect.left) / zoom}px`;
     box.style.top = `${(rect.top - pageRect.top) / zoom}px`;
     box.style.width = `${rect.width / zoom}px`;
     box.style.height = `${rect.height / zoom}px`;
 
     const def = getWidget(node.objectType);
-    const label = div('es-selection-label', def?.label ?? node.objectType);
-    box.appendChild(label);
+    if (primary) {
+      const label = div('es-selection-label', multiple
+        ? `${def?.label ?? node.objectType} +${this.store.selectedIds.length - 1}`
+        : def?.label ?? node.objectType);
+      box.appendChild(label);
+    }
 
     if (this.isFreeFormChild(node)) {
       box.classList.add('free-form');
-      for (const handle of RESIZE_HANDLES) {
-        const el = div(`es-resize-handle es-handle-${handle}`);
-        el.dataset.handle = handle;
-        box.appendChild(el);
+      // Resize handles belong to the primary widget only: resizing a whole
+      // selection at once would need a different, and much less predictable,
+      // set of rules.
+      if (primary && !multiple) {
+        for (const handle of RESIZE_HANDLES) {
+          const el = div(`es-resize-handle es-handle-${handle}`);
+          el.dataset.handle = handle;
+          box.appendChild(el);
+        }
+        box.appendChild(div('es-size-badge', `${Math.round(rect.width / zoom)} × ${Math.round(rect.height / zoom)}`));
       }
-      const badge = div('es-size-badge', `${Math.round(rect.width / zoom)} × ${Math.round(rect.height / zoom)}`);
-      box.appendChild(badge);
     }
-    this.overlay.appendChild(box);
+    return box;
   }
 
   private isFreeFormChild(node: MockupNode): boolean {
@@ -243,7 +266,9 @@ export class Canvas {
     const chain = this.nodeChainAt(event.target);
     const node = chain[chain.length - 1] ?? this.store.doc.root;
     const parent = chain[chain.length - 2] ?? null;
-    this.store.select(node.id);
+    // Right-clicking inside an existing selection keeps it, so the align and
+    // distribute entries stay reachable; anywhere else it selects that widget.
+    if (!this.store.isSelected(node.id)) this.store.select(node.id);
     showContextMenu(buildWidgetMenu(this.store, node, parent), event.clientX, event.clientY);
   }
 
@@ -273,16 +298,106 @@ export class Canvas {
     }
     if (!node) {
       this.store.select(this.store.doc.root.id);
+      this.startMarquee(event);
       return;
     }
-    this.store.select(node.id);
+    // Pressing on a container selects it and, if the pointer then moves, pulls
+    // a rubber band. A container fills its whole area, so without this the band
+    // could only ever be started outside the mockup.
+    if (!this.isFreeFormChild(node)) {
+      this.store.select(node.id);
+      this.startMarquee(event);
+      return;
+    }
+    if (event.shiftKey && this.isFreeFormChild(node)) {
+      event.preventDefault();
+      this.store.toggleSelection(node.id);
+      return;
+    }
+    // Dragging one widget of a selection moves the whole selection, the way it
+    // works in every drawing tool.
+    if (!this.store.isSelected(node.id)) this.store.select(node.id);
     if (this.isFreeFormChild(node)) this.startFreeDrag(node, 'move', event);
+  }
+
+  /**
+   * Rubber band selection. Only free-form widgets can be selected this way -
+   * a widget in a logical grid has no position of its own to act on.
+   */
+  private startMarquee(event: PointerEvent): void {
+    const start = this.pagePoint(event);
+    const band = div('es-marquee');
+    this.overlay.appendChild(band);
+    this.marquee = {startX: start.x, startY: start.y, band};
+    this.element.style.cursor = 'crosshair';
+  }
+
+  private updateMarquee(event: PointerEvent): void {
+    if (!this.marquee) return;
+    const {x, y} = this.pagePoint(event);
+    const left = Math.min(x, this.marquee.startX);
+    const top = Math.min(y, this.marquee.startY);
+    this.marquee.band.style.left = `${left}px`;
+    this.marquee.band.style.top = `${top}px`;
+    this.marquee.band.style.width = `${Math.abs(x - this.marquee.startX)}px`;
+    this.marquee.band.style.height = `${Math.abs(y - this.marquee.startY)}px`;
+  }
+
+  private finishMarquee(event: PointerEvent): void {
+    if (!this.marquee) return;
+    const {x, y} = this.pagePoint(event);
+    const band = {
+      left: Math.min(x, this.marquee.startX),
+      top: Math.min(y, this.marquee.startY),
+      right: Math.max(x, this.marquee.startX),
+      bottom: Math.max(y, this.marquee.startY)
+    };
+    this.marquee.band.remove();
+    this.marquee = null;
+    this.element.style.cursor = '';
+    if (band.right - band.left < 4 && band.bottom - band.top < 4) return;
+
+    const pageRect = this.page.getBoundingClientRect();
+    const zoom = this.store.doc.canvas.zoom || 1;
+    const hits: string[] = [];
+    for (const [id, el] of this.nodeElements) {
+      const node = findNode(this.store.doc.root, id);
+      if (!node || !this.isFreeFormChild(node)) continue;
+      const rect = el.getBoundingClientRect();
+      const left = (rect.left - pageRect.left) / zoom;
+      const top = (rect.top - pageRect.top) / zoom;
+      // Fully enclosed, not merely touched: a band that grabs everything it
+      // brushes past is impossible to aim.
+      if (left >= band.left && top >= band.top
+        && left + rect.width / zoom <= band.right
+        && top + rect.height / zoom <= band.bottom) {
+        hits.push(id);
+      }
+    }
+    if (hits.length) this.store.setSelection(hits);
   }
 
   private startFreeDrag(node: MockupNode, mode: FreeDragMode, event: PointerEvent): void {
     const el = this.nodeElements.get(node.id);
     if (!el) return;
     event.preventDefault();
+
+    // A move carries the rest of the selection along; a resize never does.
+    this.groupDrag = mode !== 'move' ? [] : this.store.selectedIds
+      .filter(id => id !== node.id)
+      .map(id => ({id, el: this.nodeElements.get(id), node: findNode(this.store.doc.root, id)}))
+      .filter((entry): entry is {id: string; el: HTMLElement; node: MockupNode} => !!entry.el && !!entry.node && this.isFreeFormChild(entry.node))
+      .map(entry => ({
+        id: entry.id,
+        el: entry.el,
+        origin: {
+          x: Number(entry.node.properties['bounds.x'] ?? entry.el.offsetLeft),
+          y: Number(entry.node.properties['bounds.y'] ?? entry.el.offsetTop),
+          width: Number(entry.node.properties['bounds.width'] ?? entry.el.offsetWidth),
+          height: Number(entry.node.properties['bounds.height'] ?? entry.el.offsetHeight)
+        }
+      }));
+
     this.freeDrag = {
       nodeId: node.id,
       mode,
@@ -309,15 +424,116 @@ export class Canvas {
       }
       return;
     }
+    if (this.marquee) {
+      this.updateMarquee(event);
+      return;
+    }
     if (!this.freeDrag) return;
     const el = this.nodeElements.get(this.freeDrag.nodeId);
     if (!el) return;
-    const bounds = this.computeDragBounds(event);
+    let bounds = this.computeDragBounds(event);
+
+    // Snap the dragged widget onto its neighbours, unless Alt asks for exact
+    // pixels. A group drag snaps on the widget under the pointer and the rest
+    // follows by the same offset, so their relative positions never change.
+    this.guideLayer.replaceChildren();
+    if (!event.altKey) {
+      const snap = computeSnap(bounds, this.siblingRects(this.freeDrag.nodeId), this.containerSize(this.freeDrag.nodeId));
+      if (this.freeDrag.mode === 'move') {
+        bounds = {...bounds, x: bounds.x + snap.dx, y: bounds.y + snap.dy};
+      } else {
+        bounds = {...bounds, width: bounds.width + snap.dx, height: bounds.height + snap.dy};
+      }
+      this.drawGuides(this.freeDrag.nodeId, snap.verticals, snap.horizontals);
+    }
+
     el.style.left = `${bounds.x}px`;
     el.style.top = `${bounds.y}px`;
     el.style.width = `${bounds.width}px`;
     el.style.height = `${bounds.height}px`;
-    this.updateSelectionBoxFrom(el, bounds);
+
+    const dx = bounds.x - this.freeDrag.origin.x;
+    const dy = bounds.y - this.freeDrag.origin.y;
+    for (const entry of this.groupDrag) {
+      entry.el.style.left = `${Math.max(0, entry.origin.x + dx)}px`;
+      entry.el.style.top = `${Math.max(0, entry.origin.y + dy)}px`;
+    }
+    this.updateSelectionBoxes(bounds);
+  }
+
+  /** Bounds of the free-form siblings of `nodeId`, in container coordinates. */
+  private siblingRects(nodeId: string): Rect[] {
+    const parent = findParent(this.store.doc.root, nodeId);
+    if (!parent) return [];
+    const moving = new Set([nodeId, ...this.groupDrag.map(entry => entry.id)]);
+    return parent.children
+      .filter(child => !moving.has(child.id))
+      .map(child => {
+        const el = this.nodeElements.get(child.id);
+        return {
+          x: Number(child.properties['bounds.x'] ?? el?.offsetLeft ?? 0),
+          y: Number(child.properties['bounds.y'] ?? el?.offsetTop ?? 0),
+          width: Number(child.properties['bounds.width'] ?? el?.offsetWidth ?? 0),
+          height: Number(child.properties['bounds.height'] ?? el?.offsetHeight ?? 0)
+        };
+      });
+  }
+
+  private containerSize(nodeId: string): {width: number; height: number} {
+    const parent = findParent(this.store.doc.root, nodeId);
+    const el = parent ? this.nodeElements.get(parent.id) : null;
+    const body = el?.querySelector<HTMLElement>('.free-form') ?? el;
+    return {width: body?.clientWidth ?? 0, height: body?.clientHeight ?? 0};
+  }
+
+  /** Guide lines are drawn in page coordinates, over the container. */
+  private drawGuides(nodeId: string, verticals: number[], horizontals: number[]): void {
+    if (!verticals.length && !horizontals.length) return;
+    const parent = findParent(this.store.doc.root, nodeId);
+    const container = parent ? this.nodeElements.get(parent.id) : null;
+    const body = container?.querySelector<HTMLElement>('.free-form') ?? container;
+    if (!body) return;
+    const pageRect = this.page.getBoundingClientRect();
+    const rect = body.getBoundingClientRect();
+    const zoom = this.store.doc.canvas.zoom || 1;
+    const left = (rect.left - pageRect.left) / zoom;
+    const top = (rect.top - pageRect.top) / zoom;
+
+    for (const x of verticals) {
+      const line = div('es-guide vertical');
+      line.style.left = `${left + x}px`;
+      line.style.top = `${top}px`;
+      line.style.height = `${rect.height / zoom}px`;
+      this.guideLayer.appendChild(line);
+    }
+    for (const y of horizontals) {
+      const line = div('es-guide horizontal');
+      line.style.top = `${top + y}px`;
+      line.style.left = `${left}px`;
+      line.style.width = `${rect.width / zoom}px`;
+      this.guideLayer.appendChild(line);
+    }
+  }
+
+  /** Re-measures every selection box after a drag moved the elements. */
+  private updateSelectionBoxes(bounds?: FreeBounds): void {
+    const pageRect = this.page.getBoundingClientRect();
+    const zoom = this.store.doc.canvas.zoom || 1;
+    this.overlay.querySelectorAll<HTMLElement>('.es-selection-box').forEach(box => {
+      const el = box.dataset.nodeId ? this.nodeElements.get(box.dataset.nodeId) : null;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      box.style.left = `${(rect.left - pageRect.left) / zoom}px`;
+      box.style.top = `${(rect.top - pageRect.top) / zoom}px`;
+      box.style.width = `${rect.width / zoom}px`;
+      box.style.height = `${rect.height / zoom}px`;
+      const badge = box.querySelector('.es-size-badge');
+      if (badge) {
+        badge.textContent = bounds
+          ? `${Math.round(bounds.width)} × ${Math.round(bounds.height)}`
+          : `${Math.round(rect.width / zoom)} × ${Math.round(rect.height / zoom)}`;
+      }
+    });
   }
 
   /**
@@ -371,25 +587,11 @@ export class Canvas {
     };
   }
 
-  private updateSelectionBoxFrom(el: HTMLElement, bounds?: FreeBounds): void {
-    const box = this.overlay.querySelector<HTMLElement>('.es-selection-box');
-    if (!box) return;
-    const pageRect = this.page.getBoundingClientRect();
-    const rect = el.getBoundingClientRect();
-    const zoom = this.store.doc.canvas.zoom || 1;
-    box.style.left = `${(rect.left - pageRect.left) / zoom}px`;
-    box.style.top = `${(rect.top - pageRect.top) / zoom}px`;
-    box.style.width = `${rect.width / zoom}px`;
-    box.style.height = `${rect.height / zoom}px`;
-    const badge = box.querySelector('.es-size-badge');
-    if (badge) {
-      badge.textContent = bounds
-        ? `${Math.round(bounds.width)} × ${Math.round(bounds.height)}`
-        : `${Math.round(rect.width / zoom)} × ${Math.round(rect.height / zoom)}`;
+  private onPointerUp(event?: PointerEvent): void {
+    if (this.marquee) {
+      if (event) this.finishMarquee(event);
+      return;
     }
-  }
-
-  private onPointerUp(): void {
     if (this.annotationDrag) {
       const marker = this.annotationLayer.querySelector<HTMLElement>(`[data-annotation-id="${this.annotationDrag.id}"]`);
       if (marker) {
@@ -405,6 +607,7 @@ export class Canvas {
     const {nodeId, mode} = this.freeDrag;
     const el = this.nodeElements.get(nodeId);
     this.freeDrag = null;
+    this.guideLayer.replaceChildren();
     document.body.classList.remove('es-dragging');
     this.element.style.cursor = '';
     if (!el) return;
@@ -419,6 +622,16 @@ export class Canvas {
     this.store.setProperties(nodeId, mode === 'move'
       ? {'bounds.x': bounds['bounds.x'], 'bounds.y': bounds['bounds.y']}
       : bounds);
+
+    // The rest of a group move is written in the same gesture. Each widget gets
+    // its own undo entry, which is why the loop runs after the primary one.
+    for (const entry of this.groupDrag) {
+      this.store.setProperties(entry.id, {
+        'bounds.x': parseInt(entry.el.style.left, 10) || 0,
+        'bounds.y': parseInt(entry.el.style.top, 10) || 0
+      });
+    }
+    this.groupDrag = [];
   }
 
   /**
@@ -426,33 +639,30 @@ export class Canvas {
    * Returns true when the key was consumed.
    */
   nudgeSelection(key: string, resize: boolean, coarse: boolean): boolean {
-    const id = this.store.selectedId;
-    if (!id) return false;
-    const node = findNode(this.store.doc.root, id);
-    if (!node || !this.isFreeFormChild(node)) return false;
-    const el = this.nodeElements.get(id);
-    if (!el) return false;
+    const ids = this.store.selectedIds.filter(id => {
+      const node = findNode(this.store.doc.root, id);
+      return !!node && this.isFreeFormChild(node);
+    });
+    if (!ids.length) return false;
 
-    const step = coarse ? FREE_SNAP : 1;
+    const step = coarse ? 5 : 1;
     const dx = key === 'ArrowLeft' ? -step : key === 'ArrowRight' ? step : 0;
     const dy = key === 'ArrowUp' ? -step : key === 'ArrowDown' ? step : 0;
     if (!dx && !dy) return false;
 
-    const x = Number(node.properties['bounds.x'] ?? el.offsetLeft);
-    const y = Number(node.properties['bounds.y'] ?? el.offsetTop);
-    const width = Number(node.properties['bounds.width'] ?? el.offsetWidth);
-    const height = Number(node.properties['bounds.height'] ?? el.offsetHeight);
-
-    if (resize) {
-      this.store.setProperties(id, {
-        'bounds.width': Math.max(FREE_MIN_WIDTH, width + dx),
-        'bounds.height': Math.max(FREE_MIN_HEIGHT, height + dy)
-      });
-    } else {
-      this.store.setProperties(id, {
-        'bounds.x': Math.max(0, x + dx),
-        'bounds.y': Math.max(0, y + dy)
-      });
+    for (const id of ids) {
+      const node = findNode(this.store.doc.root, id);
+      const el = this.nodeElements.get(id);
+      if (!node || !el) continue;
+      const x = Number(node.properties['bounds.x'] ?? el.offsetLeft);
+      const y = Number(node.properties['bounds.y'] ?? el.offsetTop);
+      const width = Number(node.properties['bounds.width'] ?? el.offsetWidth);
+      const height = Number(node.properties['bounds.height'] ?? el.offsetHeight);
+      // Shift resizes instead of moving; a selection is resized as a set of
+      // individual widgets, which is the only reading that keeps them apart.
+      this.store.setProperties(id, resize
+        ? {'bounds.width': Math.max(FREE_MIN_WIDTH, width + dx), 'bounds.height': Math.max(FREE_MIN_HEIGHT, height + dy)}
+        : {'bounds.x': Math.max(0, x + dx), 'bounds.y': Math.max(0, y + dy)});
     }
     return true;
   }

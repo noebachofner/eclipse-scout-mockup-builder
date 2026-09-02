@@ -1015,6 +1015,36 @@ body.es-dragging * {
   background-color: var(--es-ui-accent-dim);
 }
 
+/* ------------------------------------------------ multi select and guides */
+.es-selection-box.secondary {
+  border-style: dashed;
+  opacity: 0.85;
+}
+
+.es-marquee {
+  position: absolute;
+  border: 1px solid var(--es-ui-accent);
+  background-color: var(--es-ui-accent-dim);
+  pointer-events: none;
+}
+
+.es-guide-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 13;
+  pointer-events: none;
+}
+
+/* Magenta rather than the accent colour: a guide has to stand out against a
+   mockup that may well be themed in the accent colour itself. */
+.es-guide {
+  position: absolute;
+  background-color: #ff2d95;
+}
+
+.es-guide.vertical { width: 1px; }
+.es-guide.horizontal { height: 1px; }
+
 /* --------------------------------------------------------- grid inspector */
 .es-grid-layer {
   position: absolute;

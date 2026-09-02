@@ -1,6 +1,7 @@
 import type {MockupNode} from '../model/types';
 import {allWidgets, CATEGORY_ORDER, getWidget} from '../model/catalog/registry';
-import {createNode, pathTo} from '../model/document';
+import {createNode, findNode, pathTo} from '../model/document';
+import {alignRects, distributeRects, type AlignMode, type Rect} from './alignment';
 import {findSlot} from './dropTarget';
 import type {ContextMenuEntry} from './contextMenu';
 import type {Store} from './store';
@@ -71,6 +72,11 @@ export function buildWidgetMenu(store: Store, node: MockupNode, parent: MockupNo
     action: () => store.reorder(node.id, 1)
   });
 
+  const alignment = buildAlignMenu(store);
+  if (alignment.length) {
+    entries.push({label: `Align ${store.selectedIds.length} widgets`, icon: 'grid', separatorBefore: true, submenu: alignment});
+  }
+
   const insert = buildInsertMenu(store, node);
   if (insert.length) {
     entries.push({label: 'Add widget', icon: 'file', separatorBefore: true, submenu: insert});
@@ -122,6 +128,56 @@ function buildInsertMenu(store: Store, node: MockupNode): ContextMenuEntry[] {
     });
   }
   return groups;
+}
+
+/**
+ * Align and distribute, offered only for a free-form multi selection: inside a
+ * logical grid the position is Scout's to decide, not the user's.
+ */
+function buildAlignMenu(store: Store): ContextMenuEntry[] {
+  const ids = store.selectedIds.filter(id => isFreeFormChild(store, id));
+  if (ids.length < 2) return [];
+
+  const rectsOf = (): Rect[] => ids.map(id => {
+    const node = findNode(store.doc.root, id);
+    return {
+      x: Number(node?.properties['bounds.x'] ?? 0),
+      y: Number(node?.properties['bounds.y'] ?? 0),
+      width: Number(node?.properties['bounds.width'] ?? 0),
+      height: Number(node?.properties['bounds.height'] ?? 0)
+    };
+  });
+  const apply = (positions: Array<{x: number; y: number}>): void => {
+    positions.forEach((position, index) => {
+      store.setProperties(ids[index], {'bounds.x': position.x, 'bounds.y': position.y});
+    });
+  };
+
+  const modes: Array<[string, AlignMode]> = [
+    ['Left edges', 'left'],
+    ['Horizontal centres', 'centerX'],
+    ['Right edges', 'right'],
+    ['Top edges', 'top'],
+    ['Vertical centres', 'centerY'],
+    ['Bottom edges', 'bottom']
+  ];
+  const entries: ContextMenuEntry[] = modes.map(([label, mode], index) => ({
+    label,
+    separatorBefore: index === 3,
+    action: () => apply(alignRects(rectsOf(), mode))
+  }));
+
+  if (ids.length >= 3) {
+    entries.push({label: 'Distribute horizontally', separatorBefore: true, action: () => apply(distributeRects(rectsOf(), 'x'))});
+    entries.push({label: 'Distribute vertically', action: () => apply(distributeRects(rectsOf(), 'y'))});
+  }
+  return entries;
+}
+
+function isFreeFormChild(store: Store, id: string): boolean {
+  const chain = pathTo(store.doc.root, id);
+  const parent = chain[chain.length - 2];
+  return !!parent && parent.properties.layoutMode === 'free';
 }
 
 interface InsertTarget {

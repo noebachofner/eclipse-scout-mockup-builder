@@ -5,6 +5,8 @@ import {newId} from '../model/ids';
 export interface StoreState {
   doc: MockupDocument;
   selectedId: string | null;
+  /** The full selection; `selectedId` is its primary member. */
+  selectedIds: string[];
   fileName: string;
   dirty: boolean;
 }
@@ -33,7 +35,7 @@ export class Store {
   private redoStack: string[] = [];
 
   constructor(doc: MockupDocument, fileName = 'mockup.esmockup') {
-    this.state = {doc, selectedId: doc.root.id, fileName, dirty: false};
+    this.state = {doc, selectedId: doc.root.id, selectedIds: [doc.root.id], fileName, dirty: false};
   }
 
   get doc(): MockupDocument {
@@ -99,6 +101,7 @@ export class Store {
     this.state.doc = doc;
     this.state.fileName = fileName;
     this.state.selectedId = doc.root.id;
+    this.state.selectedIds = [doc.root.id];
     this.state.dirty = false;
     this.emit('document');
   }
@@ -109,9 +112,7 @@ export class Store {
     this.redoStack.push(JSON.stringify(this.state.doc));
     this.state.doc = parseDocument(snapshot);
     this.state.dirty = true;
-    if (this.state.selectedId && !findNode(this.state.doc.root, this.state.selectedId)) {
-      this.state.selectedId = this.state.doc.root.id;
-    }
+    this.pruneSelection();
     this.emit('document');
   }
 
@@ -121,9 +122,7 @@ export class Store {
     this.undoStack.push(JSON.stringify(this.state.doc));
     this.state.doc = parseDocument(snapshot);
     this.state.dirty = true;
-    if (this.state.selectedId && !findNode(this.state.doc.root, this.state.selectedId)) {
-      this.state.selectedId = this.state.doc.root.id;
-    }
+    this.pruneSelection();
     this.emit('document');
   }
 
@@ -178,9 +177,50 @@ export class Store {
     });
   }
 
+  /**
+   * The current selection.
+   *
+   * `selectedId` stays the primary one - the widget the property panel shows
+   * and the one resize handles belong to - while `selectedIds` carries the
+   * whole set. Everything that only ever cared about a single widget keeps
+   * working unchanged.
+   */
+  get selectedIds(): string[] {
+    return [...this.state.selectedIds];
+  }
+
+  isSelected(id: string): boolean {
+    return this.state.selectedIds.includes(id);
+  }
+
+  /** Drops selected ids that the undone or redone document no longer has. */
+  private pruneSelection(): void {
+    this.state.selectedIds = this.state.selectedIds.filter(id => !!findNode(this.state.doc.root, id));
+    if (!this.state.selectedIds.length) this.state.selectedIds = [this.state.doc.root.id];
+    if (!this.state.selectedId || !findNode(this.state.doc.root, this.state.selectedId)) {
+      this.state.selectedId = this.state.selectedIds[this.state.selectedIds.length - 1];
+    }
+  }
+
   select(id: string | null): void {
-    if (this.state.selectedId === id) return;
+    if (this.state.selectedId === id && this.state.selectedIds.length <= 1) return;
     this.state.selectedId = id;
+    this.state.selectedIds = id ? [id] : [];
+    this.emit('selection');
+  }
+
+  /** Shift-click: adds the widget to the selection, or takes it out again. */
+  toggleSelection(id: string): void {
+    const ids = this.state.selectedIds.filter(current => current !== id);
+    if (ids.length === this.state.selectedIds.length) ids.push(id);
+    this.state.selectedIds = ids;
+    this.state.selectedId = ids[ids.length - 1] ?? null;
+    this.emit('selection');
+  }
+
+  setSelection(ids: string[]): void {
+    this.state.selectedIds = [...new Set(ids)];
+    this.state.selectedId = this.state.selectedIds[this.state.selectedIds.length - 1] ?? null;
     this.emit('selection');
   }
 

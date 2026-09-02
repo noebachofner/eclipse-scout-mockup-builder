@@ -460,7 +460,98 @@ await page.keyboard.press('Escape');
 await page.waitForTimeout(150);
 check('Escape closes the menu', !(await page.isVisible('.es-context-menu')));
 
-// --- 14. the logical grid inspector ----------------------------------------
+// --- 14. multi select, group drag and snapping -----------------------------
+await page.click('.es-toolbar .es-menu-button .es-button:has-text("File")');
+await page.click('.es-dropdown-item:has-text("New: Form only")');
+await page.waitForTimeout(300);
+// Switch the group box to free placement so the widgets have positions.
+await page.evaluate(() => {
+  const store = window.esMockup.store;
+  const box = store.doc.root.children[0];
+  store.setPropertyWithChildren(box.id, 'layoutMode', 'free', window.esMockup.measureBounds(box.id));
+});
+await page.waitForTimeout(300);
+
+const freeIds = await page.evaluate(() => window.esMockup.store.doc.root.children[0].children.map(child => child.id));
+check('the form has widgets to select', freeIds.length >= 2, `${freeIds.length} widgets`);
+
+const boxOf = id => page.evaluate(nodeId => {
+  const store = window.esMockup.store;
+  const find = node => node.id === nodeId ? node : node.children.map(find).find(Boolean);
+  const node = find(store.doc.root);
+  return {
+    x: Number(node.properties['bounds.x']),
+    y: Number(node.properties['bounds.y']),
+    w: Number(node.properties['bounds.width']),
+    h: Number(node.properties['bounds.height'])
+  };
+}, id);
+
+const first = await page.locator(`.es-canvas-host [data-node-id="${freeIds[0]}"]`).boundingBox();
+const second = await page.locator(`.es-canvas-host [data-node-id="${freeIds[1]}"]`).boundingBox();
+await page.mouse.click(first.x + 20, first.y + 10);
+await page.keyboard.down('Shift');
+await page.mouse.click(second.x + 20, second.y + 10);
+await page.keyboard.up('Shift');
+await page.waitForTimeout(200);
+const selected = await page.evaluate(() => window.esMockup.store.selectedIds.length);
+check('shift-click extends the selection', selected === 2, `${selected} selected`);
+check('every selected widget gets a frame', (await page.locator('.es-selection-box').count()) === 2);
+
+const before0 = await boxOf(freeIds[0]);
+const before1 = await boxOf(freeIds[1]);
+await page.keyboard.press('ArrowDown');
+await page.keyboard.press('ArrowDown');
+await page.waitForTimeout(200);
+const after0 = await boxOf(freeIds[0]);
+const after1 = await boxOf(freeIds[1]);
+check('arrow keys move the whole selection',
+  after0.y === before0.y + 10 && after1.y === before1.y + 10,
+  `${before0.y}->${after0.y}, ${before1.y}->${after1.y}`);
+
+// Drag the second widget until its left edge is a few pixels off the first,
+// and let the snap pull it into line.
+await page.mouse.click(second.x + 20, second.y + 10);
+await page.waitForTimeout(150);
+const snapAnchor = await boxOf(freeIds[0]);
+const snapMover = await boxOf(freeIds[1]);
+const zoom = await page.evaluate(() => window.esMockup.store.doc.canvas.zoom);
+const grab = await page.locator(`.es-canvas-host [data-node-id="${freeIds[1]}"]`).boundingBox();
+await page.mouse.move(grab.x + 20, grab.y + 10);
+await page.mouse.down();
+await page.mouse.move(grab.x + 20 + (snapAnchor.x - snapMover.x + 3) * zoom, grab.y + 40, {steps: 8});
+const guides = await page.locator('.es-guide').count();
+await page.mouse.up();
+await page.waitForTimeout(200);
+const snapped = await boxOf(freeIds[1]);
+check('a guide line is drawn while snapping', guides > 0, `${guides} guides`);
+check('the widget snaps onto its neighbour', snapped.x === snapAnchor.x, `${snapped.x} vs ${snapAnchor.x}`);
+
+// Rubber band over both widgets.
+await page.mouse.click(first.x - 60, first.y - 30);
+const band = await page.locator('.es-canvas-page').boundingBox();
+await page.mouse.move(band.x + 4, band.y + 4);
+await page.mouse.down();
+await page.mouse.move(band.x + band.width - 4, band.y + band.height - 4, {steps: 10});
+await page.mouse.up();
+await page.waitForTimeout(200);
+const banded = await page.evaluate(() => window.esMockup.store.selectedIds.length);
+check('a rubber band selects everything it encloses', banded >= 2, `${banded} selected`);
+
+// Align them through the context menu.
+const alignAnchor = await page.locator(`.es-canvas-host [data-node-id="${freeIds[0]}"]`).boundingBox();
+await page.mouse.click(alignAnchor.x + 20, alignAnchor.y + 10, {button: 'right'});
+await page.waitForTimeout(250);
+const hasAlign = await page.locator('.es-context-menu-item:has-text("Align")').count();
+check('the menu offers alignment for a multi selection', hasAlign === 1);
+await page.keyboard.press('Escape');
+await page.waitForTimeout(150);
+
+// --- 15. the logical grid inspector ----------------------------------------
+// Back to a document that actually has logical grids.
+await page.click('.es-toolbar .es-menu-button .es-button:has-text("File")');
+await page.click('.es-dropdown-item:has-text("New: Scout desktop")');
+await page.waitForTimeout(300);
 await page.keyboard.press('Control+g');
 await page.waitForTimeout(300);
 const gridBoxes = await page.locator('.es-grid-box').count();
@@ -477,7 +568,7 @@ await page.keyboard.press('Control+g');
 await page.waitForTimeout(200);
 check('the inspector can be turned off again', (await page.locator('.es-grid-box').count()) === 0);
 
-// --- 15. review callouts ---------------------------------------------------
+// --- 16. review callouts ---------------------------------------------------
 await page.click('.es-toolbar .es-menu-button .es-button:has-text("File")');
 await page.click('.es-dropdown-item:has-text("New: Scout desktop")');
 await page.waitForTimeout(300);
@@ -518,7 +609,7 @@ const annotatedHtml = await readFile(annotatedPath, 'utf8');
 check('the HTML export carries the callouts',
   annotatedHtml.includes('annotation-marker') && annotatedHtml.includes('Check this field'));
 
-// --- 16. a share link carries the document in its fragment -----------------
+// --- 17. a share link carries the document in its fragment -----------------
 await page.evaluate(() => window.esMockup.store.updateMeta({name: 'Shared mockup'}));
 const shareUrl = await page.evaluate(() => window.esMockup.shareUrl());
 check('the share link fits in a URL', shareUrl.length < 8000, `${shareUrl.length} characters`);
@@ -539,7 +630,7 @@ check('opening the share link restores the document', sharedName === 'Shared moc
 check('the fragment is dropped after loading', (await shared.evaluate(() => location.hash)) === '');
 await shared.close();
 
-// --- 17. the workspace panels collapse and resize --------------------------
+// --- 18. the workspace panels collapse and resize --------------------------
 const panelWidth = side => page.evaluate(
   selector => Math.round(document.querySelector(selector)?.getBoundingClientRect().width ?? -1),
   side === 'left' ? '.es-side-left' : '.es-properties'
