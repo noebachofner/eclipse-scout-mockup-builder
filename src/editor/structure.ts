@@ -11,7 +11,6 @@ import {showContextMenu} from './contextMenu';
 import {findParent} from '../model/document';
 import {buildWidgetMenu} from './widgetMenu';
 
-/** Tree view of the widget hierarchy - the reliable way to reach nested nodes. */
 export class StructureTree {
   readonly element: HTMLElement;
   private readonly body: HTMLElement;
@@ -47,8 +46,6 @@ export class StructureTree {
     this.body.setAttribute('role', 'tree');
     this.renderNode(this.store.doc.root, 0, null);
     this.body.querySelector('.es-structure-row.selected')?.scrollIntoView({block: 'nearest'});
-    // The selected row carries the tab stop, so tabbing into the tree lands on
-    // the widget the panel is showing.
     const stop = this.body.querySelector<HTMLElement>('.es-structure-row.selected')
       ?? this.body.querySelector<HTMLElement>('.es-structure-row');
     if (stop) stop.tabIndex = 0;
@@ -80,8 +77,6 @@ export class StructureTree {
     row.appendChild(span('es-structure-label', this.labelOf(node, def?.label ?? node.objectType)));
     row.appendChild(span('es-structure-type', def?.label ?? node.objectType));
 
-    // The structure tree is the keyboard route through the widget tree: the
-    // canvas itself has no reading order to walk. One tab stop, arrows inside.
     row.tabIndex = -1;
     row.setAttribute('role', 'treeitem');
     row.setAttribute('aria-level', String(depth + 1));
@@ -125,11 +120,6 @@ export class StructureTree {
     return button;
   }
 
-  /**
-   * Tree keyboard behaviour, following the usual convention: up and down walk
-   * the visible rows, right expands or steps into the first child, left
-   * collapses or steps out to the parent, Enter selects and Delete removes.
-   */
   private onRowKeyDown(event: KeyboardEvent, node: MockupNode, row: HTMLElement): void {
     const rows = [...this.body.querySelectorAll<HTMLElement>('.es-structure-row')];
     const index = rows.indexOf(row);
@@ -189,7 +179,6 @@ export class StructureTree {
     this.body.querySelector<HTMLElement>(`.es-structure-row[data-node-id="${nodeId}"]`)?.focus();
   }
 
-  /** Keeps exactly one row in the tab order. */
   private setRovingRow(row: HTMLElement): void {
     this.body.querySelectorAll<HTMLElement>('.es-structure-row').forEach(other => {
       other.tabIndex = other === row ? 0 : -1;

@@ -1,11 +1,3 @@
-/**
- * Focus handling for the editor's modal dialogs.
- *
- * A dialog that does not hold the focus is a trap of a different kind: Tab
- * walks out of it into the page behind, which is still there but unreachable,
- * and closing it leaves the focus wherever it happened to land. This keeps Tab
- * inside the dialog and hands the focus back to whatever opened it.
- */
 const FOCUSABLE = [
   'a[href]',
   'button:not(:disabled)',
@@ -19,10 +11,6 @@ export function focusableWithin(root: HTMLElement): HTMLElement[] {
   return [...root.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(el => el.offsetParent !== null || el === document.activeElement);
 }
 
-/**
- * Traps the focus inside `dialog` and returns a function that releases it and
- * restores the focus to the element that had it before.
- */
 export function trapFocus(dialog: HTMLElement): () => void {
   const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 
@@ -42,8 +30,6 @@ export function trapFocus(dialog: HTMLElement): () => void {
     }
   };
   dialog.addEventListener('keydown', onKeyDown);
-  // A click inside the dialog on something unfocusable must not drop the focus
-  // out of it, or the next Tab starts from the document again.
   const onFocusOut = (event: FocusEvent): void => {
     if (event.relatedTarget instanceof Node && dialog.contains(event.relatedTarget)) return;
     if (!document.body.contains(dialog)) return;

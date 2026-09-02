@@ -1,13 +1,3 @@
-/**
- * A minimal re-implementation of the LESS color functions Scout's `colors.less`
- * uses, so the full Scout color system can be recomputed in the browser when the
- * user edits the palette.
- *
- * Only `fade`, `darken`, `lighten` and `rgba` occur in colors.less; the
- * algorithms below mirror less.js (HSL round-trip, channels rounded to integers)
- * so the result is identical to a real theme recompile. `tools/verify-colors.mjs`
- * asserts that against the LESS-compiled token file.
- */
 import {SCOUT_COLOR_DECLS, type ColorExpr} from '../model/scoutColors.generated';
 
 export interface Rgba {
@@ -15,7 +5,6 @@ export interface Rgba {
   g: number;
   b: number;
   a: number;
-  /** Set when the value came from a CSS keyword LESS prints back verbatim (`transparent`). */
   keyword?: string;
 }
 
@@ -61,7 +50,6 @@ export function formatColor(c: Rgba): string {
   if (c.a >= 1) {
     return '#' + [r, g, b].map(n => n.toString(16).padStart(2, '0')).join('');
   }
-  // less.js prints at most 3 decimals and strips trailing zeroes.
   const a = Math.round(c.a * 1000) / 1000;
   return `rgba(${r}, ${g}, ${b}, ${a})`;
 }
@@ -98,9 +86,6 @@ function toHsl(c: Rgba): {h: number; s: number; l: number; a: number} {
 }
 
 function fromHsl(hsl: {h: number; s: number; l: number; a: number}): Rgba {
-  // NOTE: the arithmetic below mirrors less.js exactly, including the order of
-  // operations - normalising the hue differently changes the last bit of the
-  // floating point result and can shift a channel by one.
   const h = (hsl.h % 360) / 360;
   const s = clamp01(hsl.s);
   const l = clamp01(hsl.l);
@@ -146,13 +131,6 @@ function numberArg(expr: ColorExpr): number {
   return 0;
 }
 
-/**
- * Evaluates the whole `colors.less` declaration list.
- *
- * @param overrides raw variable overrides, keyed by the LESS name without `@`
- *        (e.g. `accent-color-3` or `palette-gray-2`). Values are CSS colors.
- * @returns every declared color, keyed by LESS name, as a CSS color string.
- */
 export function resolveScoutColors(overrides: Record<string, string> = {}): Record<string, string> {
   const env = new Map<string, Rgba>();
   const out: Record<string, string> = {};
@@ -179,7 +157,6 @@ export function resolveScoutColors(overrides: Record<string, string> = {}): Reco
             if (nums.length === 4 && nums.every(n => !Number.isNaN(n))) {
               return {r: nums[0], g: nums[1], b: nums[2], a: nums[3]};
             }
-            // rgba(@someColor, 0.4) - LESS allows a color as first argument
             return first ? {...first, a: numberArg(expr.args[expr.args.length - 1])} : null;
           }
           default:
@@ -199,5 +176,4 @@ export function resolveScoutColors(overrides: Record<string, string> = {}): Reco
   return out;
 }
 
-/** Default (unthemed) resolution of the Scout color system. */
 export const DEFAULT_SCOUT_COLORS = resolveScoutColors();

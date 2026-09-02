@@ -6,10 +6,6 @@ import {findSlot} from './dropTarget';
 import type {ContextMenuEntry} from './contextMenu';
 import type {Store} from './store';
 
-/**
- * The entries the right-click menu offers for one widget. Shared by the canvas
- * and the structure tree so both offer the same actions in the same order.
- */
 export function buildWidgetMenu(store: Store, node: MockupNode, parent: MockupNode | null): ContextMenuEntry[] {
   const isRoot = node.id === store.doc.root.id;
   const def = getWidget(node.objectType);
@@ -93,13 +89,6 @@ export function buildWidgetMenu(store: Store, node: MockupNode, parent: MockupNo
   return entries;
 }
 
-/**
- * `Add widget` lists what can be added *here*, which is not the same as what
- * the clicked widget accepts: right-clicking a table field should still offer a
- * string field, which then lands in the group box around it. So every widget is
- * matched against the nearest ancestor that takes it - the rule paste and drag
- * & drop already use - and anything nothing accepts is left out.
- */
 function buildInsertMenu(store: Store, node: MockupNode): ContextMenuEntry[] {
   const chain = pathTo(store.doc.root, node.id);
   if (!chain.length) return [];
@@ -117,7 +106,6 @@ function buildInsertMenu(store: Store, node: MockupNode): ContextMenuEntry[] {
       label: category,
       submenu: usable.map(({label, objectType, target}) => ({
         label,
-        // Naming the container makes it obvious where the widget will land.
         shortcut: target.parent.id === node.id ? '' : `in ${labelOf(target.parent)}`,
         action: () => {
           const child = createNode(objectType);
@@ -130,10 +118,6 @@ function buildInsertMenu(store: Store, node: MockupNode): ContextMenuEntry[] {
   return groups;
 }
 
-/**
- * Align and distribute, offered only for a free-form multi selection: inside a
- * logical grid the position is Scout's to decide, not the user's.
- */
 function buildAlignMenu(store: Store): ContextMenuEntry[] {
   const ids = store.selectedIds.filter(id => isFreeFormChild(store, id));
   if (ids.length < 2) return [];
@@ -147,7 +131,6 @@ function buildAlignMenu(store: Store): ContextMenuEntry[] {
       height: Number(node?.properties['bounds.height'] ?? 0)
     };
   });
-  // Aligning is one action, so it is one undo step.
   const apply = (positions: Array<{x: number; y: number}>): void => {
     const changes: Record<string, Record<string, number>> = {};
     positions.forEach((position, index) => {
@@ -188,7 +171,6 @@ interface InsertTarget {
   slot: string;
 }
 
-/** The nearest widget in `chain` that has a slot accepting `objectType`. */
 function resolveInsertTarget(chain: MockupNode[], objectType: string): InsertTarget | null {
   for (let i = chain.length - 1; i >= 0; i--) {
     const slot = findSlot(chain[i], objectType);

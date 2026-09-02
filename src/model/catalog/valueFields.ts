@@ -10,7 +10,6 @@ const ALIGN_OPTIONS = [
   {value: 'right', label: 'RIGHT'}
 ];
 
-/** Every value field shares these extra properties. */
 const valueProps = [
   {name: 'displayText', label: 'Display text', type: 'string' as const, group: GROUP_CONTENT, description: 'The value shown in the mockup.'},
   {name: 'placeholder', label: 'Placeholder', type: 'string' as const, group: GROUP_CONTENT},

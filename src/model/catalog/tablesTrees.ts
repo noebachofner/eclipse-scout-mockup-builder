@@ -6,7 +6,6 @@ import {renderIcon} from '../../render/icons';
 import type {RenderContext} from './registry';
 import type {MockupNode, PropertyValue} from '../types';
 
-/** Columns are `[header, alignment, width]`; a width of `''` means flexible. */
 const DEFAULT_COLUMNS: string[][] = [
   ['Name', 'left', '200'],
   ['City', 'left', '140'],
@@ -24,7 +23,6 @@ interface ColumnSpec {
   width: number;
 }
 
-/** Reads a `string[][]` property, falling back to `fallback` when it is absent. */
 function cellGrid(raw: unknown, fallback: string[][]): string[][] {
   if (!Array.isArray(raw)) return fallback;
   return raw.filter(Array.isArray).map(row => row.map(cell => String(cell ?? '')));
@@ -64,8 +62,6 @@ function renderTable(ctx: RenderContext, node: MockupNode): HTMLElement {
   }
 
   const grid = div('table-grid');
-  // Scout's table layout distributes the remaining width; if every column has a
-  // fixed width, a trailing filler keeps the header, rows and footer aligned.
   const hasFlexible = columns.some(c => !c.width);
   const template = [
     showCheckColumn ? '34px' : '',
@@ -118,8 +114,6 @@ function renderTable(ctx: RenderContext, node: MockupNode): HTMLElement {
   });
   if (!rows.length) grid.appendChild(div('table-empty', 'No data'));
 
-  // An empty array is truthy, so the emptiness has to be asked about directly -
-  // this used to be a string, where `if (aggregate)` did the right thing.
   const aggregate = ctx.prop<string[]>(node, 'aggregateRow', []);
   if (Array.isArray(aggregate) && aggregate.some(cell => String(cell).trim())) {
     const aggregateRow = div('table-aggregate-row');
@@ -159,8 +153,6 @@ function renderTable(ctx: RenderContext, node: MockupNode): HTMLElement {
 }
 
 const TABLE_PROPS = [
-  // One editor drives both properties: adding or removing a column has to keep
-  // the cells of every row lined up with it.
   {name: 'columns', label: 'Columns and rows', type: 'columns' as const, group: GROUP_CONTENT},
   {name: 'selectedRow', label: 'Selected row index', type: 'number' as const, group: GROUP_CONTENT, min: -1},
   {name: 'sortedColumn', label: 'Sorted column index', type: 'number' as const, group: GROUP_CONTENT, min: -1},

@@ -1,4 +1,3 @@
-/** Reusable visual building blocks that several widget renderers share. */
 import {div, span} from './dom';
 import {renderIcon} from './icons';
 
@@ -7,16 +6,10 @@ export interface InputOptions {
   alignment?: 'left' | 'center' | 'right';
   multiline?: boolean;
   disabled?: boolean;
-  /** A trailing icon inside the input, e.g. the calendar or smart field chevron. */
   icon?: string;
   extraClass?: string;
 }
 
-/**
- * Scout renders value fields as an `<input>`-looking box. Mockups use a div
- * (`.input-field`, the same class Scout uses for its non-input value fields) so
- * the exported HTML stays inert and prints identically.
- */
 export function inputField(value: string, options: InputOptions = {}): HTMLElement {
   const wrapper = div('field-container');
   const input = div(`input-field${options.extraClass ? ' ' + options.extraClass : ''}`);
@@ -54,7 +47,6 @@ export function radioCircle(selected: boolean, disabled = false): HTMLElement {
   return circle;
 }
 
-/** Splits a multi-line text property into trimmed, non-empty lines. */
 export function lines(value: unknown, fallback: string[] = []): string[] {
   if (Array.isArray(value)) return value.map(String);
   const text = String(value ?? '').trim();
@@ -62,7 +54,6 @@ export function lines(value: unknown, fallback: string[] = []): string[] {
   return text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
 }
 
-/** Reads a tabular property: a list of rows, each a list of cell values. */
 export function rows(value: unknown, fallback: string[][] = []): string[][] {
   if (!Array.isArray(value)) return fallback;
   const parsed = value.filter(Array.isArray).map(row => row.map(cell => String(cell ?? '')));

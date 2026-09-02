@@ -15,24 +15,16 @@ import {showCheckDialog} from './checkDialog';
 
 export interface ToolbarCallbacks {
   notify(message: string, kind?: 'info' | 'error'): void;
-  /** Zoom factor at which the whole canvas fits into the visible area. */
   fitZoom(): number;
   showShortcuts(): void;
-  /** Id of the form the current selection belongs to, if any. */
   selectedFormId(): string | undefined;
-  /** Replaces the document and starts a fresh autosave slot. */
   newDocument(doc: MockupDocument): void;
-  /** Replaces the document and keeps writing into `slotId`. */
   openDocument(doc: MockupDocument, slotId: string): void;
-  /** Autosave slot the session is currently writing to. */
   currentSlotId(): string;
-  /** Turns callout placement on the canvas on or off. */
   toggleAnnotateMode(): void;
-  /** Turns the logical grid overlay on or off. */
   toggleGridInspector(): void;
 }
 
-/** `Autosaved 4 minutes ago` - relative while it is recent, absolute after. */
 function formatWhen(iso: string): string {
   const then = new Date(iso).getTime();
   const minutes = Math.round((Date.now() - then) / 60_000);
@@ -66,7 +58,6 @@ export class Toolbar {
     brand.title = 'Mockup builder for the Eclipse Scout Framework';
     this.element.appendChild(brand);
 
-    // --- file ---------------------------------------------------------------
     const fileMenu = new DropdownMenu('File', {
       icon: 'file',
       title: 'New, open and save mockups',
@@ -74,12 +65,10 @@ export class Toolbar {
     });
     this.element.appendChild(this.group([fileMenu.element]));
 
-    // --- edit ---------------------------------------------------------------
     this.undoButton = this.iconButton('undo', 'Undo', 'Ctrl+Z', () => this.store.undo());
     this.redoButton = this.iconButton('redo', 'Redo', 'Ctrl+Shift+Z', () => this.store.redo());
     this.element.appendChild(this.group([this.undoButton, this.redoButton]));
 
-    // --- export -------------------------------------------------------------
     const exportMenu = new DropdownMenu('Export', {
       icon: 'export',
       title: 'Export the mockup as HTML or PNG',
@@ -87,7 +76,6 @@ export class Toolbar {
     });
     this.element.appendChild(this.group([exportMenu.element]));
 
-    // --- zoom ---------------------------------------------------------------
     const zoomGroup = div('es-toolbar-group es-zoom');
     zoomGroup.appendChild(this.iconButton('zoomOut', 'Zoom out', '', () => this.stepZoom(-1)));
     this.zoomLabel = h('button', 'es-zoom-value');
@@ -101,7 +89,6 @@ export class Toolbar {
     }));
     this.element.appendChild(zoomGroup);
 
-    // --- panels -------------------------------------------------------------
     this.panelButtons = {
       left: this.toggleButton('panelLeft', 'Element palette', 'Ctrl+B'),
       right: this.toggleButton('panelRight', 'Property panel', 'Ctrl+Shift+B')
@@ -112,7 +99,6 @@ export class Toolbar {
     this.gridButton.addEventListener('click', () => this.callbacks.toggleGridInspector());
     this.element.appendChild(this.group([this.gridButton, this.annotateButton, this.panelButtons.left, this.panelButtons.right]));
 
-    // --- right hand side ----------------------------------------------------
     this.status = div('es-status');
     this.element.appendChild(this.status);
     this.element.appendChild(this.group([
@@ -123,12 +109,9 @@ export class Toolbar {
     this.update();
   }
 
-  /** Copies a link that carries the document in its fragment. */
   async copyShareLink(): Promise<void> {
     const images = findEmbeddedImages(this.store.doc);
     if (images.length) {
-      // gzip cannot shrink an already compressed picture, so this link would be
-      // unusable however it is encoded.
       const kilobytes = Math.round(images.reduce((sum, image) => sum + image.bytes, 0) / 1024);
       this.callbacks.notify(
         `This mockup embeds ${images.length} image${images.length === 1 ? '' : 's'} (~${kilobytes} KB), which no share link can carry. Send the .esmockup file instead - Ctrl+S saves it.`,
@@ -149,7 +132,6 @@ export class Toolbar {
     }
   }
 
-  /** Opens the Java dialog, preselecting the form the selection sits in. */
   exportJava(): void {
     showJavaExportDialog(
       this.store.doc.root,
@@ -166,7 +148,6 @@ export class Toolbar {
       : "Show Scout's logical grid: columns, rows and each widget's x/y/w/h (Ctrl+G)";
   }
 
-  /** Reflects the canvas annotate mode on the toolbar button. */
   setAnnotateMode(on: boolean): void {
     this.annotateButton.classList.toggle('active', on);
     this.annotateButton.setAttribute('aria-pressed', String(on));
@@ -181,7 +162,6 @@ export class Toolbar {
     return group;
   }
 
-  /** Lets the workspace drive (and be driven by) the two panel buttons. */
   bindPanelToggles(workspace: Workspace): void {
     workspace.bindToggle('left', this.panelButtons.left);
     workspace.bindToggle('right', this.panelButtons.right);
@@ -206,8 +186,6 @@ export class Toolbar {
     return button;
   }
 
-  /* ------------------------------------------------------------------ menus */
-
   private fileEntries(): MenuEntry[] {
     const entries: MenuEntry[] = TEMPLATES.map((template, index) => ({
       label: `New: ${template.label}`,
@@ -215,8 +193,6 @@ export class Toolbar {
       icon: 'file',
       separatorBefore: index === 0 ? false : undefined,
       action: () => {
-        // The current mockup stays in its autosave slot and is reachable
-        // through "Recent", so this no longer needs a confirmation.
         this.callbacks.newDocument(template.create());
         this.callbacks.notify(`New mockup from "${template.label}".`);
       }
@@ -305,8 +281,6 @@ export class Toolbar {
       }
     ];
   }
-
-  /* ----------------------------------------------------------------- actions */
 
   private stepZoom(direction: number): void {
     const current = this.store.doc.canvas.zoom;

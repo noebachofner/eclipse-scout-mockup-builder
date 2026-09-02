@@ -1,7 +1,3 @@
-/**
- * Share links. `buildShareUrl` reads `location`, which Node does not have, so
- * a minimal stand-in is installed before the module is loaded.
- */
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {importTs} from './_bundle.mjs';

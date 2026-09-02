@@ -7,14 +7,6 @@ export interface RowsEditorOptions {
   addLabel?: string;
 }
 
-/**
- * A compact grid of text inputs for a `string[][]` property.
- *
- * Used wherever a widget carries a small table of sample data - a table's rows,
- * calendar appointments, planner activities, chart series. Storing these as
- * arrays rather than as one delimited string per line means no value can be
- * broken by the character that used to separate the fields.
- */
 export function renderRowsEditor(options: RowsEditorOptions): HTMLElement {
   const {headers, addLabel = '+ Row'} = options;
   const rows = options.value.map(row => headers.map((_, index) => row[index] ?? ''));

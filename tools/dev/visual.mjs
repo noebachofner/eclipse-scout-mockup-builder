@@ -1,21 +1,4 @@
 #!/usr/bin/env node
-/**
- * Visual regression tests.
- *
- * Roughly half of this project is CSS, and the layout bugs that actually got
- * shipped - the chart overlapping the form, rows all the same height, the tab
- * marker spanning the whole tab area - were all invisible to assertion tests
- * and obvious in a picture. Each scenario below is rendered and compared with a
- * stored golden image.
- *
- *   node tools/dev/visual.mjs            compare against the goldens
- *   node tools/dev/visual.mjs --update   rewrite the goldens
- *
- * Differences are reported as a pixel count plus a diff image under
- * `visual-out/`, which marks changed pixels in magenta over a faded original.
- * The comparison itself runs in the browser: it is the one place that can
- * decode a PNG without pulling in a dependency.
- */
 import {launchBrowser} from './browser.mjs';
 import {createServer} from 'node:http';
 import {readFile, writeFile, mkdir, access} from 'node:fs/promises';
@@ -25,19 +8,10 @@ const DIST = 'dist';
 const GOLDEN_DIR = 'tools/test/golden';
 const OUT_DIR = 'visual-out';
 const UPDATE = process.argv.includes('--update');
-/** A handful of pixels may differ from font rasterisation between runs. */
 const TOLERANCE = 40;
 
 const TYPES = {'.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.woff': 'font/woff', '.png': 'image/png', '.svg': 'image/svg+xml', '.json': 'application/json'};
 
-/**
- * Each scenario runs inside the page against `window.esMockup`, so it can use
- * the same store the editor uses.
- */
-/**
- * A scenario picks a template through the File menu - the way a user does -
- * and then adjusts the document through the store on `window.esMockup`.
- */
 const SCENARIOS = [
   {
     name: 'desktop-default',
@@ -201,8 +175,6 @@ if (failed.length) {
 console.log(`\n${results.length} scenario(s) match their golden image.`);
 if (errors.length) process.exit(1);
 
-/* ------------------------------------------------------------------ helpers */
-
 async function exists(path) {
   try {
     await access(path);
@@ -212,10 +184,6 @@ async function exists(path) {
   }
 }
 
-/**
- * Compares two PNGs in the browser: it decodes them, walks the pixels and
- * paints the differing ones magenta over a faded copy of the golden.
- */
 function compare(page, golden, actual) {
   return page.evaluate(async ([a, b]) => {
     const load = src => new Promise((resolve, reject) => {

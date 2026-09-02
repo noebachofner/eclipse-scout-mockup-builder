@@ -17,10 +17,6 @@ export class App {
   private canvas!: Canvas;
   private toolbar!: Toolbar;
   private workspace!: Workspace;
-  /**
-   * Autosave slot this session writes to. A new or opened mockup gets its own,
-   * so the previous one stays recoverable from File > Recent.
-   */
   private slotId: string;
   private readonly toast: HTMLElement;
   private toastTimer = 0;
@@ -78,8 +74,6 @@ export class App {
     this.root.replaceChildren(layout);
 
     this.store.subscribe((_, reason) => {
-      // Selecting a widget does not change the document, and serialising it on
-      // every click became noticeable once images could be embedded.
       if (reason === 'selection') return;
       this.scheduleAutosave();
     });
@@ -93,11 +87,6 @@ export class App {
     void this.loadSharedDocument();
   }
 
-  /**
-   * A share link carries the document in the fragment. It wins over the
-   * autosave, and the fragment is dropped afterwards so a later reload shows
-   * the edited version rather than the shared original.
-   */
   private async loadSharedDocument(): Promise<void> {
     if (!location.hash.startsWith('#m=')) return;
     const shared = await readShareUrl(location.hash);
@@ -122,17 +111,14 @@ export class App {
     this.toolbar.setGridInspector(on);
   }
 
-  /** Current on-screen bounds of a container's children. Used by the tooling. */
   measureBounds(parentId: string): Record<string, Record<string, number>> {
     return this.canvas.measureChildBounds(parentId);
   }
 
-  /** Share URL for the current document. Also the hook the dev tooling uses. */
   shareUrl(): Promise<string> {
     return buildShareUrl(this.store.doc);
   }
 
-  /** The innermost form the selection sits in, so the Java dialog preselects it. */
   private selectedFormId(): string | undefined {
     const id = this.store.selectedId;
     if (!id) return undefined;
@@ -143,20 +129,11 @@ export class App {
     return undefined;
   }
 
-  /**
-   * Autosave is debounced: a document with embedded images can be megabytes,
-   * and `localStorage.setItem` is synchronous, so writing on every keystroke
-   * would stutter the editor.
-   */
   private scheduleAutosave(): void {
     window.clearTimeout(this.autosaveTimer);
     this.autosaveTimer = window.setTimeout(() => this.runAutosave(), 600);
   }
 
-  /**
-   * Autosave is a convenience, so a failure must not interrupt the work - but
-   * it is reported once, because silently not saving is the worst of both.
-   */
   private runAutosave(): void {
     const outcome = writeAutosave(this.store.doc, this.slotId);
     if (outcome.ok) {
@@ -187,7 +164,6 @@ export class App {
       const key = event.key;
 
       if (meta) {
-        // File and view commands stay available while typing in a field.
         switch (key.toLowerCase()) {
           case 'z':
             event.preventDefault();
@@ -212,7 +188,6 @@ export class App {
             else void this.toolbar.exportHtml();
             return;
           case 'b':
-            // Not [ and ]: both need AltGr on a Swiss or German keyboard.
             event.preventDefault();
             this.workspace.toggle(event.shiftKey ? 'right' : 'left');
             return;
@@ -273,9 +248,6 @@ export class App {
         return;
       }
       if (key.startsWith('Arrow')) {
-        // In free placement the arrows move the widget, with Alt for single
-        // pixels. Everywhere else they have nothing to move, so they walk the
-        // widget tree instead.
         const handled = this.canvas.nudgeSelection(key, event.shiftKey, !event.altKey)
           || this.canvas.navigateSelection(key);
         if (handled) event.preventDefault();
@@ -311,7 +283,6 @@ export class App {
   }
 
   private installUnloadGuard(): void {
-    // Flush the debounced autosave before the tab disappears.
     window.addEventListener('pagehide', () => {
       window.clearTimeout(this.autosaveTimer);
       writeAutosave(this.store.doc, this.slotId);

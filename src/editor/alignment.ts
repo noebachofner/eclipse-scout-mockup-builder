@@ -1,12 +1,3 @@
-/**
- * Snapping and alignment for free placement.
- *
- * Free placement is where people sketch, and sketching by eye leaves widgets a
- * few pixels out of line. While a widget is dragged its edges and centre are
- * compared with those of its siblings and of the container; the closest match
- * within a small threshold wins and is drawn as a guide line, so the result is
- * aligned on purpose rather than by luck.
- */
 export interface Rect {
   x: number;
   y: number;
@@ -15,24 +6,17 @@ export interface Rect {
 }
 
 export interface SnapResult {
-  /** Correction to apply to the dragged rect. */
   dx: number;
   dy: number;
-  /** Container coordinates of the guides to draw. */
   verticals: number[];
   horizontals: number[];
 }
 
-/** How far a widget may be from a line and still be pulled onto it. */
 export const SNAP_THRESHOLD = 6;
 
 const edgesX = (rect: Rect): number[] => [rect.x, rect.x + rect.width / 2, rect.x + rect.width];
 const edgesY = (rect: Rect): number[] => [rect.y, rect.y + rect.height / 2, rect.y + rect.height];
 
-/**
- * Finds the best snap for `moving` against `others` and the container box.
- * Returns zero deltas and no guides when nothing is close enough.
- */
 export function computeSnap(moving: Rect, others: Rect[], container: {width: number; height: number}, threshold = SNAP_THRESHOLD): SnapResult {
   const targetsX: number[] = [0, container.width / 2, container.width];
   const targetsY: number[] = [0, container.height / 2, container.height];
@@ -59,8 +43,6 @@ export function computeSnap(moving: Rect, others: Rect[], container: {width: num
   const x = best(edgesX(moving), targetsX);
   const y = best(edgesY(moving), targetsY);
 
-  // With the correction applied, report every line the widget now sits on, so
-  // aligning three edges at once shows all three guides.
   const snapped: Rect = {...moving, x: moving.x + x.delta, y: moving.y + y.delta};
   const verticals = x.line === null ? [] : targetsX.filter(target => edgesX(snapped).some(edge => Math.abs(edge - target) < 0.5));
   const horizontals = y.line === null ? [] : targetsY.filter(target => edgesY(snapped).some(edge => Math.abs(edge - target) < 0.5));
@@ -75,7 +57,6 @@ export function computeSnap(moving: Rect, others: Rect[], container: {width: num
 
 export type AlignMode = 'left' | 'centerX' | 'right' | 'top' | 'centerY' | 'bottom';
 
-/** New x/y for each rect when the selection is aligned along `mode`. */
 export function alignRects(rects: Rect[], mode: AlignMode): Array<{x: number; y: number}> {
   if (rects.length < 2) return rects.map(rect => ({x: rect.x, y: rect.y}));
   const left = Math.min(...rects.map(rect => rect.x));
@@ -96,10 +77,6 @@ export function alignRects(rects: Rect[], mode: AlignMode): Array<{x: number; y:
   });
 }
 
-/**
- * Spreads the rects so the gaps between them are equal. The outermost two stay
- * where they are, which is what "distribute" means everywhere else.
- */
 export function distributeRects(rects: Rect[], axis: 'x' | 'y'): Array<{x: number; y: number}> {
   if (rects.length < 3) return rects.map(rect => ({x: rect.x, y: rect.y}));
   const size = axis === 'x' ? 'width' : 'height';

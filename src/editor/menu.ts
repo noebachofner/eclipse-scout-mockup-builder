@@ -5,18 +5,12 @@ export interface MenuEntry {
   label: string;
   description?: string;
   icon?: string;
-  /** Displayed right-aligned, e.g. `Ctrl+S`. */
   shortcut?: string;
   disabled?: boolean;
   separatorBefore?: boolean;
   action(): void;
 }
 
-/**
- * A small dropdown menu with the keyboard behaviour people expect: arrows move
- * through the entries, Home/End jump, Enter activates, Escape closes and
- * returns the focus to the button, and Tab or an outside click dismisses it.
- */
 export class DropdownMenu {
   readonly element: HTMLElement;
   readonly button: HTMLButtonElement;
@@ -57,7 +51,6 @@ export class DropdownMenu {
   }
 
   open(entries: () => MenuEntry[]): void {
-    // Only one menu at a time.
     document.querySelectorAll('.es-menu-button.open').forEach(el => el.classList.remove('open'));
     this.render(entries());
     this.element.classList.add('open');

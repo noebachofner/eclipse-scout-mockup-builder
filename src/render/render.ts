@@ -4,9 +4,7 @@ import {append, div, h, span} from './dom';
 
 export interface RenderOptions {
   exportMode?: boolean;
-  /** Called for every rendered node so the editor can attach selection handling. */
   onNode?: (el: HTMLElement, node: MockupNode, parent: MockupNode | null, def: WidgetDef | undefined) => void;
-  /** Reuses an existing context so partial renders share it with the full one. */
   context?: RenderContext;
 }
 
@@ -53,9 +51,6 @@ export function createRenderContext(doc: MockupDocument, options: RenderOptions 
 }
 
 function applyCommonStyles(ctx: RenderContext, node: MockupNode, el: HTMLElement): void {
-  // A stable, collision-free hook for custom CSS in exported mockups. The bare
-  // slug is deliberately not used: `button`, `group-box` etc. are already taken
-  // by the widget styles themselves.
   el.classList.add(`scout-${slug(node.objectType)}`);
   const cssClass = ctx.prop<string>(node, 'cssClass', '');
   if (cssClass) el.classList.add(...cssClass.split(/\s+/).filter(Boolean));
@@ -68,11 +63,6 @@ function applyCommonStyles(ctx: RenderContext, node: MockupNode, el: HTMLElement
   if (ctx.prop<boolean>(node, 'fontBold', false)) el.style.fontWeight = 'bold';
 }
 
-/**
- * Builds Scout's standard form field structure:
- * `mandatory-indicator | label | field | status`, positioned by `FormFieldLayout`.
- * The widget definition only contributes the `.field` content.
- */
 export function renderFormField(ctx: RenderContext, node: MockupNode, def: WidgetDef): HTMLElement {
   const labelPosition = Number(ctx.prop<number>(node, 'labelPosition', 0));
   const labelVisible = ctx.prop<boolean>(node, 'labelVisible', true);
@@ -88,7 +78,6 @@ export function renderFormField(ctx: RenderContext, node: MockupNode, def: Widge
     'label-position-right', 'label-position-top', 'label-position-bottom'][labelPosition] ?? 'label-position-default';
 
   const root = div(`form-field scout-${slug(def.objectType)} ${positionClass}`);
-  // Scout puts the field style on the container as well as on the field itself.
   const fieldStyle = ctx.prop<string>(node, 'fieldStyle', 'alternative') === 'classic' ? 'classic' : 'alternative';
   root.classList.add(fieldStyle);
   if (def.ownsLabel) root.classList.add('owns-label');
@@ -130,8 +119,6 @@ export function renderFormField(ctx: RenderContext, node: MockupNode, def: Widge
   }
   root.appendChild(fieldContent);
 
-  // FieldStatus.less: a 24x24 rounded icon box whose glyph and colour come from
-  // the severity, plus the Scout tooltip bubble when the message is shown.
   const hasMenus = ctx.childrenOf(node, 'menus').length > 0;
   const status = div('status field-status');
   const message = ctx.prop<string>(node, 'errorStatusMessage', '');
@@ -157,14 +144,12 @@ export function renderFormField(ctx: RenderContext, node: MockupNode, def: Widge
   return root;
 }
 
-/** `StringField` -> `string-field`, used for the `scout-*` marker class. */
 function slug(objectType: string): string {
   return objectType
     .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
     .toLowerCase();
 }
 
-/** Renders a whole document into a detached element. */
 export function renderDocument(doc: MockupDocument, options: RenderOptions = {}): HTMLElement {
   const ctx = options.context ?? createRenderContext(doc, options);
   const root = ctx.renderNode(doc.root, null);

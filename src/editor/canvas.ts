@@ -17,7 +17,6 @@ import {pageBoxOf, placeOver} from './geometry';
 
 export const DRAG_MIME = 'application/x-es-mockup-widget';
 
-/** Resize handles, named after the compass direction they sit on. */
 export const RESIZE_HANDLES = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'] as const;
 export type ResizeHandle = (typeof RESIZE_HANDLES)[number];
 type FreeDragMode = ResizeHandle | 'move';
@@ -37,21 +36,15 @@ interface FreeDrag {
   origin: FreeBounds;
 }
 
-/** Free placement snaps to this grid unless Alt is held. */
 const FREE_SNAP = 5;
 const FREE_MIN_WIDTH = 40;
 const FREE_MIN_HEIGHT = 24;
 
 interface DragPayload {
   objectType: string;
-  /** Set when an existing node is being moved rather than a new one created. */
   nodeId?: string;
 }
 
-/**
- * The mockup canvas: renders the document, handles selection, drag & drop from
- * the toolbox, in-canvas moving and (in free placement mode) dragging/resizing.
- */
 export class Canvas {
   readonly element: HTMLElement;
   private readonly viewport: HTMLElement;
@@ -63,14 +56,11 @@ export class Canvas {
   private dragPayload: DragPayload | null = null;
   private freeDrag: FreeDrag | null = null;
   private marquee: {startX: number; startY: number; band: HTMLElement} | null = null;
-  /** Bounds of the other selected widgets when a group drag started. */
   private groupDrag: Array<{id: string; el: HTMLElement; origin: FreeBounds}> = [];
   private readonly annotationLayer: HTMLElement;
   private readonly gridLayer: HTMLElement;
   private readonly guideLayer: HTMLElement;
-  /** Draws Scout's logical grid on top of the mockup. */
   private gridInspector = false;
-  /** While on, a click on the canvas drops a numbered review callout. */
   private annotateMode = false;
   private annotationDrag: {id: string; offsetX: number; offsetY: number} | null = null;
   private context: RenderContext | null = null;
@@ -100,8 +90,6 @@ export class Canvas {
   }
 
   private attachEvents(): void {
-    // Listen on the page, not on the host: the resize handles live in the
-    // overlay, which is a sibling of the host.
     this.page.addEventListener('pointerdown', e => this.onPointerDown(e));
     this.page.addEventListener('contextmenu', e => this.onContextMenu(e));
     this.element.addEventListener('dragover', e => this.onDragOver(e));
@@ -126,7 +114,6 @@ export class Canvas {
     this.gridLayer.appendChild(renderGridInspector(this.host, this.page, this.store.doc.canvas.zoom));
   }
 
-  /** Turns callout placement on or off. */
   setAnnotateMode(on: boolean): void {
     this.annotateMode = on;
     this.element.classList.toggle('annotating', on);
@@ -136,19 +123,10 @@ export class Canvas {
     return this.annotateMode;
   }
 
-  /** Called by the toolbox so the canvas knows what is being dragged. */
   setDragPayload(payload: DragPayload | null): void {
     this.dragPayload = payload;
   }
 
-  /**
-   * Redraws the canvas.
-   *
-   * `changedIds` names the widgets whose own properties changed. Only the
-   * container around each of them is rebuilt, because a container is where a
-   * child's grid hints are turned into a placement - that makes it the smallest
-   * unit that is still correct. Anything structural redraws the document.
-   */
   render(changedIds?: string[]): void {
     if (changedIds?.length && this.renderPartial(changedIds)) {
       this.renderAnnotationLayer();
@@ -183,11 +161,6 @@ export class Canvas {
     this.updateSelection();
   }
 
-  /**
-   * Rebuilds the container of every changed widget. Returns false when that is
-   * not possible - no context yet, the root itself changed, or a container that
-   * is not on screen - in which case the caller falls back to a full render.
-   */
   private renderPartial(changedIds: string[]): boolean {
     const ctx = this.context;
     if (!ctx || ctx.doc !== this.store.doc) return false;
@@ -199,7 +172,6 @@ export class Canvas {
       if (!parent || !this.nodeElements.has(parent.id)) return false;
       if (!containers.some(known => known.id === parent.id)) containers.push(parent);
     }
-    // A container nested inside another one on the list is rebuilt with it.
     const outermost = containers.filter(candidate =>
       !containers.some(other => other !== candidate && containsNode(other, candidate.id)));
 
@@ -215,10 +187,6 @@ export class Canvas {
     return true;
   }
 
-  /**
-   * The callouts are drawn by the shared renderer so the editor and the exports
-   * agree, then made interactive here.
-   */
   private renderAnnotationLayer(): void {
     this.annotationLayer.replaceChildren();
     const layer = renderAnnotations(this.store.doc);
@@ -273,9 +241,6 @@ export class Canvas {
 
     if (this.isFreeFormChild(node)) {
       box.classList.add('free-form');
-      // Resize handles belong to the primary widget only: resizing a whole
-      // selection at once would need a different, and much less predictable,
-      // set of rules.
       if (primary && !multiple) {
         for (const handle of RESIZE_HANDLES) {
           const el = div(`es-resize-handle es-handle-${handle}`);
@@ -302,22 +267,15 @@ export class Canvas {
     return pathTo(this.store.doc.root, id);
   }
 
-  /**
-   * The editor's own right-click menu. The browser menu offers nothing useful
-   * over a mockup, so it is replaced with the actions that belong on a widget.
-   */
   private onContextMenu(event: MouseEvent): void {
     event.preventDefault();
     const chain = this.nodeChainAt(event.target);
     const node = chain[chain.length - 1] ?? this.store.doc.root;
     const parent = chain[chain.length - 2] ?? null;
-    // Right-clicking inside an existing selection keeps it, so the align and
-    // distribute entries stay reachable; anywhere else it selects that widget.
     if (!this.store.isSelected(node.id)) this.store.select(node.id);
     showContextMenu(buildWidgetMenu(this.store, node, parent), event.clientX, event.clientY);
   }
 
-  /** Canvas coordinates of a pointer event, in the mockup's own pixel space. */
   private pagePoint(event: PointerEvent): {x: number; y: number} {
     const zoom = this.store.doc.canvas.zoom || 1;
     const rect = this.page.getBoundingClientRect();
@@ -346,9 +304,6 @@ export class Canvas {
       this.startMarquee(event);
       return;
     }
-    // Pressing on a container selects it and, if the pointer then moves, pulls
-    // a rubber band. A container fills its whole area, so without this the band
-    // could only ever be started outside the mockup.
     if (!this.isFreeFormChild(node)) {
       this.store.select(node.id);
       this.startMarquee(event);
@@ -359,16 +314,10 @@ export class Canvas {
       this.store.toggleSelection(node.id);
       return;
     }
-    // Dragging one widget of a selection moves the whole selection, the way it
-    // works in every drawing tool.
     if (!this.store.isSelected(node.id)) this.store.select(node.id);
     if (this.isFreeFormChild(node)) this.startFreeDrag(node, 'move', event);
   }
 
-  /**
-   * Rubber band selection. Only free-form widgets can be selected this way -
-   * a widget in a logical grid has no position of its own to act on.
-   */
   private startMarquee(event: PointerEvent): void {
     const start = this.pagePoint(event);
     const band = div('es-marquee');
@@ -408,8 +357,6 @@ export class Canvas {
       const node = findNode(this.store.doc.root, id);
       if (!node || !this.isFreeFormChild(node)) continue;
       const box = pageBoxOf(el, this.page, zoom);
-      // Fully enclosed, not merely touched: a band that grabs everything it
-      // brushes past is impossible to aim.
       if (box.left >= band.left && box.top >= band.top
         && box.left + box.width <= band.right
         && box.top + box.height <= band.bottom) {
@@ -424,7 +371,6 @@ export class Canvas {
     if (!el) return;
     event.preventDefault();
 
-    // A move carries the rest of the selection along; a resize never does.
     this.groupDrag = mode !== 'move' ? [] : this.store.selectedIds
       .filter(id => id !== node.id)
       .map(id => ({id, el: this.nodeElements.get(id), node: findNode(this.store.doc.root, id)}))
@@ -475,9 +421,6 @@ export class Canvas {
     if (!el) return;
     let bounds = this.computeDragBounds(event);
 
-    // Snap the dragged widget onto its neighbours, unless Alt asks for exact
-    // pixels. A group drag snaps on the widget under the pointer and the rest
-    // follows by the same offset, so their relative positions never change.
     this.guideLayer.replaceChildren();
     if (!event.altKey) {
       const snap = computeSnap(bounds, this.siblingRects(this.freeDrag.nodeId), this.containerSize(this.freeDrag.nodeId));
@@ -503,7 +446,6 @@ export class Canvas {
     this.updateSelectionBoxes(bounds);
   }
 
-  /** Bounds of the free-form siblings of `nodeId`, in container coordinates. */
   private siblingRects(nodeId: string): Rect[] {
     const parent = findParent(this.store.doc.root, nodeId);
     if (!parent) return [];
@@ -528,7 +470,6 @@ export class Canvas {
     return {width: body?.clientWidth ?? 0, height: body?.clientHeight ?? 0};
   }
 
-  /** Guide lines are drawn in page coordinates, over the container. */
   private drawGuides(nodeId: string, verticals: number[], horizontals: number[]): void {
     if (!verticals.length && !horizontals.length) return;
     const parent = findParent(this.store.doc.root, nodeId);
@@ -553,7 +494,6 @@ export class Canvas {
     }
   }
 
-  /** Re-measures every selection box after a drag moved the elements. */
   private updateSelectionBoxes(dragged?: FreeBounds): void {
     const zoom = this.store.doc.canvas.zoom;
     this.overlay.querySelectorAll<HTMLElement>('.es-selection-box').forEach(box => {
@@ -569,10 +509,6 @@ export class Canvas {
     });
   }
 
-  /**
-   * Position and size while dragging. Movement snaps to a small grid so
-   * free-form sketches stay tidy; holding Alt drags pixel by pixel.
-   */
   private computeDragBounds(event: PointerEvent): FreeBounds {
     const drag = this.freeDrag!;
     const zoom = this.store.doc.canvas.zoom || 1;
@@ -603,7 +539,6 @@ export class Canvas {
       y = origin.y + dy;
     }
 
-    // Clamp against the minimum size, keeping the opposite edge in place.
     if (width < FREE_MIN_WIDTH) {
       if (mode.includes('w')) x = origin.x + origin.width - FREE_MIN_WIDTH;
       width = FREE_MIN_WIDTH;
@@ -650,10 +585,6 @@ export class Canvas {
       'bounds.width': parseInt(el.style.width, 10) || FREE_MIN_WIDTH,
       'bounds.height': parseInt(el.style.height, 10) || FREE_MIN_HEIGHT
     };
-    // One gesture, one undo step - including every other widget a group move
-    // carried along. A pure move must not touch the size, and vice versa, so
-    // that a stray pixel from the measured layout never sneaks into the
-    // document.
     const changes: Record<string, Record<string, number>> = {
       [nodeId]: mode === 'move'
         ? {'bounds.x': bounds['bounds.x'], 'bounds.y': bounds['bounds.y']}
@@ -669,11 +600,6 @@ export class Canvas {
     this.store.setPropertiesForNodes(changes);
   }
 
-  /**
-   * Walks the widget tree from the canvas: left and right to the previous and
-   * next sibling, up to the parent, down to the first child. Only reached when
-   * the arrows had nothing to nudge, so free placement keeps them for moving.
-   */
   navigateSelection(key: string): boolean {
     const id = this.store.selectedId;
     if (!id) return false;
@@ -707,10 +633,6 @@ export class Canvas {
     return true;
   }
 
-  /**
-   * Arrow keys nudge the selected free-form widget, Shift+arrows resize it.
-   * Returns true when the key was consumed.
-   */
   nudgeSelection(key: string, resize: boolean, coarse: boolean): boolean {
     const ids = this.store.selectedIds.filter(id => {
       const node = findNode(this.store.doc.root, id);
@@ -732,8 +654,6 @@ export class Canvas {
       const y = Number(node.properties['bounds.y'] ?? el.offsetTop);
       const width = Number(node.properties['bounds.width'] ?? el.offsetWidth);
       const height = Number(node.properties['bounds.height'] ?? el.offsetHeight);
-      // Shift resizes instead of moving; a selection is resized as a set of
-      // individual widgets, which is the only reading that keeps them apart.
       changes[id] = resize
         ? {'bounds.width': Math.max(FREE_MIN_WIDTH, width + dx), 'bounds.height': Math.max(FREE_MIN_HEIGHT, height + dy)}
         : {'bounds.x': Math.max(0, x + dx), 'bounds.y': Math.max(0, y + dy)};
@@ -791,7 +711,6 @@ export class Canvas {
       this.store.move(payload.nodeId, target.parent.id, target.slot.name, index);
     } else {
       const node = createNode(payload.objectType);
-      // Match the container's column count so a wide widget does not overflow.
       const def = getWidget(payload.objectType);
       if (def?.isFormField) {
         const columns = Number(target.parent.properties.gridColumnCount ?? getWidget(target.parent.objectType)?.defaults.gridColumnCount ?? 2);
@@ -811,7 +730,6 @@ export class Canvas {
     this.dragPayload = null;
   }
 
-  /** Index in `parent.children` closest to the pointer, within the given slot. */
   private dropIndex(parent: MockupNode, slotName: string, event: DragEvent): number {
     const def = getWidget(parent.objectType);
     const defaultSlot = def?.slots[0]?.name;
@@ -840,17 +758,10 @@ export class Canvas {
     return parent.children.indexOf(insertBefore);
   }
 
-  /**
-   * Reads the rendered position and size of every child of `parentId`, relative
-   * to that parent. Used when a container is switched to free placement so the
-   * children keep the position the logical grid gave them instead of all
-   * collapsing onto the same default spot.
-   */
   measureChildBounds(parentId: string): Record<string, Record<string, number>> {
     const parent = findNode(this.store.doc.root, parentId);
     const parentEl = this.nodeElements.get(parentId);
     if (!parent || !parentEl) return {};
-    // The children sit in the container's body, not in its outer element.
     const body = parentEl.querySelector<HTMLElement>('.logical-grid, .free-form') ?? parentEl;
     const bodyRect = body.getBoundingClientRect();
     const zoom = this.store.doc.canvas.zoom || 1;
@@ -869,13 +780,11 @@ export class Canvas {
     return result;
   }
 
-  /** Re-measures the selection frame after the surrounding layout moved. */
   refreshOverlay(): void {
     this.renderGridLayer();
     this.updateSelection();
   }
 
-  /** Zoom factor at which the whole mockup fits into the visible canvas area. */
   fitZoom(): number {
     const style = getComputedStyle(this.element);
     const padding = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
@@ -884,11 +793,9 @@ export class Canvas {
     const {width, height} = this.store.doc.canvas;
     if (!width || !height || availableWidth <= 0 || availableHeight <= 0) return 1;
     const zoom = Math.min(availableWidth / width, availableHeight / height);
-    // Round down to a tidy step so the zoom label stays readable.
     return Math.max(0.1, Math.floor(zoom * 100) / 100);
   }
 
-  /** Used by the export code so it can reuse the exact rendered tree. */
   get renderedRoot(): HTMLElement | null {
     return this.host.firstElementChild as HTMLElement | null;
   }

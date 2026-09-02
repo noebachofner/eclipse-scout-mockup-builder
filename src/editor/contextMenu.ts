@@ -7,19 +7,10 @@ export interface ContextMenuEntry {
   shortcut?: string;
   disabled?: boolean;
   separatorBefore?: boolean;
-  /** Entries shown in a flyout instead of an action. */
   submenu?: ContextMenuEntry[];
   action?: () => void;
 }
 
-/**
- * The shared right-click menu.
- *
- * It is fully keyboard operable - arrows move, Right and Left open and close a
- * submenu, Enter activates, Escape closes and hands the focus back - because a
- * menu that only answers to the mouse is a dead end for anybody who is not
- * using one.
- */
 export function showContextMenu(entries: ContextMenuEntry[], x: number, y: number, restoreFocusTo?: HTMLElement | null): void {
   closeContextMenus();
 
@@ -29,9 +20,6 @@ export function showContextMenu(entries: ContextMenuEntry[], x: number, y: numbe
   focusItem(menu, 0);
 
   const dismiss = (event: Event): void => {
-    // Submenus are separate elements on the body, not children of the root
-    // menu, so asking the root whether it contains the target dismissed the
-    // whole thing on mousedown before the click could reach a submenu entry.
     if (event.target instanceof Element && event.target.closest('.es-context-menu')) return;
     close();
   };
@@ -47,9 +35,6 @@ export function showContextMenu(entries: ContextMenuEntry[], x: number, y: numbe
     window.addEventListener('blur', dismiss);
   });
 
-  // Every path out of the menu goes through here, so the document level
-  // listeners cannot outlive it - a stray Escape handler would otherwise
-  // swallow the next Escape the editor itself wanted to see.
   function close(): void {
     document.removeEventListener('mousedown', dismiss, true);
     document.removeEventListener('keydown', onEscape, true);
@@ -170,12 +155,6 @@ function focusItem(menu: HTMLElement | null, index: number): void {
   menu?.querySelectorAll<HTMLButtonElement>('.es-context-menu-item:not(:disabled)')[index]?.focus();
 }
 
-/**
- * Keeps the menu inside the window. Measured and corrected synchronously right
- * after it is inserted: hiding it first and fixing the position on the next
- * frame would look tidier but a `visibility: hidden` element cannot take focus,
- * which left the whole menu unreachable from the keyboard.
- */
 function place(menu: HTMLElement, x: number, y: number): void {
   menu.style.left = `${x}px`;
   menu.style.top = `${y}px`;

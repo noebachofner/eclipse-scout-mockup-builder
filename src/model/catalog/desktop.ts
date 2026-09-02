@@ -11,10 +11,6 @@ interface OutlineNodeSpec {
   expanded: boolean;
 }
 
-/**
- * Outline pages are written as indented text (two spaces per level). A line may
- * carry an icon: `Customers [group]`. A leading `+` marks a collapsed node.
- */
 export function parseOutlineNodes(raw: unknown): OutlineNodeSpec[] {
   return String(raw ?? '')
     .split(/\r?\n/)
@@ -140,15 +136,10 @@ const defs: WidgetDef[] = [
         navigation.style.width = `${navigationWidth}px`;
         if (inBackground) navigation.classList.add('in-background');
 
-        // Top-left: the outline switcher, exactly where Scout puts the view
-        // button box. `selected` is the state Scout shows while the navigation
-        // holds the active outline - the white card on the blue header.
         const viewButtonBox = div('view-button-box');
         const displayStyle = ctx.prop<string>(node, 'viewButtonDisplayStyle', 'menu');
 
         if (displayStyle === 'tabs') {
-          // Every outline gets its own button, side by side - Scout's TAB style
-          // for view buttons.
           const wrapper = div('view-tab-wrapper');
           outlines.forEach((outline, i) => {
             const tab = div('view-tab');
@@ -162,9 +153,6 @@ const defs: WidgetDef[] = [
           if (!outlines.length) wrapper.appendChild(div('view-tab selected'));
           viewButtonBox.appendChild(wrapper);
         } else {
-          // The outline switcher. `selected` is the state Scout shows while the
-          // navigation holds the active outline: a white tab that merges into
-          // the navigation body below it.
           const viewMenuTab = div('view-menu-tab selected');
           if (displayStyle === 'compact') viewMenuTab.classList.add('selected-button-invisible');
           else {
@@ -181,7 +169,6 @@ const defs: WidgetDef[] = [
           viewMenuTab.appendChild(viewMenu);
           viewButtonBox.appendChild(viewMenuTab);
 
-          // Further outlines appear as small buttons next to the switcher.
           if (outlines.length > 1) {
             const wrapper = div('view-tab-wrapper');
             outlines.forEach((outline, i) => {
@@ -296,7 +283,6 @@ const defs: WidgetDef[] = [
         desktop.appendChild(bench);
       }
 
-      // Popups float above the desktop without dimming it, unlike a dialog.
       const popups = ctx.renderSlot(node, 'popups');
       if (popups.length) {
         const layer = div('desktop-popups');

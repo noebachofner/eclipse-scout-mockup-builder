@@ -10,7 +10,6 @@ const SEVERITY_LABEL: Record<Finding['severity'], string> = {
   info: 'Hint'
 };
 
-/** Lists everything in the mockup that standard Scout cannot reproduce. */
 export function showCheckDialog(doc: MockupDocument, select: (nodeId: string) => void): void {
   document.querySelector('.es-modal-backdrop')?.remove();
   const findings = validateDocument(doc);

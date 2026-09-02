@@ -6,17 +6,6 @@ import tokensCss from '../styles/scout-tokens.generated.css?raw';
 import renderCss from '../styles/scout-render.css?raw';
 import iconFontUrl from '../assets/scoutIcons.woff?url';
 
-/**
- * Builds a standalone HTML file of the mockup.
- *
- * Everything is inlined - the Scout tokens, the render stylesheet and the icon
- * font as a data URI - so the exported file works offline, from a file:// URL
- * and inside e-mail or wiki attachments.
- */
-/**
- * The complete mockup stylesheet with the icon font inlined as a data URI.
- * Shared by the HTML export and the PNG rasterizer.
- */
 export async function buildMockupCss(): Promise<string> {
   const fontDataUri = await loadIconFontDataUri();
   return [
@@ -26,14 +15,12 @@ export async function buildMockupCss(): Promise<string> {
   ].join('\n');
 }
 
-/** Renders the document at its canvas size, ready to be embedded anywhere. */
 export function renderExportRoot(doc: MockupDocument): HTMLElement {
   const rendered = renderDocument(doc, {exportMode: true});
   rendered.style.width = `${doc.canvas.width}px`;
   rendered.style.height = `${doc.canvas.height}px`;
   const annotations = renderAnnotations(doc);
   if (annotations) {
-    // The callouts sit above the mockup, in the same coordinate space.
     rendered.style.position = 'relative';
     rendered.appendChild(annotations);
   }
@@ -90,7 +77,6 @@ ${rendered.outerHTML}
 `;
 }
 
-/** The generated CSS carries a `url()` font reference that must not survive. */
 function stripFontFace(css: string): string {
   return css.replace(/@font-face\s*\{[^}]*\}/g, '');
 }
@@ -106,7 +92,6 @@ function fontFaceRule(dataUri: string): string {
 
 let cachedFont: string | null = null;
 
-/** Fetches the icon font once and keeps it as a data URI for reuse. */
 export async function loadIconFontDataUri(): Promise<string> {
   if (cachedFont) return cachedFont;
   const response = await fetch(iconFontUrl);

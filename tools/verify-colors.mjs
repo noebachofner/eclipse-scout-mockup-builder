@@ -1,22 +1,13 @@
 #!/usr/bin/env node
-/**
- * Asserts that src/render/colorSystem.ts reproduces the values LESS produced in
- * src/styles/scout-tokens.generated.css. Any drift means the mockups would not
- * match a real Scout theme, so this runs as part of `npm test`.
- */
 import {readFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import less from 'less';
 
 const require = createRequire(import.meta.url);
 
-// Compile colorSystem.ts on the fly with esbuild-less TS stripping via a tiny shim:
-// the module only uses type annotations, so we let Vite's esbuild do it instead.
 const {build} = await import('vite');
 const bundle = await build({
   logLevel: 'silent',
-  // Ignore the app's vite.config.ts: its manual chunking would split this
-  // single module into two files and break the data-URI import below.
   configFile: false,
   build: {
     write: false,
@@ -45,7 +36,6 @@ for (const [name, value] of Object.entries(mine)) {
 
 function norm(v) {
   return v.trim().toLowerCase().replace(/\s+/g, ' ')
-    // #abc -> #aabbcc so literal short-hands compare equal
     .replace(/^#([0-9a-f])([0-9a-f])([0-9a-f])$/, (_, a, b, c) => `#${a}${a}${b}${b}${c}${c}`);
 }
 

@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-/** Dev helper: loads the built app, optionally runs a scenario, and screenshots it. */
 import {launchBrowser} from './browser.mjs';
 import {createServer} from 'node:http';
 import {readFile} from 'node:fs/promises';
@@ -40,7 +39,6 @@ await page.waitForTimeout(400);
 const out = process.argv[2] ?? 'shot.png';
 await page.screenshot({path: out});
 
-// Also capture just the mockup canvas at full fidelity.
 const canvas = await page.$('.es-canvas-page');
 if (canvas) await canvas.screenshot({path: out.replace(/\.png$/, '-canvas.png')});
 

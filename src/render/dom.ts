@@ -1,5 +1,3 @@
-/** Tiny DOM helpers shared by all widget renderers. */
-
 export function h<K extends keyof HTMLElementTagNameMap>(
   tag: K,
   className?: string,
@@ -26,7 +24,6 @@ export function append<T extends HTMLElement>(parent: T, ...children: (Node | nu
   return parent;
 }
 
-/** Applies inline styles, skipping empty values. */
 export function css(el: HTMLElement, styles: Record<string, string | number | null | undefined>): void {
   for (const [key, value] of Object.entries(styles)) {
     if (value === null || value === undefined || value === '') continue;

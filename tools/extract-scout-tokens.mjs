@@ -1,14 +1,4 @@
 #!/usr/bin/env node
-/**
- * Extracts the resolved design tokens (colors, sizes, fonts) from the official
- * `@eclipse-scout/core` LESS sources and writes them out as CSS custom
- * properties, so that ES Mockup renders with the exact native Scout values
- * instead of hand-guessed approximations.
- *
- * Usage:  node tools/extract-scout-tokens.mjs <path-to-scout-package> [outFile]
- *
- * The Scout sources are EPL-2.0; see THIRD-PARTY-NOTICES.md.
- */
 import {readFileSync, writeFileSync, existsSync} from 'node:fs';
 import {join, resolve} from 'node:path';
 import less from 'less';
@@ -17,23 +7,20 @@ const pkgDir = resolve(process.argv[2] ?? 'scout/package');
 const outFile = resolve(process.argv[3] ?? 'src/styles/scout-tokens.generated.css');
 const styleDir = join(pkgDir, 'src', 'style');
 
-/** Files whose top-level `@name: value;` declarations become tokens. */
 const SOURCES = ['colors.less', 'sizes.less', 'fonts.less'];
 
-/** Variables that must not be emitted (font-face urls, mixin helpers, ...). */
 const SKIP = /^(font-face|scout)$/;
 
 function collectVariableNames(file) {
   const text = readFileSync(join(styleDir, file), 'utf8');
   const names = [];
-  // Only top-level declarations (no leading whitespace) are real design tokens.
   const re = /^@([a-zA-Z][\w-]*)\s*:\s*([^;]*);/gm;
   let m;
   while ((m = re.exec(text)) !== null) {
     const name = m[1];
     const value = m[2].trim();
     if (SKIP.test(name)) continue;
-    if (value.startsWith('~')) continue; // escaped raw values, not usable as tokens
+    if (value.startsWith('~')) continue;
     if (!names.includes(name)) names.push(name);
   }
   return names;
@@ -41,8 +28,6 @@ function collectVariableNames(file) {
 
 const names = SOURCES.flatMap(collectVariableNames);
 
-// Build a LESS document that imports the real Scout variables and prints each
-// one as a custom property. LESS resolves darken()/fade()/arithmetic for us.
 const imports = ['colors.less', 'sizes.less', 'fonts.less']
   .map(f => `@import (reference) "${join(styleDir, f).replace(/\\/g, '/')}";`)
   .join('\n');
@@ -53,9 +38,6 @@ if (!existsSync(styleDir)) {
   process.exit(1);
 }
 
-// Some tokens legitimately fail to resolve on their own (they reference mixins
-// or theme-only values). Compile once; on failure drop the offending variable
-// and retry, so a single bad token cannot sink the whole extraction.
 async function compile(varNames) {
   const body = varNames.map(n => `  --scout-${n}: @${n};`).join('\n');
   return less.render(`${imports}\n:root {\n${body}\n}`, {
@@ -88,7 +70,6 @@ for (let attempt = 0; attempt < 200; attempt++) {
     const name = bad ? (bad[1] ?? bad[2]) : null;
     const idx = name ? current.indexOf(name) : -1;
     if (idx < 0) {
-      // Fall back to bisecting out the line the error points at.
       if (e.line && e.line >= 5) {
         const removed = current.splice(e.line - 5, 1);
         dropped.push(...removed);

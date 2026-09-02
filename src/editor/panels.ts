@@ -35,7 +35,6 @@ function readState(): PanelState {
       rightCollapsed: !!parsed.rightCollapsed
     };
   } catch {
-    // A blocked or corrupt storage must never keep the editor from starting.
     return fallback;
   }
 }
@@ -45,12 +44,6 @@ function clamp(side: PanelSide, width: number): number {
   return Math.min(max, Math.max(min, Math.round(width)));
 }
 
-/**
- * The editor's three column workspace: two side panels around the canvas, each
- * one collapsible and draggable. Widths survive a reload so everybody can keep
- * the proportions they like, and collapsing both turns the window into a plain
- * canvas for a final look at the mockup.
- */
 export class Workspace {
   readonly element: HTMLElement;
   private readonly state: PanelState;
@@ -94,19 +87,15 @@ export class Workspace {
     this.persist();
   }
 
-  /** Registers a button elsewhere in the chrome that mirrors the panel state. */
   bindToggle(side: PanelSide, button: HTMLButtonElement): void {
     this.toggleButtons[side].push(button);
     button.addEventListener('click', () => this.toggle(side));
     this.syncButtons(side);
   }
 
-  /** Called after a resize or collapse so the canvas can re-fit its zoom. */
   onChange(listener: () => void): void {
     this.listeners.push(listener);
   }
-
-  /* ---------------------------------------------------------------- internals */
 
   private buildSplitter(side: PanelSide, label: string): HTMLElement {
     const splitter = div(`es-splitter es-splitter-${side}`);
@@ -201,7 +190,6 @@ export class Workspace {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(this.state));
     } catch {
-      // Storage is optional; the layout simply resets on the next visit.
     }
   }
 }

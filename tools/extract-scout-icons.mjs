@@ -1,8 +1,4 @@
 #!/usr/bin/env node
-/**
- * Turns the `@icon-*` declarations of Scout's icons.less into a TypeScript map
- * of icon id -> character, so ES Mockup can offer the authentic Scout icon set.
- */
 import {readFileSync, writeFileSync} from 'node:fs';
 import {join, resolve} from 'node:path';
 
@@ -16,7 +12,6 @@ let m;
 while ((m = re.exec(text)) !== null) {
   const id = m[1];
   const raw = m[2];
-  // '\E001' style escapes -> real character
   const char = raw.replace(/\\([0-9A-Fa-f]{1,6})/g, (_, hex) => String.fromCodePoint(parseInt(hex, 16)));
   if (id === 'nbsp') continue;
   entries.push([id, char]);

@@ -5,7 +5,6 @@ import {newId} from '../model/ids';
 export interface StoreState {
   doc: MockupDocument;
   selectedId: string | null;
-  /** The full selection; `selectedId` is its primary member. */
   selectedIds: string[];
   fileName: string;
   dirty: boolean;
@@ -16,18 +15,8 @@ type Listener = (state: StoreState, reason: ChangeReason, changedIds?: string[])
 export type ChangeReason = 'document' | 'selection' | 'meta';
 
 const UNDO_LIMIT = 100;
-/**
- * The undo stack holds whole serialized documents. That is cheap for a sketch
- * but not for a mockup with embedded images, so the stack is capped by size as
- * well as by depth.
- */
 const UNDO_BYTE_LIMIT = 24 * 1024 * 1024;
 
-/**
- * Single source of truth for the editor. Undo/redo works on serialized
- * snapshots: mockup documents are small, and a snapshot cannot go out of sync
- * with the tree the way a command log can.
- */
 export class Store {
   private state: StoreState;
   private listeners = new Set<Listener>();
@@ -75,13 +64,6 @@ export class Store {
     for (const listener of this.listeners) listener(this.state, reason, changedIds);
   }
 
-  /**
-   * Runs `mutator` against the document and records an undo snapshot.
-   *
-   * `changedIds` names the widgets whose own properties were touched. Listeners
-   * may use it to redraw less; leaving it out means "assume anything changed",
-   * which is what every structural mutation does.
-   */
   update(mutator: (doc: MockupDocument) => void, changedIds?: string[]): void {
     this.undoStack.push(JSON.stringify(this.state.doc));
     this.trimUndoStack();
@@ -91,7 +73,6 @@ export class Store {
     this.emit('document', changedIds);
   }
 
-  /** Drops the oldest snapshots once the stack is too deep or too large. */
   private trimUndoStack(): void {
     while (this.undoStack.length > UNDO_LIMIT) this.undoStack.shift();
     let bytes = this.undoStack.reduce((sum, snapshot) => sum + snapshot.length, 0);
@@ -100,7 +81,6 @@ export class Store {
     }
   }
 
-  /** Replaces the whole document (new file, load, template switch). */
   replace(doc: MockupDocument, fileName = this.state.fileName): void {
     this.undoStack.push(JSON.stringify(this.state.doc));
     this.redoStack.length = 0;
@@ -132,12 +112,6 @@ export class Store {
     this.emit('document');
   }
 
-  /* ------------------------------------------------------------- clipboard */
-
-  /**
-   * An in-editor clipboard. The system clipboard is not used: it would need
-   * permission prompts and would carry no widget structure anyway.
-   */
   private clipboard: MockupNode | null = null;
 
   copyToClipboard(nodeId: string): boolean {
@@ -151,15 +125,12 @@ export class Store {
     return this.clipboard?.objectType ?? null;
   }
 
-  /** Pastes the clipboard into `parentId`; returns the new node's id. */
   pasteInto(parentId: string, slot: string): string | null {
     if (!this.clipboard) return null;
     const copy = cloneNode(this.clipboard);
     this.insert(parentId, copy, slot);
     return copy.id;
   }
-
-  /* ----------------------------------------------------------- annotations */
 
   addAnnotation(x: number, y: number): string {
     const id = newId();
@@ -183,14 +154,6 @@ export class Store {
     });
   }
 
-  /**
-   * The current selection.
-   *
-   * `selectedId` stays the primary one - the widget the property panel shows
-   * and the one resize handles belong to - while `selectedIds` carries the
-   * whole set. Everything that only ever cared about a single widget keeps
-   * working unchanged.
-   */
   get selectedIds(): string[] {
     return [...this.state.selectedIds];
   }
@@ -199,7 +162,6 @@ export class Store {
     return this.state.selectedIds.includes(id);
   }
 
-  /** Drops selected ids that the undone or redone document no longer has. */
   private pruneSelection(): void {
     this.state.selectedIds = this.state.selectedIds.filter(id => !!findNode(this.state.doc.root, id));
     if (!this.state.selectedIds.length) this.state.selectedIds = [this.state.doc.root.id];
@@ -215,7 +177,6 @@ export class Store {
     this.emit('selection');
   }
 
-  /** Shift-click: adds the widget to the selection, or takes it out again. */
   toggleSelection(id: string): void {
     const ids = this.state.selectedIds.filter(current => current !== id);
     if (ids.length === this.state.selectedIds.length) ids.push(id);
@@ -242,11 +203,6 @@ export class Store {
     }, [nodeId]);
   }
 
-  /**
-   * Applies a property to `nodeId` and, in the same undo step, properties to a
-   * set of other nodes. Used when switching a container to free placement,
-   * which has to seed the children's bounds at the same time.
-   */
   setPropertyWithChildren(nodeId: string, name: string, value: PropertyValue, children: Record<string, Record<string, PropertyValue>>): void {
     this.update(doc => {
       const target = findNode(doc.root, nodeId);
@@ -258,13 +214,6 @@ export class Store {
     });
   }
 
-  /**
-   * Applies properties to several widgets in one undo step.
-   *
-   * A gesture the user experienced as one - dragging a selection, aligning it -
-   * has to be undone in one go. Written as separate calls it took one Ctrl+Z
-   * per widget, and the intermediate states are ones the user never created.
-   */
   setPropertiesForNodes(changes: Record<string, Record<string, PropertyValue>>): void {
     const ids = Object.keys(changes);
     if (!ids.length) return;
@@ -288,7 +237,6 @@ export class Store {
     }, [nodeId]);
   }
 
-  /** Inserts `child` into `parentId`'s `slot` at `index` (append when omitted). */
   insert(parentId: string, child: MockupNode, slot: string, index = -1): void {
     this.update(doc => {
       const parent = findNode(doc.root, parentId);
@@ -329,7 +277,6 @@ export class Store {
     this.select(copy.id);
   }
 
-  /** Moves an existing node into another slot/position. */
   move(nodeId: string, targetParentId: string, slot: string, index: number): void {
     this.update(doc => {
       const parent = findParent(doc.root, nodeId);

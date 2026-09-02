@@ -17,7 +17,6 @@ export interface NodeSpec {
   children?: NodeSpec[];
 }
 
-/** Builds a node tree from a compact literal, assigning fresh ids. */
 export function node(spec: NodeSpec): MockupNode {
   return {
     id: newId(),
@@ -28,13 +27,10 @@ export function node(spec: NodeSpec): MockupNode {
   };
 }
 
-/** Creates a widget with the catalog defaults that make sense to persist. */
 export function createNode(objectType: string, overrides: Record<string, PropertyValue> = {}): MockupNode {
   const def = getWidget(objectType);
   const properties: Record<string, PropertyValue> = {};
   if (def) {
-    // Persist only what the user is likely to tweak; the rest stays implicit so
-    // saved files remain small and readable.
     for (const key of ['label', 'text', 'title'] as const) {
       if (def.defaults[key] !== undefined) properties[key] = def.defaults[key];
     }
@@ -92,7 +88,6 @@ export function walk(root: MockupNode, visit: (node: MockupNode, parent: MockupN
   root.children.forEach(child => walk(child, visit, root));
 }
 
-/** True when `candidate` is `node` or one of its descendants (drop-target guard). */
 export function containsNode(node: MockupNode, candidateId: string): boolean {
   return !!findNode(node, candidateId);
 }
@@ -132,11 +127,6 @@ export function createDocument(root: MockupNode, name = 'Untitled mockup'): Mock
 
 export class DocumentFormatError extends Error {}
 
-/**
- * Parses a `.esmockup` file. Unknown future versions are rejected rather than
- * silently mis-rendered; unknown widget types survive a round trip so a file
- * written by a newer catalog is not destroyed by an older build.
- */
 export function parseDocument(json: string): MockupDocument {
   let raw: unknown;
   try {

@@ -37,13 +37,6 @@ function readPersisted(): Persisted {
   }
 }
 
-/**
- * The Java export dialog.
- *
- * Deliberately scoped to a single form: the generated class is meant to be
- * pasted into an existing Scout project, next to the form data and the service
- * that project already has.
- */
 export function showJavaExportDialog(root: MockupNode, notify: (message: string, kind?: 'info' | 'error') => void, preselectedId?: string): void {
   document.querySelector('.es-modal-backdrop')?.remove();
 
@@ -75,7 +68,6 @@ export function showJavaExportDialog(root: MockupNode, notify: (message: string,
   const persisted = readPersisted();
   let selected = forms.find(form => form.id === preselectedId) ?? forms[0];
 
-  // --- options row ----------------------------------------------------------
   const options = div('es-java-options');
 
   const formSelect = h('select', 'es-java-select') as HTMLSelectElement;
@@ -134,7 +126,6 @@ export function showJavaExportDialog(root: MockupNode, notify: (message: string,
   body.appendChild(pre);
   dialog.appendChild(body);
 
-  // --- footer ---------------------------------------------------------------
   const footer = div('es-modal-footer');
   const copyButton = h('button', 'es-button primary') as HTMLButtonElement;
   copyButton.type = 'button';
@@ -176,7 +167,6 @@ export function showJavaExportDialog(root: MockupNode, notify: (message: string,
         detail: detailSelect.value
       }));
     } catch {
-      // Persisting the settings is a convenience, never a requirement.
     }
   };
 
@@ -194,7 +184,6 @@ export function showJavaExportDialog(root: MockupNode, notify: (message: string,
       await navigator.clipboard.writeText(current);
       notify(`${classInput.value}.java copied to the clipboard.`);
     } catch {
-      // Clipboard access can be denied; selecting the text still works.
       notify('The browser refused clipboard access - select the code and copy it manually.', 'error');
     }
   });

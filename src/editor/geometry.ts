@@ -5,13 +5,6 @@ export interface PageBox {
   height: number;
 }
 
-/**
- * An element's box in the mockup's own coordinate space.
- *
- * The canvas is scaled by the zoom factor, so a screen rectangle has to be
- * divided by it and made relative to the page before it means anything to the
- * document. Every overlay needs this, so it lives in one place.
- */
 export function pageBoxOf(element: Element, page: HTMLElement, zoom: number): PageBox {
   const pageRect = page.getBoundingClientRect();
   const rect = element.getBoundingClientRect();
@@ -24,7 +17,6 @@ export function pageBoxOf(element: Element, page: HTMLElement, zoom: number): Pa
   };
 }
 
-/** Places an absolutely positioned overlay element over `box`. */
 export function placeOver(element: HTMLElement, box: PageBox): void {
   element.style.left = `${box.left}px`;
   element.style.top = `${box.top}px`;

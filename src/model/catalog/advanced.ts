@@ -12,7 +12,6 @@ function svg(tag: string, attrs: Record<string, string | number>): SVGElement {
   return el;
 }
 
-/** Scout's chart colors follow the accent/palette scheme; these map onto the tokens. */
 const CHART_COLORS = [
   'var(--scout-accent-color-3)',
   'var(--scout-palette-green-4)',
@@ -88,7 +87,6 @@ const defs: WidgetDef[] = [
       const plot = div('chart-plot');
       const width = 400;
       const height = 240;
-      // Bars and lines may stretch to the field; a pie must stay round.
       const round = type === 'pie' || type === 'doughnut';
       const canvas = svg('svg', {
         viewBox: `0 0 ${width} ${height}`,
@@ -350,11 +348,6 @@ const defs: WidgetDef[] = [
 
 registerWidgets(defs);
 
-/*
- * Widgets the official demo apps show that are not part of the core form field
- * hierarchy: floating popups and tooltips, and the heat map from
- * `org.eclipse.scout.widgets.heatmap`.
- */
 registerWidgets([
   {
     objectType: 'Popup',
@@ -501,7 +494,6 @@ registerWidgets([
     render(ctx, node) {
       const root = div('heatmap-field-box');
       const map = div('heatmap-map');
-      // A stylised map: the mockup must not fetch real tiles.
       map.appendChild(div('heatmap-tiles'));
       for (const line of lines(ctx.prop<string>(node, 'heatPoints', ''), [])) {
         const [x, y, intensity] = line.split(',').map(part => Number(part.trim()));

@@ -1,11 +1,6 @@
 import {createDocument, node} from './document';
 import type {MockupDocument} from './types';
 
-/**
- * The template a new mockup starts from: the standard Eclipse Scout desktop
- * with navigation, outline, header (view tabs, tool box, logo) and a form in
- * the bench.
- */
 export function defaultDesktopTemplate(name = 'New mockup'): MockupDocument {
   return createDocument(
     node({
@@ -148,7 +143,6 @@ export function defaultDesktopTemplate(name = 'New mockup'): MockupDocument {
   );
 }
 
-/** A blank desktop - navigation and header only, empty bench. */
 export function emptyDesktopTemplate(name = 'Empty mockup'): MockupDocument {
   return createDocument(
     node({
@@ -163,7 +157,6 @@ export function emptyDesktopTemplate(name = 'Empty mockup'): MockupDocument {
   );
 }
 
-/** A single form without the desktop chrome, for quick field sketches. */
 export function formOnlyTemplate(name = 'Form mockup'): MockupDocument {
   const doc = createDocument(
     node({
@@ -188,12 +181,6 @@ export function formOnlyTemplate(name = 'Form mockup'): MockupDocument {
   return doc;
 }
 
-
-/**
- * A mockup containing one instance of (almost) every catalog widget. Handy as a
- * visual reference of what Scout offers, and as a starting point for cherry
- * picking widgets into a real mockup.
- */
 export function widgetGalleryTemplate(name = 'Widget gallery'): MockupDocument {
   const doc = createDocument(
     node({
@@ -326,8 +313,6 @@ export function widgetGalleryTemplate(name = 'Widget gallery'): MockupDocument {
     }),
     name
   );
-  // Tall enough for the densest of the five views: the gallery is a catalog, so
-  // nothing in it should need scrolling to be seen.
   doc.canvas.height = 1760;
   return doc;
 }

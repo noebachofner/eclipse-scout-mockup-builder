@@ -1,18 +1,3 @@
-/**
- * Scout's logical grid, expressed with CSS grid.
- *
- * Scout lays a GroupBox body out with `LogicalGridLayout`: fields are placed
- * left-to-right into `gridColumnCount` columns, wrapping when a field does not
- * fit; every field occupies `w` columns and `h` rows. Column and row growth is
- * driven by `weightX` / `weightY`, which default to "inherit":
- *
- *   weightX < 0  ->  max(1, w)                 (LogicalGridData.validate)
- *   weightY < 0  ->  h >= 2 ? h : 0            (LogicalGridData._inheritWeightY)
- *
- * The same rules are applied here, then translated into `grid-template-columns`
- * / `grid-template-rows`, which reproduces Scout's result for the layouts a
- * mockup can express while keeping the DOM simple enough to export.
- */
 import type {MockupNode} from '../model/types';
 import type {RenderContext} from '../model/catalog/registry';
 
@@ -37,11 +22,6 @@ function num(value: unknown, fallback: number): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
-/**
- * Places nodes into the logical grid the way Scout's `HorizontalGroupBoxBodyGrid`
- * does: sequential fill, wrapping to the next row when the field does not fit.
- * Fields may pin themselves with an explicit `gridDataHints.x/y`.
- */
 export type PropReader = (node: MockupNode, name: string, fallback: number) => number;
 
 const readOwnProperty: PropReader = (node, name, fallback) => num(node.properties[name], fallback);
@@ -108,9 +88,7 @@ export function placeInGrid(nodes: MockupNode[], columnCount: number, read: Prop
       y,
       w,
       h,
-      // LogicalGridData.validate()
       weightX: rawWeightX < 0 ? Math.max(1, w) : rawWeightX,
-      // LogicalGridData._inheritWeightY() base case
       weightY: rawWeightY < 0 ? (h >= 2 ? h : 0) : rawWeightY
     });
   }
@@ -122,24 +100,9 @@ export function placeInGrid(nodes: MockupNode[], columnCount: number, read: Prop
 export interface GridTemplate {
   columns: string;
   rows: string;
-  /** True when at least one row should absorb the surplus height. */
   stretchRows: boolean;
 }
 
-/**
- * Turns a placement into `grid-template-columns` / `grid-template-rows`.
- *
- * Rows are content sized so a widget can never be crushed into an overlapping
- * neighbour. Rows that Scout would let grow (`weightY > 0`, i.e. anything
- * spanning two or more logical rows) are left `auto`, and the container is set
- * to `align-content: stretch`, which makes CSS hand the surplus height to
- * exactly those tracks. Rows that must not grow are capped with `max-content`
- * so the stretch skips them.
- *
- * `fr` units are deliberately not used: an item spanning several `fr` rows is
- * not guaranteed to contribute its minimum height to them, which shows up as
- * content spilling out of its cell.
- */
 export function gridTemplate(placement: GridPlacement, rowHeight: string): GridTemplate {
   const {cells, columnCount, rowCount} = placement;
 
@@ -164,11 +127,6 @@ export function gridTemplate(placement: GridPlacement, rowHeight: string): GridT
     }
   }
 
-  // The minimum must be `auto`, not a fixed length: CSS grid only grows a track
-  // to fit its items when the track's *minimum* is an intrinsic function. With
-  // `minmax(30px, max-content)` the base stays at 30px and tall content spills
-  // into the next row. The `min-height` on the grid items keeps the logical row
-  // height as the effective floor.
   const rows = growing
     .map((grows, index) => {
       if (!used[index]) return rowHeight;
@@ -183,10 +141,6 @@ function round(n: number): number {
   return Math.round(n * 1000) / 1000;
 }
 
-/**
- * Renders `nodes` into `container` using the logical grid. Returns the placement
- * so callers (the editor) can map pointer positions back onto grid cells.
- */
 export function renderLogicalGrid(
   ctx: RenderContext,
   container: HTMLElement,
@@ -194,17 +148,12 @@ export function renderLogicalGrid(
   nodes: MockupNode[],
   columnCount: number
 ): GridPlacement {
-  // Grid hints fall back to the widget's catalog defaults, so e.g. a button
-  // keeps `fillHorizontal: false` without the property having to be persisted.
   const read: PropReader = (child, name, fallback) => Number(ctx.prop(child, name, fallback));
   const placement = placeInGrid(nodes, columnCount, read);
   const rowHeight = logicalRowHeight(ctx);
   const template = gridTemplate(placement, rowHeight);
 
   container.classList.add('logical-grid');
-  // Drives the responsive container queries in scout-render.css: Scout's
-  // ResponsiveManager switches a group box to CONDENSED (labels on top) as soon
-  // as a logical column is narrower than formColumnWidth (420px).
   container.dataset.columns = String(placement.columnCount);
   container.style.gridTemplateColumns = template.columns;
   container.style.gridTemplateRows = template.rows;
@@ -218,14 +167,12 @@ export function renderLogicalGrid(
   return placement;
 }
 
-/** The logical row height in effect, as a CSS length expression. */
 export function logicalRowHeight(ctx: RenderContext): string {
   return ctx.dense
     ? 'var(--scout-logical-grid-row-height-dense)'
     : 'var(--scout-logical-grid-row-height)';
 }
 
-/** Places one element into its grid cell. Shared by the full and partial paths. */
 export function applyGridCell(
   ctx: RenderContext,
   el: HTMLElement,
@@ -236,15 +183,9 @@ export function applyGridCell(
   el.style.gridColumn = `${cell.x + 1} / span ${cell.w}`;
   el.style.gridRow = `${cell.y + 1} / span ${cell.h}`;
   if (!ctx.exportMode) {
-    // The editor's grid inspector reads the resolved placement back off the
-    // DOM instead of recomputing it, so what it draws is what was rendered.
     el.dataset.gridCell = `${cell.x},${cell.y},${cell.w},${cell.h},${round(cell.weightX)},${round(cell.weightY)}`;
   }
   if (cell.h > 1) {
-    // Spanning several rows implies a minimum height. It goes on the field
-    // content, not on the grid item: on the item a specified minimum would
-    // *replace* its minimum contribution and stop the track from growing to
-    // fit taller content, on a child it merely raises the item's min-content.
     const target = el.querySelector<HTMLElement>(':scope > .field') ?? el;
     target.style.minHeight = `calc(${cell.h} * ${rowHeight} + ${cell.h - 1} * var(--es-grid-row-gap))`;
   }
@@ -258,10 +199,8 @@ export function applyGridCell(
   }
 }
 
-/** Positions one absolutely placed element. Shared by the full and partial paths. */
 export function applyFreeBounds(el: HTMLElement, node: MockupNode, index: number): void {
   el.style.position = 'absolute';
-  // Nodes without bounds are staggered so they stay individually reachable.
   el.style.left = `${num(node.properties['bounds.x'], 20)}px`;
   el.style.top = `${num(node.properties['bounds.y'], 20 + index * 40)}px`;
   el.style.width = `${num(node.properties['bounds.width'], 320)}px`;
@@ -269,14 +208,6 @@ export function applyFreeBounds(el: HTMLElement, node: MockupNode, index: number
   el.style.alignSelf = 'auto';
 }
 
-/**
- * Re-applies the placement a container gives one of its children.
- *
- * The partial render path replaces a subtree's element, which loses the styles
- * its container had set on it. Recomputing the placement is cheap and, more to
- * the point, goes through the same two functions the full render uses, so the
- * two cannot drift apart.
- */
 export function reapplyPlacement(ctx: RenderContext, parent: MockupNode, node: MockupNode, el: HTMLElement): void {
   const children = ctx.childrenOf(parent, 'fields');
   const index = children.indexOf(node);
@@ -292,7 +223,6 @@ export function reapplyPlacement(ctx: RenderContext, parent: MockupNode, node: M
   if (cell) applyGridCell(ctx, el, cell, logicalRowHeight(ctx), read);
 }
 
-/** Absolute placement for containers that opted out of the logical grid. */
 export function renderFreeForm(
   ctx: RenderContext,
   container: HTMLElement,
@@ -306,9 +236,6 @@ export function renderFreeForm(
     container.appendChild(el);
   });
 
-  // Absolutely positioned children do not stretch their parent, so the
-  // container has to reserve the space itself - otherwise it collapses and the
-  // widgets spill over whatever follows.
   const bottom = nodes.reduce((max, node, index) => Math.max(
     max,
     num(node.properties['bounds.y'], 20 + index * 40) + num(node.properties['bounds.height'], 30)

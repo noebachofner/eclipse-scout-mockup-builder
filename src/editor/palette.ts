@@ -9,10 +9,6 @@ import {findSlot} from './dropTarget';
 import type {Store} from './store';
 import {findNode, pathTo} from '../model/document';
 
-/**
- * The element library. Widgets can be dragged onto the canvas or added to the
- * current selection with a click, which is faster for deep structures.
- */
 export class Palette {
   readonly element: HTMLElement;
   private readonly list: HTMLElement;
@@ -20,7 +16,6 @@ export class Palette {
   private readonly hint: HTMLElement;
   private filter = '';
   private collapsed = new Set<string>();
-  /** Object types added recently, most recent first. */
   private recent: string[] = [];
 
   constructor(private store: Store, private canvas: Canvas) {
@@ -47,7 +42,6 @@ export class Palette {
         this.search.blur();
       }
       if (event.key === 'Enter') {
-        // Enter adds the first match - fast keyboard-only building.
         const first = this.list.querySelector<HTMLElement>('.es-palette-item:not(.es-unavailable)');
         first?.click();
       }
@@ -71,8 +65,6 @@ export class Palette {
 
   private renderList(): void {
     this.list.replaceChildren();
-    // Re-established at the end: after a re-render nothing is focused yet, so
-    // the first item carries the tab stop again.
     const restoreRoving = (): void => {
       const first = this.list.querySelector<HTMLElement>('.es-palette-item');
       if (first) first.tabIndex = 0;
@@ -85,7 +77,6 @@ export class Palette {
       list.push(def);
       byCategory.set(def.category, list);
     }
-    // A "Recently used" section keeps the widgets of the current task close by.
     if (!this.filter && this.recent.length) {
       const recentDefs = this.recent
         .map(objectType => allWidgets().find(def => def.objectType === objectType))
@@ -105,7 +96,6 @@ export class Palette {
     this.updateEnablement();
   }
 
-  /** One collapsible category. Searching expands everything automatically. */
   private renderGroup(title: string, defs: WidgetDef[], collapsible: boolean): HTMLElement {
     const group = div('es-palette-group');
     const isCollapsed = collapsible && !this.filter && this.collapsed.has(title);
@@ -132,11 +122,8 @@ export class Palette {
   }
 
   private renderItem(def: WidgetDef): HTMLElement {
-    // A button rather than a div: it is one by behaviour, and that makes it
-    // reachable and activatable without a mouse for free.
     const item = h('button', 'es-palette-item');
     item.type = 'button';
-    // Roving tabindex - one stop for the whole list, arrows move inside it.
     item.tabIndex = -1;
     item.draggable = true;
     item.dataset.objectType = def.objectType;
@@ -164,11 +151,6 @@ export class Palette {
     return item;
   }
 
-  /**
-   * Arrow keys walk the list of widgets, Home and End jump to its ends, and
-   * Escape goes back to the search box - the palette is a long list, and
-   * tabbing through 56 buttons to reach the last one is not usable.
-   */
   private onItemKeyDown(event: KeyboardEvent, item: HTMLElement): void {
     const items = [...this.list.querySelectorAll<HTMLElement>('.es-palette-item')];
     const index = items.indexOf(item);
@@ -189,14 +171,12 @@ export class Palette {
     }
   }
 
-  /** Keeps exactly one item in the tab order, the one last focused. */
   private setRovingItem(item: HTMLElement): void {
     this.list.querySelectorAll<HTMLElement>('.es-palette-item').forEach(other => {
       other.tabIndex = other === item ? 0 : -1;
     });
   }
 
-  /** Adds the widget to the nearest container of the current selection. */
   private addToSelection(def: WidgetDef): void {
     const selectedId = this.store.selectedId ?? this.store.doc.root.id;
     const chain = pathTo(this.store.doc.root, selectedId);
@@ -205,7 +185,6 @@ export class Palette {
       const slot = findSlot(parent, def.objectType);
       if (!slot) continue;
       const node = createNode(def.objectType);
-      // Insert right after the selected sibling when dropping into its parent.
       const selected = findNode(this.store.doc.root, selectedId);
       let index = parent.children.length;
       if (selected && parent.children.includes(selected)) {
@@ -217,7 +196,6 @@ export class Palette {
     }
   }
 
-  /** Called by the canvas after a drop so both ways of adding count as "used". */
   remember(objectType: string): void {
     this.recent = [objectType, ...this.recent.filter(type => type !== objectType)].slice(0, 8);
     this.renderList();

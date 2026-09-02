@@ -1,9 +1,3 @@
-/**
- * The Java generator.
- *
- * The method names asserted here were read off the Scout 26.1 sources; if a
- * future Scout release renames one, these tests are where it should show up.
- */
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {importTs} from './_bundle.mjs';
@@ -72,7 +66,6 @@ test('a table field gets a nested Table with typed columns', () => {
   assert.match(code, /extends AbstractTableField<TableField\.Table>/);
   assert.match(code, /public class Table extends AbstractTable \{/);
   assert.match(code, /public class OrderNoColumn extends AbstractStringColumn \{/);
-  // The column types are inferred from the sample data in the mockup.
   assert.match(code, /public class DateColumn extends AbstractDateColumn \{/);
   assert.match(code, /public class AmountColumn extends AbstractBigDecimalColumn \{/);
   assert.match(code, /return getColumnSet\(\)\.getColumnByClass\(OrderNoColumn\.class\);/);
@@ -138,8 +131,6 @@ test('braces balance out, so the file is at least syntactically plausible', () =
 });
 
 test('two fields with the same label get distinct class names', () => {
-  // getFieldByClass resolves by class, so two `NameField` classes would produce
-  // two identical getters on the form and fail to compile.
   const doc = docModule.node({objectType: 'Form', properties: {title: 'Order'}, children: [
     {objectType: 'GroupBox', slot: 'fields', properties: {label: 'Billing'}, children: [
       {objectType: 'StringField', slot: 'fields', properties: {label: 'Name'}}
@@ -151,7 +142,6 @@ test('two fields with the same label get distinct class names', () => {
   const {code} = generate(doc, {className: 'OrderForm'});
   const getters = [...code.matchAll(/^  public \w+ (get\w+)\(\)/gm)].map(match => match[1]);
   assert.deepEqual(getters, [...new Set(getters)], `duplicate getter: ${getters.join(', ')}`);
-  // The collision is resolved by qualifying with the enclosing box.
   assert.match(code, /public class ShippingNameField extends AbstractStringField/);
 });
 
@@ -170,8 +160,6 @@ test('a column name cannot collide with a field name', () => {
 test('layout detail writes the logical grid of every field', () => {
   const {code} = generate(personForm(), {detail: 'layout'});
   const firstName = code.slice(code.indexOf('class FirstNameField'), code.indexOf('class LastNameField'));
-  // These are all still the Scout defaults; layout detail writes them anyway so
-  // the layout is visible in the code rather than implied.
   assert.match(firstName, /protected int getConfiguredGridW\(\) \{\s*return 1;/);
   assert.match(firstName, /protected int getConfiguredGridH\(\) \{\s*return 1;/);
   assert.match(firstName, /protected double getConfiguredGridWeightX\(\) \{\s*return -1\.0;/);

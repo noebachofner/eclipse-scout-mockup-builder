@@ -74,7 +74,6 @@ const GROUPS: ShortcutGroup[] = [
   }
 ];
 
-/** Modal overlay listing every shortcut and interaction of the editor. */
 export function showShortcutsDialog(): void {
   document.querySelector('.es-modal-backdrop')?.remove();
 

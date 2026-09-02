@@ -3,9 +3,7 @@ import {renderRowsEditor} from './rowsEditor';
 import type {MockupNode, PropertyValue} from '../model/types';
 
 export interface TableEditorHost {
-  /** Reads a tabular property with the widget default as the fallback. */
   read(node: MockupNode, name: string): string[][];
-  /** Writes both properties in one undo step. */
   write(node: MockupNode, values: Record<string, PropertyValue>): void;
 }
 
@@ -17,7 +15,6 @@ interface Column {
 
 const ALIGNMENTS: Column['align'][] = ['left', 'center', 'right'];
 
-/** Columns are stored as `[header, alignment, width]` triples. */
 function parseColumns(raw: string[][]): Column[] {
   return raw.map(([text = '', align = 'left', width = '']) => ({
     text,
@@ -29,27 +26,16 @@ function parseColumns(raw: string[][]): Column[] {
 const serializeColumns = (columns: Column[]): string[][] =>
   columns.map(column => [column.text, column.align, column.width ? String(column.width) : '']);
 
-/**
- * Structured editor for a table's columns and its sample rows.
- *
- * Both are stored as arrays of arrays, so a cell can contain any character -
- * they used to be one string per row with `|` between the cells, which meant
- * the editor had to strip that character out of whatever was typed. The editor
- * also keeps the two in step: adding, removing or moving a column does the same
- * to every row, so the cell count can never drift away from the header count.
- */
 export function renderTableEditor(node: MockupNode, host: TableEditorHost): HTMLElement {
   const wrapper = div('es-table-editor');
   let columns = parseColumns(host.read(node, 'columns'));
   let rows = host.read(node, 'rows').map(row => [...row]);
 
   const commit = (): void => {
-    // Every row carries exactly one cell per column, padded or trimmed.
     const normalized = rows.map(row => columns.map((_, index) => row[index] ?? ''));
     host.write(node, {columns: serializeColumns(columns), rows: normalized});
   };
 
-  // --- columns --------------------------------------------------------------
   wrapper.appendChild(span('es-table-editor-title', 'Columns'));
   const columnList = div('es-table-columns');
   columns.forEach((column, index) => {
@@ -127,7 +113,6 @@ export function renderTableEditor(node: MockupNode, host: TableEditorHost): HTML
   });
   wrapper.appendChild(addColumn);
 
-  // --- rows -----------------------------------------------------------------
   wrapper.appendChild(span('es-table-editor-title', 'Rows'));
   wrapper.appendChild(renderRowsEditor({
     headers: columns.map(column => column.text || '—'),

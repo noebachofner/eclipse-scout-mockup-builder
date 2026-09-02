@@ -1,4 +1,3 @@
-/** Snapping, aligning and distributing in free placement. */
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {importTs} from './_bundle.mjs';
@@ -11,8 +10,6 @@ const container = {width: 800, height: 600};
 test('a widget close to a neighbour edge is pulled onto it', () => {
   const snap = computeSnap(rect(103, 200), [rect(100, 20)], container);
   assert.equal(snap.dx, -3);
-  // Same width and same x, so the left edges, the centres and the right edges
-  // all line up - and all three guides are reported.
   assert.deepEqual(snap.verticals, [100, 150, 200]);
 });
 
@@ -29,7 +26,6 @@ test('nothing snaps beyond the threshold', () => {
 });
 
 test('centres snap as well as edges', () => {
-  // Neighbour centre is at 150; the moving widget's centre is at 148.
   const snap = computeSnap(rect(98, 300), [rect(100, 20)], container);
   assert.equal(snap.dx, 2);
 });
@@ -57,7 +53,6 @@ test('aligning right lines the right edges up, respecting the widths', () => {
 
 test('aligning on the vertical centre uses the bounding box', () => {
   const result = alignRects([rect(0, 0, 100, 40), rect(0, 100, 100, 20)], 'centerY');
-  // The box spans 0..120, so the centre is 60.
   assert.deepEqual(result.map(r => r.y), [40, 50]);
 });
 
@@ -69,7 +64,6 @@ test('distributing equalises the gaps and keeps the outer two in place', () => {
   const result = distributeRects([rect(0, 0, 100), rect(120, 0, 100), rect(400, 0, 100)], 'x');
   assert.equal(result[0].x, 0);
   assert.equal(result[2].x, 400);
-  // 500 total span, 300 used, so two gaps of 100.
   assert.equal(result[1].x, 200);
 });
 
