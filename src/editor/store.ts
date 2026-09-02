@@ -252,6 +252,28 @@ export class Store {
     });
   }
 
+  /**
+   * Applies properties to several widgets in one undo step.
+   *
+   * A gesture the user experienced as one - dragging a selection, aligning it -
+   * has to be undone in one go. Written as separate calls it took one Ctrl+Z
+   * per widget, and the intermediate states are ones the user never created.
+   */
+  setPropertiesForNodes(changes: Record<string, Record<string, PropertyValue>>): void {
+    const ids = Object.keys(changes);
+    if (!ids.length) return;
+    this.update(doc => {
+      for (const id of ids) {
+        const target = findNode(doc.root, id);
+        if (!target) continue;
+        for (const [name, value] of Object.entries(changes[id])) {
+          if (value === null || value === '') delete target.properties[name];
+          else target.properties[name] = value;
+        }
+      }
+    });
+  }
+
   setProperties(nodeId: string, values: Record<string, PropertyValue>): void {
     this.update(doc => {
       const target = findNode(doc.root, nodeId);

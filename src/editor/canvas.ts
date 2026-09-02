@@ -617,21 +617,23 @@ export class Canvas {
       'bounds.width': parseInt(el.style.width, 10) || FREE_MIN_WIDTH,
       'bounds.height': parseInt(el.style.height, 10) || FREE_MIN_HEIGHT
     };
-    // A pure move must not touch the size, and vice versa, so that a stray
-    // pixel from the measured layout never sneaks into the document.
-    this.store.setProperties(nodeId, mode === 'move'
-      ? {'bounds.x': bounds['bounds.x'], 'bounds.y': bounds['bounds.y']}
-      : bounds);
-
-    // The rest of a group move is written in the same gesture. Each widget gets
-    // its own undo entry, which is why the loop runs after the primary one.
+    // One gesture, one undo step - including every other widget a group move
+    // carried along. A pure move must not touch the size, and vice versa, so
+    // that a stray pixel from the measured layout never sneaks into the
+    // document.
+    const changes: Record<string, Record<string, number>> = {
+      [nodeId]: mode === 'move'
+        ? {'bounds.x': bounds['bounds.x'], 'bounds.y': bounds['bounds.y']}
+        : bounds
+    };
     for (const entry of this.groupDrag) {
-      this.store.setProperties(entry.id, {
+      changes[entry.id] = {
         'bounds.x': parseInt(entry.el.style.left, 10) || 0,
         'bounds.y': parseInt(entry.el.style.top, 10) || 0
-      });
+      };
     }
     this.groupDrag = [];
+    this.store.setPropertiesForNodes(changes);
   }
 
   /**
@@ -650,6 +652,7 @@ export class Canvas {
     const dy = key === 'ArrowUp' ? -step : key === 'ArrowDown' ? step : 0;
     if (!dx && !dy) return false;
 
+    const changes: Record<string, Record<string, number>> = {};
     for (const id of ids) {
       const node = findNode(this.store.doc.root, id);
       const el = this.nodeElements.get(id);
@@ -660,10 +663,11 @@ export class Canvas {
       const height = Number(node.properties['bounds.height'] ?? el.offsetHeight);
       // Shift resizes instead of moving; a selection is resized as a set of
       // individual widgets, which is the only reading that keeps them apart.
-      this.store.setProperties(id, resize
+      changes[id] = resize
         ? {'bounds.width': Math.max(FREE_MIN_WIDTH, width + dx), 'bounds.height': Math.max(FREE_MIN_HEIGHT, height + dy)}
-        : {'bounds.x': Math.max(0, x + dx), 'bounds.y': Math.max(0, y + dy)});
+        : {'bounds.x': Math.max(0, x + dx), 'bounds.y': Math.max(0, y + dy)};
     }
+    this.store.setPropertiesForNodes(changes);
     return true;
   }
 

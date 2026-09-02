@@ -538,6 +538,26 @@ await page.waitForTimeout(200);
 const banded = await page.evaluate(() => window.esMockup.store.selectedIds.length);
 check('a rubber band selects everything it encloses', banded >= 2, `${banded} selected`);
 
+// A gesture the user experienced as one has to be undone in one go.
+await page.evaluate(ids => window.esMockup.store.setSelection(ids), freeIds);
+const undoBefore = await Promise.all(freeIds.map(boxOf));
+const groupGrab = await page.locator(`.es-canvas-host [data-node-id="${freeIds[0]}"]`).boundingBox();
+await page.mouse.move(groupGrab.x + 20, groupGrab.y + 10);
+await page.mouse.down();
+await page.mouse.move(groupGrab.x + 20, groupGrab.y + 90, {steps: 6});
+await page.mouse.up();
+await page.waitForTimeout(250);
+const undoMoved = await Promise.all(freeIds.map(boxOf));
+check('a group drag moves every selected widget',
+  undoMoved.every((box, index) => box.y !== undoBefore[index].y),
+  JSON.stringify(undoMoved.map(box => box.y)));
+await page.keyboard.press('Control+z');
+await page.waitForTimeout(250);
+const undoRestored = await Promise.all(freeIds.map(boxOf));
+check('one undo restores the whole group drag',
+  JSON.stringify(undoRestored) === JSON.stringify(undoBefore),
+  `${JSON.stringify(undoRestored.map(b => b.y))} vs ${JSON.stringify(undoBefore.map(b => b.y))}`);
+
 // Align them through the context menu.
 const alignAnchor = await page.locator(`.es-canvas-host [data-node-id="${freeIds[0]}"]`).boundingBox();
 await page.mouse.click(alignAnchor.x + 20, alignAnchor.y + 10, {button: 'right'});

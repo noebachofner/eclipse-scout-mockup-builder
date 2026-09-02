@@ -147,10 +147,13 @@ function buildAlignMenu(store: Store): ContextMenuEntry[] {
       height: Number(node?.properties['bounds.height'] ?? 0)
     };
   });
+  // Aligning is one action, so it is one undo step.
   const apply = (positions: Array<{x: number; y: number}>): void => {
+    const changes: Record<string, Record<string, number>> = {};
     positions.forEach((position, index) => {
-      store.setProperties(ids[index], {'bounds.x': position.x, 'bounds.y': position.y});
+      changes[ids[index]] = {'bounds.x': position.x, 'bounds.y': position.y};
     });
+    store.setPropertiesForNodes(changes);
   };
 
   const modes: Array<[string, AlignMode]> = [
