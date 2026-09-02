@@ -10,6 +10,7 @@ import {describeRefusal, findSlot, resolveDropTarget} from './dropTarget';
 import {div} from '../render/dom';
 import {showContextMenu} from './contextMenu';
 import {buildWidgetMenu} from './widgetMenu';
+import {renderGridInspector} from './gridInspector';
 
 export const DRAG_MIME = 'application/x-es-mockup-widget';
 
@@ -59,6 +60,9 @@ export class Canvas {
   private dragPayload: DragPayload | null = null;
   private freeDrag: FreeDrag | null = null;
   private readonly annotationLayer: HTMLElement;
+  private readonly gridLayer: HTMLElement;
+  /** Draws Scout's logical grid on top of the mockup. */
+  private gridInspector = false;
   /** While on, a click on the canvas drops a numbered review callout. */
   private annotateMode = false;
   private annotationDrag: {id: string; offsetX: number; offsetY: number} | null = null;
@@ -71,7 +75,9 @@ export class Canvas {
     this.overlay = div('es-canvas-overlay');
     this.hint = div('es-drop-hint');
     this.annotationLayer = div('es-annotation-layer');
+    this.gridLayer = div('es-grid-layer');
     this.page.appendChild(this.host);
+    this.page.appendChild(this.gridLayer);
     this.page.appendChild(this.annotationLayer);
     this.page.appendChild(this.overlay);
     this.viewport.appendChild(this.page);
@@ -93,6 +99,21 @@ export class Canvas {
     this.element.addEventListener('drop', e => this.onDrop(e));
     window.addEventListener('pointermove', e => this.onPointerMove(e));
     window.addEventListener('pointerup', () => this.onPointerUp());
+  }
+
+  setGridInspector(on: boolean): void {
+    this.gridInspector = on;
+    this.renderGridLayer();
+  }
+
+  get inspectingGrid(): boolean {
+    return this.gridInspector;
+  }
+
+  private renderGridLayer(): void {
+    this.gridLayer.replaceChildren();
+    if (!this.gridInspector) return;
+    this.gridLayer.appendChild(renderGridInspector(this.host, this.page));
   }
 
   /** Turns callout placement on or off. */
@@ -132,6 +153,7 @@ export class Canvas {
     this.viewport.style.height = `${doc.canvas.height * doc.canvas.zoom}px`;
 
     this.renderAnnotationLayer();
+    this.renderGridLayer();
     this.updateSelection();
   }
 
@@ -564,6 +586,7 @@ export class Canvas {
 
   /** Re-measures the selection frame after the surrounding layout moved. */
   refreshOverlay(): void {
+    this.renderGridLayer();
     this.updateSelection();
   }
 

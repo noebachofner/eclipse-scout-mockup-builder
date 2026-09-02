@@ -36,6 +36,9 @@ const GROUPS: ShortcutGroup[] = [
       ['/', 'Jump to the widget search'],
       ['Ctrl+B', 'Show or hide the element palette'],
       ['Ctrl+Shift+B', 'Show or hide the property panel'],
+      ['Ctrl+G', "Show Scout's logical grid over the mockup"],
+      ['Ctrl+M', 'Place review callouts'],
+      ['Right click', 'Widget menu: add, duplicate, reorder, remove'],
       ['Drag a splitter', 'Resize a side panel (double click resets it)']
     ]
   },

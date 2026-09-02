@@ -460,7 +460,24 @@ await page.keyboard.press('Escape');
 await page.waitForTimeout(150);
 check('Escape closes the menu', !(await page.isVisible('.es-context-menu')));
 
-// --- 14. review callouts ---------------------------------------------------
+// --- 14. the logical grid inspector ----------------------------------------
+await page.keyboard.press('Control+g');
+await page.waitForTimeout(300);
+const gridBoxes = await page.locator('.es-grid-box').count();
+const gridBadges = await page.locator('.es-grid-badge').count();
+check('the grid inspector outlines every logical grid', gridBoxes >= 3, `${gridBoxes} boxes`);
+check('every placed widget gets an x/y/w/h badge', gridBadges >= 8, `${gridBadges} badges`);
+const badgeText = await page.locator('.es-grid-badge').first().textContent();
+check('the badge shows the resolved cell', /^\d+,\d+\d*×\d+/.test((badgeText ?? '').replace(/\s/g, '')), badgeText);
+// The multiline notes field spans three rows and inherits weightY 3.
+const spanning = await page.evaluate(() => [...document.querySelectorAll('.es-grid-badge')]
+  .map(badge => badge.title).find(title => /w 2, h 3/.test(title)) ?? '');
+check('the badge reports the inherited weight', /weightY 3/.test(spanning), spanning.replace(/\n/g, ' | '));
+await page.keyboard.press('Control+g');
+await page.waitForTimeout(200);
+check('the inspector can be turned off again', (await page.locator('.es-grid-box').count()) === 0);
+
+// --- 15. review callouts ---------------------------------------------------
 await page.click('.es-toolbar .es-menu-button .es-button:has-text("File")');
 await page.click('.es-dropdown-item:has-text("New: Scout desktop")');
 await page.waitForTimeout(300);
@@ -501,7 +518,7 @@ const annotatedHtml = await readFile(annotatedPath, 'utf8');
 check('the HTML export carries the callouts',
   annotatedHtml.includes('annotation-marker') && annotatedHtml.includes('Check this field'));
 
-// --- 15. a share link carries the document in its fragment -----------------
+// --- 16. a share link carries the document in its fragment -----------------
 await page.evaluate(() => window.esMockup.store.updateMeta({name: 'Shared mockup'}));
 const shareUrl = await page.evaluate(() => window.esMockup.shareUrl());
 check('the share link fits in a URL', shareUrl.length < 8000, `${shareUrl.length} characters`);
@@ -522,7 +539,7 @@ check('opening the share link restores the document', sharedName === 'Shared moc
 check('the fragment is dropped after loading', (await shared.evaluate(() => location.hash)) === '');
 await shared.close();
 
-// --- 16. the workspace panels collapse and resize --------------------------
+// --- 17. the workspace panels collapse and resize --------------------------
 const panelWidth = side => page.evaluate(
   selector => Math.round(document.querySelector(selector)?.getBoundingClientRect().width ?? -1),
   side === 'left' ? '.es-side-left' : '.es-properties'

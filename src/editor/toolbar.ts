@@ -28,6 +28,8 @@ export interface ToolbarCallbacks {
   currentSlotId(): string;
   /** Turns callout placement on the canvas on or off. */
   toggleAnnotateMode(): void;
+  /** Turns the logical grid overlay on or off. */
+  toggleGridInspector(): void;
 }
 
 /** `Autosaved 4 minutes ago` - relative while it is recent, absolute after. */
@@ -52,6 +54,7 @@ export class Toolbar {
   private readonly zoomLabel: HTMLElement;
   private readonly panelButtons: Record<PanelSide, HTMLButtonElement>;
   private readonly annotateButton: HTMLButtonElement;
+  private readonly gridButton: HTMLButtonElement;
 
   constructor(private store: Store, private callbacks: ToolbarCallbacks) {
     this.element = h('header', 'es-toolbar');
@@ -105,7 +108,9 @@ export class Toolbar {
     };
     this.annotateButton = this.toggleButton('annotate', 'Add review callouts', 'Ctrl+M');
     this.annotateButton.addEventListener('click', () => this.callbacks.toggleAnnotateMode());
-    this.element.appendChild(this.group([this.annotateButton, this.panelButtons.left, this.panelButtons.right]));
+    this.gridButton = this.toggleButton('grid', 'Show the logical grid', 'Ctrl+G');
+    this.gridButton.addEventListener('click', () => this.callbacks.toggleGridInspector());
+    this.element.appendChild(this.group([this.gridButton, this.annotateButton, this.panelButtons.left, this.panelButtons.right]));
 
     // --- right hand side ----------------------------------------------------
     this.status = div('es-status');
@@ -151,6 +156,14 @@ export class Toolbar {
       (message, kind) => this.callbacks.notify(message, kind),
       this.callbacks.selectedFormId()
     );
+  }
+
+  setGridInspector(on: boolean): void {
+    this.gridButton.classList.toggle('active', on);
+    this.gridButton.setAttribute('aria-pressed', String(on));
+    this.gridButton.title = on
+      ? 'Hide the logical grid (Ctrl+G)'
+      : "Show Scout's logical grid: columns, rows and each widget's x/y/w/h (Ctrl+G)";
   }
 
   /** Reflects the canvas annotate mode on the toolbar button. */

@@ -216,6 +216,11 @@ export function renderLogicalGrid(
     const el = ctx.renderNode(cell.node, parent);
     el.style.gridColumn = `${cell.x + 1} / span ${cell.w}`;
     el.style.gridRow = `${cell.y + 1} / span ${cell.h}`;
+    if (!ctx.exportMode) {
+      // The editor's grid inspector reads the resolved placement back off the
+      // DOM instead of recomputing it, so what it draws is what was rendered.
+      el.dataset.gridCell = `${cell.x},${cell.y},${cell.w},${cell.h},${round(cell.weightX)},${round(cell.weightY)}`;
+    }
     if (cell.h > 1) {
       // Spanning several rows implies a minimum height. It goes on the field
       // content, not on the grid item: on the item a specified minimum would

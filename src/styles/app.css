@@ -1015,6 +1015,68 @@ body.es-dragging * {
   background-color: var(--es-ui-accent-dim);
 }
 
+/* --------------------------------------------------------- grid inspector */
+.es-grid-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 11;
+  pointer-events: none;
+}
+
+.es-grid-inspector { position: absolute; inset: 0; }
+
+.es-grid-box {
+  position: absolute;
+  border: 1px dashed rgba(88, 166, 255, 0.75);
+  background-color: rgba(88, 166, 255, 0.05);
+}
+
+.es-grid-line {
+  position: absolute;
+  background-color: rgba(88, 166, 255, 0.45);
+}
+
+.es-grid-line.vertical { top: 0; bottom: 0; width: 1px; }
+.es-grid-line.horizontal { left: 0; right: 0; height: 1px; }
+
+.es-grid-caption {
+  position: absolute;
+  top: -9px;
+  left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background-color: #1f6feb;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
+}
+
+.es-grid-badge {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 5px;
+  border-radius: 0 0 5px 0;
+  background-color: rgba(31, 111, 235, 0.92);
+  color: #fff;
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  font-size: 10px;
+  line-height: 14px;
+  white-space: nowrap;
+  pointer-events: auto;
+}
+
+/* The badge sits over the widget's own label, so it stays faint until it is
+   pointed at - the numbers matter, the label underneath matters too. */
+.es-grid-badge { opacity: 0.55; transition: opacity 100ms; }
+.es-grid-badge:hover { opacity: 1; }
+
+.es-grid-badge-pos { font-weight: 700; }
+.es-grid-badge-size { opacity: 0.85; }
+.es-grid-badge-weight { opacity: 0.85; }
+
 /* ------------------------------------------------------- annotation layer */
 .es-annotation-layer {
   position: absolute;

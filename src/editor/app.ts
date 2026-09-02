@@ -47,7 +47,8 @@ export class App {
         this.store.replace(doc);
       },
       currentSlotId: () => this.slotId,
-      toggleAnnotateMode: () => this.setAnnotateMode(!canvas.annotating)
+      toggleAnnotateMode: () => this.setAnnotateMode(!canvas.annotating),
+      toggleGridInspector: () => this.setGridInspector(!canvas.inspectingGrid)
     });
     this.toolbar = toolbar;
     const palette = new Palette(this.store, canvas);
@@ -113,6 +114,11 @@ export class App {
     this.canvas.setAnnotateMode(on);
     this.toolbar.setAnnotateMode(on);
     if (on) this.notify('Click the mockup to place a callout. Drag one to move it, Esc to stop.');
+  }
+
+  private setGridInspector(on: boolean): void {
+    this.canvas.setGridInspector(on);
+    this.toolbar.setGridInspector(on);
   }
 
   /** Share URL for the current document. Also the hook the dev tooling uses. */
@@ -185,6 +191,10 @@ export class App {
             // Not [ and ]: both need AltGr on a Swiss or German keyboard.
             event.preventDefault();
             this.workspace.toggle(event.shiftKey ? 'right' : 'left');
+            return;
+          case 'g':
+            event.preventDefault();
+            this.setGridInspector(!this.canvas.inspectingGrid);
             return;
           case 'm':
             event.preventDefault();
