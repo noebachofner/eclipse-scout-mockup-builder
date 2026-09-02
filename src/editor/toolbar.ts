@@ -26,6 +26,8 @@ export interface ToolbarCallbacks {
   openDocument(doc: MockupDocument, slotId: string): void;
   /** Autosave slot the session is currently writing to. */
   currentSlotId(): string;
+  /** Turns callout placement on the canvas on or off. */
+  toggleAnnotateMode(): void;
 }
 
 /** `Autosaved 4 minutes ago` - relative while it is recent, absolute after. */
@@ -49,6 +51,7 @@ export class Toolbar {
   private readonly redoButton: HTMLButtonElement;
   private readonly zoomLabel: HTMLElement;
   private readonly panelButtons: Record<PanelSide, HTMLButtonElement>;
+  private readonly annotateButton: HTMLButtonElement;
 
   constructor(private store: Store, private callbacks: ToolbarCallbacks) {
     this.element = h('header', 'es-toolbar');
@@ -100,7 +103,9 @@ export class Toolbar {
       left: this.toggleButton('panelLeft', 'Element palette', 'Ctrl+B'),
       right: this.toggleButton('panelRight', 'Property panel', 'Ctrl+Shift+B')
     };
-    this.element.appendChild(this.group([this.panelButtons.left, this.panelButtons.right]));
+    this.annotateButton = this.toggleButton('annotate', 'Add review callouts', 'Ctrl+M');
+    this.annotateButton.addEventListener('click', () => this.callbacks.toggleAnnotateMode());
+    this.element.appendChild(this.group([this.annotateButton, this.panelButtons.left, this.panelButtons.right]));
 
     // --- right hand side ----------------------------------------------------
     this.status = div('es-status');
@@ -135,6 +140,15 @@ export class Toolbar {
       (message, kind) => this.callbacks.notify(message, kind),
       this.callbacks.selectedFormId()
     );
+  }
+
+  /** Reflects the canvas annotate mode on the toolbar button. */
+  setAnnotateMode(on: boolean): void {
+    this.annotateButton.classList.toggle('active', on);
+    this.annotateButton.setAttribute('aria-pressed', String(on));
+    this.annotateButton.title = on
+      ? 'Stop placing callouts (Ctrl+M)'
+      : 'Click the canvas to place a numbered review callout (Ctrl+M)';
   }
 
   private group(children: HTMLElement[]): HTMLElement {

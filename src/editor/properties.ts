@@ -596,6 +596,42 @@ export class PropertyPanel {
     canvas.appendChild(frameRow);
     this.body.appendChild(canvas);
 
+    const annotations = div('es-property-group');
+    annotations.appendChild(div('es-property-group-title', 'Review callouts'));
+    const visibleRow = div('es-property-row');
+    const visibleLabel = h('label', 'es-property-label');
+    visibleLabel.textContent = 'Show callouts';
+    visibleRow.appendChild(visibleLabel);
+    const visibleInput = h('input', 'es-checkbox');
+    visibleInput.type = 'checkbox';
+    visibleInput.checked = doc.canvas.annotationsVisible;
+    visibleInput.addEventListener('change', () => this.store.updateCanvas({annotationsVisible: visibleInput.checked}));
+    const visibleWrapper = div('es-property-control');
+    visibleWrapper.appendChild(visibleInput);
+    visibleRow.appendChild(visibleWrapper);
+    annotations.appendChild(visibleRow);
+
+    if (!doc.annotations.length) {
+      annotations.appendChild(div('es-property-hint', 'Turn on the callout tool in the toolbar (Ctrl+M) and click the mockup to place one. Callouts are part of the mockup file and appear in the HTML and PNG exports.'));
+    }
+    doc.annotations.forEach((annotation, index) => {
+      const row = div('es-annotation-row');
+      row.appendChild(span('annotation-number', String(index + 1)));
+      const input = h('input', 'es-input') as HTMLInputElement;
+      input.value = annotation.text;
+      input.placeholder = 'What should the reviewer look at?';
+      input.addEventListener('change', () => this.store.updateAnnotation(annotation.id, {text: input.value}));
+      row.appendChild(input);
+      const remove = h('button', 'es-table-icon');
+      remove.type = 'button';
+      remove.textContent = '✕';
+      remove.title = 'Remove the callout';
+      remove.addEventListener('click', () => this.store.removeAnnotation(annotation.id));
+      row.appendChild(remove);
+      annotations.appendChild(row);
+    });
+    this.body.appendChild(annotations);
+
     const templates = div('es-property-group');
     templates.appendChild(div('es-property-group-title', 'Start over from a template'));
     for (const template of TEMPLATES) {

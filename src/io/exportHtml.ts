@@ -1,5 +1,6 @@
 import type {MockupDocument} from '../model/types';
 import {renderDocument} from '../render/render';
+import {renderAnnotations} from '../render/annotations';
 import {themeCssVariables} from '../editor/theme';
 import tokensCss from '../styles/scout-tokens.generated.css?raw';
 import renderCss from '../styles/scout-render.css?raw';
@@ -30,6 +31,12 @@ export function renderExportRoot(doc: MockupDocument): HTMLElement {
   const rendered = renderDocument(doc, {exportMode: true});
   rendered.style.width = `${doc.canvas.width}px`;
   rendered.style.height = `${doc.canvas.height}px`;
+  const annotations = renderAnnotations(doc);
+  if (annotations) {
+    // The callouts sit above the mockup, in the same coordinate space.
+    rendered.style.position = 'relative';
+    rendered.appendChild(annotations);
+  }
   return rendered;
 }
 

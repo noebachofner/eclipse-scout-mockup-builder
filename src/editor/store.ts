@@ -1,5 +1,6 @@
-import type {MockupDocument, MockupNode, PropertyValue} from '../model/types';
+import type {Annotation, MockupDocument, MockupNode, PropertyValue} from '../model/types';
 import {cloneNode, findNode, findParent, parseDocument, serializeDocument} from '../model/document';
+import {newId} from '../model/ids';
 
 export interface StoreState {
   doc: MockupDocument;
@@ -109,6 +110,30 @@ export class Store {
       this.state.selectedId = this.state.doc.root.id;
     }
     this.emit('document');
+  }
+
+  /* ----------------------------------------------------------- annotations */
+
+  addAnnotation(x: number, y: number): string {
+    const id = newId();
+    this.update(doc => {
+      doc.annotations.push({id, x: Math.round(x), y: Math.round(y), text: ''});
+      doc.canvas.annotationsVisible = true;
+    });
+    return id;
+  }
+
+  updateAnnotation(id: string, patch: Partial<Omit<Annotation, 'id'>>): void {
+    this.update(doc => {
+      const target = doc.annotations.find(annotation => annotation.id === id);
+      if (target) Object.assign(target, patch);
+    });
+  }
+
+  removeAnnotation(id: string): void {
+    this.update(doc => {
+      doc.annotations = doc.annotations.filter(annotation => annotation.id !== id);
+    });
   }
 
   select(id: string | null): void {

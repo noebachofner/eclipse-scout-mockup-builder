@@ -2,6 +2,7 @@ import {
   MOCKUP_FORMAT,
   MOCKUP_FORMAT_VERSION,
   type MockupDocument,
+  type Annotation,
   type MockupNode,
   type PropertyValue
 } from './types';
@@ -129,9 +130,11 @@ export function createDocument(root: MockupNode, name = 'Untitled mockup'): Mock
       width: 1440,
       height: 900,
       browserFrame: false,
-      zoom: 1
+      zoom: 1,
+      annotationsVisible: true
     },
-    root
+    root,
+    annotations: []
   };
 }
 
@@ -166,7 +169,17 @@ export function parseDocument(json: string): MockupDocument {
     ...base,
     meta: {...base.meta, ...doc.meta, name: doc.meta?.name ?? base.meta.name},
     theme: {...base.theme, ...doc.theme, colors: {...(doc.theme?.colors ?? {})}},
-    canvas: {...base.canvas, ...doc.canvas}
+    canvas: {...base.canvas, ...doc.canvas},
+    annotations: Array.isArray(doc.annotations) ? doc.annotations.map(normalizeAnnotation) : []
+  };
+}
+
+function normalizeAnnotation(raw: Annotation): Annotation {
+  return {
+    id: typeof raw?.id === 'string' && raw.id ? raw.id : newId(),
+    x: Number(raw?.x) || 0,
+    y: Number(raw?.y) || 0,
+    text: String(raw?.text ?? '')
   };
 }
 

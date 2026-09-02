@@ -422,7 +422,48 @@ for (const view of [0, 1, 2, 3, 4]) {
 check('no widget overlaps another in the logical grid', overlapReport.length === 0, overlapReport.join('; '));
 check('no widget content overflows its box', overflowReport.length === 0, overflowReport.join('; '));
 
-// --- 13. a share link carries the document in its fragment -----------------
+// --- 13. review callouts ---------------------------------------------------
+await page.click('.es-toolbar .es-menu-button .es-button:has-text("File")');
+await page.click('.es-dropdown-item:has-text("New: Scout desktop")');
+await page.waitForTimeout(300);
+await page.keyboard.press('Control+m');
+const canvasBox = await page.locator('.es-canvas-page').boundingBox();
+await page.mouse.click(canvasBox.x + 420, canvasBox.y + 250);
+await page.waitForTimeout(120);
+await page.keyboard.press('Escape');
+const placed = await page.evaluate(() => window.esMockup.store.doc.annotations);
+check('the callout tool places a numbered marker', placed.length === 1, JSON.stringify(placed));
+check('the marker is drawn on the canvas', await page.isVisible('.es-annotation-layer .annotation-marker'));
+
+await page.evaluate(id => window.esMockup.store.updateAnnotation(id, {text: 'Check this field'}), placed[0].id);
+await page.waitForTimeout(150);
+const calloutHtml = await page.evaluate(async () => {
+  const mod = window.esMockup;
+  return mod.store.doc.annotations[0].text;
+});
+check('a callout keeps its text', calloutHtml === 'Check this field', calloutHtml);
+
+// Dragging a marker moves it in the mockup's own coordinate space.
+const marker = await page.locator('.es-annotation-layer .annotation-marker').boundingBox();
+await page.mouse.move(marker.x + 14, marker.y + 14);
+await page.mouse.down();
+await page.mouse.move(marker.x + 94, marker.y + 54, {steps: 6});
+await page.mouse.up();
+await page.waitForTimeout(150);
+const moved = await page.evaluate(() => window.esMockup.store.doc.annotations[0]);
+check('a callout can be dragged', moved.x === placed[0].x + 80 && moved.y === placed[0].y + 40, JSON.stringify(moved));
+
+// Callouts are review material, so they have to survive an export.
+const annotatedPromise = page.waitForEvent('download');
+await page.click('.es-toolbar .es-menu-button .es-button:has-text("Export")');
+await page.click('.es-dropdown-item:has-text("HTML file")');
+const annotatedPath = join(outDir, 'export-annotated.html');
+await (await annotatedPromise).saveAs(annotatedPath);
+const annotatedHtml = await readFile(annotatedPath, 'utf8');
+check('the HTML export carries the callouts',
+  annotatedHtml.includes('annotation-marker') && annotatedHtml.includes('Check this field'));
+
+// --- 14. a share link carries the document in its fragment -----------------
 await page.evaluate(() => window.esMockup.store.updateMeta({name: 'Shared mockup'}));
 const shareUrl = await page.evaluate(() => window.esMockup.shareUrl());
 check('the share link fits in a URL', shareUrl.length < 8000, `${shareUrl.length} characters`);
@@ -443,7 +484,7 @@ check('opening the share link restores the document', sharedName === 'Shared moc
 check('the fragment is dropped after loading', (await shared.evaluate(() => location.hash)) === '');
 await shared.close();
 
-// --- 14. the workspace panels collapse and resize --------------------------
+// --- 15. the workspace panels collapse and resize --------------------------
 const panelWidth = side => page.evaluate(
   selector => Math.round(document.querySelector(selector)?.getBoundingClientRect().width ?? -1),
   side === 'left' ? '.es-side-left' : '.es-properties'

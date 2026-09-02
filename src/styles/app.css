@@ -979,6 +979,31 @@ body.es-dragging * {
   color: var(--es-ui-text);
 }
 
+/* ------------------------------------------------------- annotation layer */
+.es-annotation-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  pointer-events: none;
+}
+
+.es-annotation-layer .annotation-marker { cursor: grab; }
+.es-annotation-layer .annotation-marker:active { cursor: grabbing; }
+
+/* In annotate mode the canvas is a placement surface, not a selection one. */
+.es-canvas.annotating .es-canvas-host { cursor: crosshair; }
+.es-canvas.annotating .es-canvas-overlay { display: none; }
+
+.es-annotation-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.es-annotation-row .es-input { padding: 5px 8px; font-size: 11px; }
+
 /* ---------------------------------------------------------- table editor */
 .es-table-editor {
   grid-column: 1 / -1;

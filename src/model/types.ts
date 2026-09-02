@@ -47,6 +47,23 @@ export interface CanvasSettings {
   /** Draws a browser chrome around the mockup - useful for presentations. */
   browserFrame: boolean;
   zoom: number;
+  /** Shows the review callouts, in the editor and in the exports alike. */
+  annotationsVisible: boolean;
+}
+
+/**
+ * A numbered review callout placed on top of the mockup.
+ *
+ * Mockups get commented on, and the comments usually end up in a separate
+ * document that drifts away from the picture. These live in the mockup file
+ * and travel with every export.
+ */
+export interface Annotation {
+  id: string;
+  /** Position in the mockup's own pixel space, not in screen pixels. */
+  x: number;
+  y: number;
+  text: string;
 }
 
 export interface DocumentMeta {
@@ -71,6 +88,7 @@ export interface MockupDocument {
   theme: ThemeSettings;
   canvas: CanvasSettings;
   root: MockupNode;
+  annotations: Annotation[];
 }
 
 /**

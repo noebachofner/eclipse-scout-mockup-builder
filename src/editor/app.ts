@@ -45,7 +45,8 @@ export class App {
         this.slotId = slotId;
         this.store.replace(doc);
       },
-      currentSlotId: () => this.slotId
+      currentSlotId: () => this.slotId,
+      toggleAnnotateMode: () => this.setAnnotateMode(!canvas.annotating)
     });
     this.toolbar = toolbar;
     const palette = new Palette(this.store, canvas);
@@ -100,6 +101,12 @@ export class App {
     this.slotId = newSlotId();
     this.store.replace(shared);
     this.notify(`Opened "${shared.meta.name}" from a share link.`);
+  }
+
+  private setAnnotateMode(on: boolean): void {
+    this.canvas.setAnnotateMode(on);
+    this.toolbar.setAnnotateMode(on);
+    if (on) this.notify('Click the mockup to place a callout. Drag one to move it, Esc to stop.');
   }
 
   /** Share URL for the current document. Also the hook the dev tooling uses. */
@@ -163,6 +170,10 @@ export class App {
             event.preventDefault();
             this.workspace.toggle(event.shiftKey ? 'right' : 'left');
             return;
+          case 'm':
+            event.preventDefault();
+            this.setAnnotateMode(!this.canvas.annotating);
+            return;
           case 'j':
             event.preventDefault();
             this.toolbar.exportJava();
@@ -219,6 +230,10 @@ export class App {
         return;
       }
       if (key === 'Escape') {
+        if (this.canvas.annotating) {
+          this.setAnnotateMode(false);
+          return;
+        }
         this.store.select(this.store.doc.root.id);
       }
     });
