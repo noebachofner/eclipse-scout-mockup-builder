@@ -146,8 +146,9 @@ function renderTable(ctx: RenderContext, node: MockupNode): HTMLElement {
 }
 
 const TABLE_PROPS = [
-  {name: 'columns', label: 'Columns (Text|align|width per line)', type: 'lines' as const, group: GROUP_CONTENT, description: 'align = left | center | right. Width in pixels, empty = flexible.'},
-  {name: 'rows', label: 'Rows (cells separated by |)', type: 'lines' as const, group: GROUP_CONTENT},
+  // One editor drives both properties: adding or removing a column has to keep
+  // the cells of every row lined up with it.
+  {name: 'columns', label: 'Columns and rows', type: 'columns' as const, group: GROUP_CONTENT},
   {name: 'selectedRow', label: 'Selected row index', type: 'number' as const, group: GROUP_CONTENT, min: -1},
   {name: 'sortedColumn', label: 'Sorted column index', type: 'number' as const, group: GROUP_CONTENT, min: -1},
   {name: 'checkable', label: 'Checkable', type: 'boolean' as const, group: GROUP_CONTENT},

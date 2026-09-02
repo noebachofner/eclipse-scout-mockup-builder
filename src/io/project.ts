@@ -26,33 +26,99 @@ export async function readProjectFile(file: File): Promise<{doc: MockupDocument;
 }
 
 /**
- * Autosave keeps the current mockup in localStorage so a reload or a crashed
- * tab does not lose work. It is a convenience, not the save format - the
- * `.esmockup` file remains the source of truth.
+ * Autosave keeps recent mockups in localStorage so a reload, a crashed tab or
+ * an accidental "New mockup" does not lose work. It is a convenience, not the
+ * save format - the `.esmockup` file remains the source of truth.
+ *
+ * Several slots are kept rather than one: starting a new mockup used to wipe
+ * the only copy of what came before, which is exactly when you want it back.
  */
-export function writeAutosave(doc: MockupDocument): void {
+const SLOTS_KEY = 'es-mockup:autosave:v2';
+const MAX_SLOTS = 6;
+/** Slots larger than this are dropped rather than filling up the quota. */
+const MAX_SLOT_BYTES = 1_500_000;
+
+export interface AutosaveSlot {
+  id: string;
+  name: string;
+  /** ISO timestamp of the last write. */
+  savedAt: string;
+  text: string;
+}
+
+function readSlots(): AutosaveSlot[] {
   try {
-    localStorage.setItem(AUTOSAVE_KEY, serializeDocument(doc));
+    const raw = localStorage.getItem(SLOTS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as AutosaveSlot[];
+      if (Array.isArray(parsed)) return parsed.filter(slot => slot && typeof slot.text === 'string');
+    }
+    // One-time migration from the single slot the earlier version wrote.
+    const legacy = localStorage.getItem(AUTOSAVE_KEY);
+    if (legacy) {
+      return [{id: 'legacy', name: 'Restored mockup', savedAt: new Date().toISOString(), text: legacy}];
+    }
+  } catch {
+    // Corrupt or blocked storage simply means no autosave.
+  }
+  return [];
+}
+
+function writeSlots(slots: AutosaveSlot[]): void {
+  try {
+    localStorage.setItem(SLOTS_KEY, JSON.stringify(slots.slice(0, MAX_SLOTS)));
+    localStorage.removeItem(AUTOSAVE_KEY);
   } catch {
     // Quota exceeded or storage disabled - autosave is best effort.
   }
 }
 
-export function readAutosave(): MockupDocument | null {
+/** Upserts the slot `slotId`, moving it to the front of the list. */
+export function writeAutosave(doc: MockupDocument, slotId: string): void {
+  const text = serializeDocument(doc);
+  if (text.length > MAX_SLOT_BYTES) return;
+  const slots = readSlots().filter(slot => slot.id !== slotId);
+  slots.unshift({id: slotId, name: doc.meta.name, savedAt: new Date().toISOString(), text});
+  writeSlots(slots);
+}
+
+/** The most recently autosaved document, or null when there is none. */
+export function readAutosave(): {doc: MockupDocument; slotId: string} | null {
+  const slot = readSlots()[0];
+  if (!slot) return null;
   try {
-    const text = localStorage.getItem(AUTOSAVE_KEY);
-    if (!text) return null;
-    return parseDocument(text);
+    return {doc: parseDocument(slot.text), slotId: slot.id};
   } catch (e) {
     if (e instanceof DocumentFormatError) return null;
     return null;
   }
 }
 
-export function clearAutosave(): void {
+/** Metadata of every stored slot, newest first. */
+export function listAutosaves(): Array<Omit<AutosaveSlot, 'text'>> {
+  return readSlots().map(({id, name, savedAt}) => ({id, name, savedAt}));
+}
+
+export function restoreAutosave(slotId: string): MockupDocument | null {
+  const slot = readSlots().find(entry => entry.id === slotId);
+  if (!slot) return null;
   try {
+    return parseDocument(slot.text);
+  } catch {
+    return null;
+  }
+}
+
+export function clearAutosaves(): void {
+  try {
+    localStorage.removeItem(SLOTS_KEY);
     localStorage.removeItem(AUTOSAVE_KEY);
   } catch {
     // ignore
   }
+}
+
+/** A fresh slot id, so a new or opened mockup does not overwrite the last one. */
+export function newSlotId(): string {
+  return `s${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
 }

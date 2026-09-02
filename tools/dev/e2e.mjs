@@ -384,6 +384,15 @@ const overlapProbe = async () => page.evaluate(() => {
 await page.click('.es-toolbar .es-menu-button .es-button:has-text("File")');
 await page.click('.es-dropdown-item:has-text("Widget gallery")');
 await page.waitForTimeout(400);
+// This used to be swallowed by a confirm() dialog Playwright auto-dismisses,
+// which left the checks below inspecting the default desktop instead.
+const galleryNodes = await page.evaluate(() => {
+  let count = 0;
+  const walk = node => { count++; node.children.forEach(walk); };
+  walk(window.esMockup.store.doc.root);
+  return count;
+});
+check('the widget gallery template loads', galleryNodes > 60, `${galleryNodes} nodes`);
 // Intersecting boxes are only half the story: a widget whose *content* is
 // taller than the box it was given spills over the widget below it without the
 // two rectangles ever crossing. That is how the chart used to overlap the form.
@@ -391,8 +400,12 @@ const overflowProbe = async () => page.evaluate(() => {
   const found = new Set();
   document.querySelectorAll('.es-canvas-host .logical-grid, .es-canvas-host .group-box-body').forEach(box => {
     if (getComputedStyle(box).overflowY !== 'visible') return;
+    // Scout scrolls a form's main box, so a form taller than the canvas is
+    // normal. Everything inside it must fit the box it was given.
+    if (box.parentElement?.classList.contains('root-group-box')) return;
     if (box.scrollHeight > box.clientHeight + 1) {
-      found.add(`${box.className} overflows by ${box.scrollHeight - box.clientHeight}px`);
+      const owner = box.closest('[data-object-type]');
+      found.add(`${owner?.dataset.objectType ?? box.className} needs ${box.scrollHeight}px but has ${box.clientHeight}px`);
     }
   });
   return [...found];
@@ -409,27 +422,89 @@ for (const view of [0, 1, 2, 3, 4]) {
 check('no widget overlaps another in the logical grid', overlapReport.length === 0, overlapReport.join('; '));
 check('no widget content overflows its box', overflowReport.length === 0, overflowReport.join('; '));
 
-// --- 13. the workspace panels collapse and resize --------------------------
+// --- 13. review callouts ---------------------------------------------------
+await page.click('.es-toolbar .es-menu-button .es-button:has-text("File")');
+await page.click('.es-dropdown-item:has-text("New: Scout desktop")');
+await page.waitForTimeout(300);
+await page.keyboard.press('Control+m');
+const canvasBox = await page.locator('.es-canvas-page').boundingBox();
+await page.mouse.click(canvasBox.x + 420, canvasBox.y + 250);
+await page.waitForTimeout(120);
+await page.keyboard.press('Escape');
+const placed = await page.evaluate(() => window.esMockup.store.doc.annotations);
+check('the callout tool places a numbered marker', placed.length === 1, JSON.stringify(placed));
+check('the marker is drawn on the canvas', await page.isVisible('.es-annotation-layer .annotation-marker'));
+
+await page.evaluate(id => window.esMockup.store.updateAnnotation(id, {text: 'Check this field'}), placed[0].id);
+await page.waitForTimeout(150);
+const calloutHtml = await page.evaluate(async () => {
+  const mod = window.esMockup;
+  return mod.store.doc.annotations[0].text;
+});
+check('a callout keeps its text', calloutHtml === 'Check this field', calloutHtml);
+
+// Dragging a marker moves it in the mockup's own coordinate space.
+const marker = await page.locator('.es-annotation-layer .annotation-marker').boundingBox();
+await page.mouse.move(marker.x + 14, marker.y + 14);
+await page.mouse.down();
+await page.mouse.move(marker.x + 94, marker.y + 54, {steps: 6});
+await page.mouse.up();
+await page.waitForTimeout(150);
+const moved = await page.evaluate(() => window.esMockup.store.doc.annotations[0]);
+check('a callout can be dragged', moved.x === placed[0].x + 80 && moved.y === placed[0].y + 40, JSON.stringify(moved));
+
+// Callouts are review material, so they have to survive an export.
+const annotatedPromise = page.waitForEvent('download');
+await page.click('.es-toolbar .es-menu-button .es-button:has-text("Export")');
+await page.click('.es-dropdown-item:has-text("HTML file")');
+const annotatedPath = join(outDir, 'export-annotated.html');
+await (await annotatedPromise).saveAs(annotatedPath);
+const annotatedHtml = await readFile(annotatedPath, 'utf8');
+check('the HTML export carries the callouts',
+  annotatedHtml.includes('annotation-marker') && annotatedHtml.includes('Check this field'));
+
+// --- 14. a share link carries the document in its fragment -----------------
+await page.evaluate(() => window.esMockup.store.updateMeta({name: 'Shared mockup'}));
+const shareUrl = await page.evaluate(() => window.esMockup.shareUrl());
+check('the share link fits in a URL', shareUrl.length < 8000, `${shareUrl.length} characters`);
+check('the share link is gzip encoded', shareUrl.includes('#m=z'), shareUrl.slice(0, 60));
+
+const shared = await browser.newPage();
+await shared.goto(shareUrl, {waitUntil: 'networkidle'});
+await shared.waitForSelector('.es-canvas-host .desktop');
+await shared.waitForTimeout(300);
+const sharedName = await shared.evaluate(() => window.esMockup.store.doc.meta.name);
+const sharedNodes = await shared.evaluate(() => {
+  let count = 0;
+  const walk = n => { count++; n.children.forEach(walk); };
+  walk(window.esMockup.store.doc.root);
+  return count;
+});
+check('opening the share link restores the document', sharedName === 'Shared mockup' && sharedNodes > 20, `${sharedName}, ${sharedNodes} nodes`);
+check('the fragment is dropped after loading', (await shared.evaluate(() => location.hash)) === '');
+await shared.close();
+
+// --- 15. the workspace panels collapse and resize --------------------------
 const panelWidth = side => page.evaluate(
   selector => Math.round(document.querySelector(selector)?.getBoundingClientRect().width ?? -1),
   side === 'left' ? '.es-side-left' : '.es-properties'
 );
 
 const leftBefore = await panelWidth('left');
-await page.keyboard.press('[');
+await page.keyboard.press('Control+b');
 await page.waitForTimeout(120);
 const leftCollapsed = await page.isHidden('.es-side-left');
 const railVisible = await page.isVisible('.es-splitter-left.collapsed .es-splitter-label');
-check('“[” collapses the element palette into a rail', leftCollapsed && railVisible);
+check('Ctrl+B collapses the element palette into a rail', leftCollapsed && railVisible);
 
 await page.click('.es-splitter-left .es-splitter-grip');
 await page.waitForTimeout(120);
 check('the rail grip brings the palette back', (await panelWidth('left')) === leftBefore, `${await panelWidth('left')} vs ${leftBefore}`);
 
-await page.keyboard.press(']');
+await page.keyboard.press('Control+Shift+b');
 await page.waitForTimeout(120);
-check('“]” collapses the property panel', await page.isHidden('.es-properties'));
-await page.keyboard.press(']');
+check('Ctrl+Shift+B collapses the property panel', await page.isHidden('.es-properties'));
+await page.keyboard.press('Control+Shift+b');
 await page.waitForTimeout(120);
 
 const splitter = await page.locator('.es-splitter-left').boundingBox();

@@ -1,5 +1,6 @@
 import type {MockupNode} from '../model/types';
 import {renderDocument} from '../render/render';
+import {renderAnnotations} from '../render/annotations';
 import {getWidget} from '../model/catalog/registry';
 import {findNode, pathTo} from '../model/document';
 import {createNode} from '../model/document';
@@ -55,6 +56,10 @@ export class Canvas {
   private nodeElements = new Map<string, HTMLElement>();
   private dragPayload: DragPayload | null = null;
   private freeDrag: FreeDrag | null = null;
+  private readonly annotationLayer: HTMLElement;
+  /** While on, a click on the canvas drops a numbered review callout. */
+  private annotateMode = false;
+  private annotationDrag: {id: string; offsetX: number; offsetY: number} | null = null;
 
   constructor(private store: Store) {
     this.element = div('es-canvas');
@@ -63,7 +68,9 @@ export class Canvas {
     this.host = div('es-canvas-host');
     this.overlay = div('es-canvas-overlay');
     this.hint = div('es-drop-hint');
+    this.annotationLayer = div('es-annotation-layer');
     this.page.appendChild(this.host);
+    this.page.appendChild(this.annotationLayer);
     this.page.appendChild(this.overlay);
     this.viewport.appendChild(this.page);
     this.element.appendChild(this.viewport);
@@ -83,6 +90,16 @@ export class Canvas {
     this.element.addEventListener('drop', e => this.onDrop(e));
     window.addEventListener('pointermove', e => this.onPointerMove(e));
     window.addEventListener('pointerup', () => this.onPointerUp());
+  }
+
+  /** Turns callout placement on or off. */
+  setAnnotateMode(on: boolean): void {
+    this.annotateMode = on;
+    this.element.classList.toggle('annotating', on);
+  }
+
+  get annotating(): boolean {
+    return this.annotateMode;
   }
 
   /** Called by the toolbox so the canvas knows what is being dragged. */
@@ -111,7 +128,35 @@ export class Canvas {
     this.viewport.style.width = `${doc.canvas.width * doc.canvas.zoom}px`;
     this.viewport.style.height = `${doc.canvas.height * doc.canvas.zoom}px`;
 
+    this.renderAnnotationLayer();
     this.updateSelection();
+  }
+
+  /**
+   * The callouts are drawn by the shared renderer so the editor and the exports
+   * agree, then made interactive here.
+   */
+  private renderAnnotationLayer(): void {
+    this.annotationLayer.replaceChildren();
+    const layer = renderAnnotations(this.store.doc);
+    if (!layer) return;
+    this.annotationLayer.appendChild(layer);
+    layer.querySelectorAll<HTMLElement>('.annotation-marker').forEach(marker => {
+      marker.addEventListener('pointerdown', event => {
+        event.preventDefault();
+        event.stopPropagation();
+        const id = marker.dataset.annotationId;
+        const annotation = this.store.doc.annotations.find(a => a.id === id);
+        if (!annotation) return;
+        const zoom = this.store.doc.canvas.zoom || 1;
+        const pageRect = this.page.getBoundingClientRect();
+        this.annotationDrag = {
+          id: annotation.id,
+          offsetX: (event.clientX - pageRect.left) / zoom - annotation.x,
+          offsetY: (event.clientY - pageRect.top) / zoom - annotation.y
+        };
+      });
+    });
   }
 
   private updateSelection(): void {
@@ -164,7 +209,20 @@ export class Canvas {
     return pathTo(this.store.doc.root, id);
   }
 
+  /** Canvas coordinates of a pointer event, in the mockup's own pixel space. */
+  private pagePoint(event: PointerEvent): {x: number; y: number} {
+    const zoom = this.store.doc.canvas.zoom || 1;
+    const rect = this.page.getBoundingClientRect();
+    return {x: (event.clientX - rect.left) / zoom, y: (event.clientY - rect.top) / zoom};
+  }
+
   private onPointerDown(event: PointerEvent): void {
+    if (this.annotateMode && !this.annotationDrag) {
+      event.preventDefault();
+      const {x, y} = this.pagePoint(event);
+      this.store.addAnnotation(x - 14, y - 14);
+      return;
+    }
     const handle = event.target instanceof HTMLElement ? event.target.closest<HTMLElement>('.es-resize-handle') : null;
     const chain = this.nodeChainAt(event.target);
     const node = chain[chain.length - 1];
@@ -204,6 +262,15 @@ export class Canvas {
   }
 
   private onPointerMove(event: PointerEvent): void {
+    if (this.annotationDrag) {
+      const {x, y} = this.pagePoint(event);
+      const marker = this.annotationLayer.querySelector<HTMLElement>(`[data-annotation-id="${this.annotationDrag.id}"]`);
+      if (marker) {
+        marker.style.left = `${Math.round(x - this.annotationDrag.offsetX)}px`;
+        marker.style.top = `${Math.round(y - this.annotationDrag.offsetY)}px`;
+      }
+      return;
+    }
     if (!this.freeDrag) return;
     const el = this.nodeElements.get(this.freeDrag.nodeId);
     if (!el) return;
@@ -285,6 +352,17 @@ export class Canvas {
   }
 
   private onPointerUp(): void {
+    if (this.annotationDrag) {
+      const marker = this.annotationLayer.querySelector<HTMLElement>(`[data-annotation-id="${this.annotationDrag.id}"]`);
+      if (marker) {
+        this.store.updateAnnotation(this.annotationDrag.id, {
+          x: parseFloat(marker.style.left) || 0,
+          y: parseFloat(marker.style.top) || 0
+        });
+      }
+      this.annotationDrag = null;
+      return;
+    }
     if (!this.freeDrag) return;
     const {nodeId, mode} = this.freeDrag;
     const el = this.nodeElements.get(nodeId);

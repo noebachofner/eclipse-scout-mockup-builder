@@ -318,7 +318,9 @@ export function widgetGalleryTemplate(name = 'Widget gallery'): MockupDocument {
     }),
     name
   );
-  doc.canvas.height = 1000;
+  // Tall enough for the densest of the five views: the gallery is a catalog, so
+  // nothing in it should need scrolling to be seen.
+  doc.canvas.height = 1760;
   return doc;
 }
 

@@ -8,6 +8,8 @@ export type PropType =
   | 'enum'
   | 'color'
   | 'icon'
+  | 'image'
+  | 'columns'
   | 'lines';
 
 export interface PropOption {

@@ -30,6 +30,16 @@ export function pickFile(accept: string): Promise<File | null> {
   });
 }
 
+/** Reads a picked file as a `data:` URI so it can live inside the document. */
+export function readAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener('load', () => resolve(String(reader.result)), {once: true});
+    reader.addEventListener('error', () => reject(new Error(`Could not read ${file.name}`)), {once: true});
+    reader.readAsDataURL(file);
+  });
+}
+
 export function sanitizeFileName(name: string, extension: string): string {
   const base = (name || 'mockup')
     .trim()

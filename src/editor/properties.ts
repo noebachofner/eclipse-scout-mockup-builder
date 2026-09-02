@@ -9,8 +9,25 @@ import {THEME_COLOR_FIELDS, THEME_PRESETS} from './theme';
 import {DEFAULT_SCOUT_COLORS} from '../render/colorSystem';
 import {TEMPLATES} from '../model/templates';
 import {editorIcon} from './icons';
+import {pickFile, readAsDataUrl} from '../io/files';
+import {renderTableEditor} from './tableEditor';
 
 type Tab = 'properties' | 'theme' | 'document';
+
+/**
+ * Canvas sizes worth checking a mockup against. The narrow ones cross Scout's
+ * responsive thresholds: the group box condenses its labels below roughly
+ * `columns * 420px`, and the desktop switches to its compact layout below
+ * 640px.
+ */
+const CANVAS_PRESETS = [
+  {label: 'Desktop', width: 1920, height: 1080},
+  {label: 'Laptop', width: 1440, height: 900},
+  {label: 'Small laptop', width: 1280, height: 800},
+  {label: 'Tablet', width: 1024, height: 768},
+  {label: 'Tablet portrait', width: 768, height: 1024},
+  {label: 'Phone', width: 390, height: 844}
+];
 
 /**
  * Groups that are collapsed away behind "Show advanced properties". They matter
@@ -21,6 +38,8 @@ const ADVANCED_GROUPS = new Set(['Logical grid', 'Appearance']);
 export interface PropertyPanelCallbacks {
   /** Current on-screen bounds of a container's children, relative to its body. */
   measureChildBounds(parentId: string): Record<string, Record<string, number>>;
+  /** Shows a toast, e.g. when a picked image is uncomfortably large. */
+  notify?(message: string, kind?: 'info' | 'error'): void;
 }
 
 export class PropertyPanel {
@@ -246,7 +265,7 @@ export class PropertyPanel {
       this.store.setProperty(node.id, prop.name, next);
     };
 
-    row.appendChild(this.renderEditor(prop, value, set));
+    row.appendChild(this.renderEditor(prop, value, set, node));
 
     if (current !== undefined) {
       row.classList.add('overridden');
@@ -263,7 +282,7 @@ export class PropertyPanel {
     return row;
   }
 
-  private renderEditor(prop: PropDef, value: PropertyValue | undefined, set: (v: PropertyValue) => void): HTMLElement {
+  private renderEditor(prop: PropDef, value: PropertyValue | undefined, set: (v: PropertyValue) => void, node: MockupNode): HTMLElement {
     switch (prop.type) {
       case 'boolean': {
         const wrapper = div('es-property-control');
@@ -340,6 +359,19 @@ export class PropertyPanel {
         wrapper.appendChild(select);
         return wrapper;
       }
+      case 'image': {
+        return this.renderImageEditor(value, set);
+      }
+      case 'columns': {
+        return renderTableEditor(node, {
+          read: (target, name) => {
+            const own = target.properties[name];
+            if (own !== undefined && own !== null) return String(own);
+            return String(getWidget(target.objectType)?.defaults[name] ?? '');
+          },
+          write: (target, values) => this.store.setProperties(target.id, values)
+        });
+      }
       case 'text':
       case 'lines': {
         const area = h('textarea', 'es-input es-textarea');
@@ -358,6 +390,66 @@ export class PropertyPanel {
         return input;
       }
     }
+  }
+
+  /**
+   * Image editor: a file picker that stores the picture as a data URI.
+   *
+   * A plain URL also works, but it would leave the mockup depending on a server
+   * the exports cannot reach - the standalone HTML would no longer be
+   * standalone, and the PNG rasteriser cannot fetch external resources at all,
+   * so the picture would silently disappear from the image. Hence the warning.
+   */
+  private renderImageEditor(value: PropertyValue | undefined, set: (v: PropertyValue) => void): HTMLElement {
+    const wrapper = div('es-image-editor');
+    const current = value === undefined || value === null ? '' : String(value);
+
+    if (current) {
+      const preview = div('es-image-preview');
+      const img = document.createElement('img');
+      img.src = current;
+      img.alt = '';
+      preview.appendChild(img);
+      wrapper.appendChild(preview);
+    }
+
+    const input = h('input', 'es-input');
+    input.type = 'text';
+    input.placeholder = 'Pick a file, or paste a URL';
+    input.value = current.startsWith('data:') ? `${current.slice(0, 24)}… (${Math.round(current.length / 1024)} KB)` : current;
+    input.readOnly = current.startsWith('data:');
+    input.addEventListener('change', () => set(input.value || null));
+    wrapper.appendChild(input);
+
+    const actions = div('es-image-actions');
+    const choose = h('button', 'es-mini-button');
+    choose.type = 'button';
+    choose.textContent = current ? 'Replace…' : 'Choose file…';
+    choose.addEventListener('click', async () => {
+      const file = await pickFile('image/*');
+      if (!file) return;
+      if (file.size > 2 * 1024 * 1024) {
+        this.callbacks.notify?.(`${file.name} is ${Math.round(file.size / 1024)} KB. Large images bloat the .esmockup file and the exports.`, 'error');
+      }
+      set(await readAsDataUrl(file));
+    });
+    actions.appendChild(choose);
+    if (current) {
+      const clear = h('button', 'es-mini-button');
+      clear.type = 'button';
+      clear.textContent = 'Remove';
+      clear.addEventListener('click', () => set(null));
+      actions.appendChild(clear);
+    }
+    wrapper.appendChild(actions);
+
+    if (/^https?:/i.test(current)) {
+      wrapper.appendChild(div(
+        'es-property-warning',
+        'External URL: the standalone HTML export would depend on that server, and the PNG export cannot load it at all. Pick a file instead to embed the image.'
+      ));
+    }
+    return wrapper;
   }
 
   /* ----------------------------------------------------------------- theme */
@@ -472,6 +564,22 @@ export class PropertyPanel {
 
     const canvas = div('es-property-group');
     canvas.appendChild(div('es-property-group-title', 'Canvas'));
+
+    // Scout is responsive: the labels move on top below the condensed
+    // threshold and the desktop goes compact below 640px. One click per size
+    // makes those breakpoints visible instead of something you have to guess.
+    const sizes = div('es-size-presets');
+    for (const preset of CANVAS_PRESETS) {
+      const button = h('button', 'es-size-preset');
+      button.type = 'button';
+      button.title = `${preset.width} × ${preset.height}`;
+      if (doc.canvas.width === preset.width && doc.canvas.height === preset.height) button.classList.add('selected');
+      button.appendChild(span('es-size-preset-name', preset.label));
+      button.appendChild(span('es-size-preset-size', `${preset.width}×${preset.height}`));
+      button.addEventListener('click', () => this.store.updateCanvas({width: preset.width, height: preset.height}));
+      sizes.appendChild(button);
+    }
+    canvas.appendChild(sizes);
     canvas.appendChild(this.numberRow('Width (px)', doc.canvas.width, value => this.store.updateCanvas({width: value})));
     canvas.appendChild(this.numberRow('Height (px)', doc.canvas.height, value => this.store.updateCanvas({height: value})));
     const frameRow = div('es-property-row');
@@ -487,6 +595,42 @@ export class PropertyPanel {
     frameRow.appendChild(frameWrapper);
     canvas.appendChild(frameRow);
     this.body.appendChild(canvas);
+
+    const annotations = div('es-property-group');
+    annotations.appendChild(div('es-property-group-title', 'Review callouts'));
+    const visibleRow = div('es-property-row');
+    const visibleLabel = h('label', 'es-property-label');
+    visibleLabel.textContent = 'Show callouts';
+    visibleRow.appendChild(visibleLabel);
+    const visibleInput = h('input', 'es-checkbox');
+    visibleInput.type = 'checkbox';
+    visibleInput.checked = doc.canvas.annotationsVisible;
+    visibleInput.addEventListener('change', () => this.store.updateCanvas({annotationsVisible: visibleInput.checked}));
+    const visibleWrapper = div('es-property-control');
+    visibleWrapper.appendChild(visibleInput);
+    visibleRow.appendChild(visibleWrapper);
+    annotations.appendChild(visibleRow);
+
+    if (!doc.annotations.length) {
+      annotations.appendChild(div('es-property-hint', 'Turn on the callout tool in the toolbar (Ctrl+M) and click the mockup to place one. Callouts are part of the mockup file and appear in the HTML and PNG exports.'));
+    }
+    doc.annotations.forEach((annotation, index) => {
+      const row = div('es-annotation-row');
+      row.appendChild(span('annotation-number', String(index + 1)));
+      const input = h('input', 'es-input') as HTMLInputElement;
+      input.value = annotation.text;
+      input.placeholder = 'What should the reviewer look at?';
+      input.addEventListener('change', () => this.store.updateAnnotation(annotation.id, {text: input.value}));
+      row.appendChild(input);
+      const remove = h('button', 'es-table-icon');
+      remove.type = 'button';
+      remove.textContent = '✕';
+      remove.title = 'Remove the callout';
+      remove.addEventListener('click', () => this.store.removeAnnotation(annotation.id));
+      row.appendChild(remove);
+      annotations.appendChild(row);
+    });
+    this.body.appendChild(annotations);
 
     const templates = div('es-property-group');
     templates.appendChild(div('es-property-group-title', 'Start over from a template'));

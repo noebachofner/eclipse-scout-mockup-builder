@@ -109,7 +109,7 @@ const defs: WidgetDef[] = [
         description: 'Scout dims the navigation while a dialog or a view has the focus: the selected page turns grey instead of accent coloured.'
       },
       {name: 'logoText', label: 'Logo text', type: 'string', group: GROUP_STYLE, description: 'Shown when no logo URL is set.'},
-      {name: 'logoUrl', label: 'Logo URL or data URI', type: 'string', group: GROUP_STYLE}
+      {name: 'logoUrl', label: 'Logo', type: 'image', group: GROUP_STYLE}
     ],
     slots: [
       {name: 'outlines', label: 'Outlines', accepts: ['Outline'], layout: 'stack'},
