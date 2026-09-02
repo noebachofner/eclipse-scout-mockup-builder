@@ -24,6 +24,7 @@ export class App {
   private slotId: string;
   private readonly toast: HTMLElement;
   private toastTimer = 0;
+  private autosaveTimer = 0;
 
   constructor(private root: HTMLElement) {
     const restored = readAutosave();
@@ -74,7 +75,12 @@ export class App {
 
     this.root.replaceChildren(layout);
 
-    this.store.subscribe(() => writeAutosave(this.store.doc, this.slotId));
+    this.store.subscribe((_, reason) => {
+      // Selecting a widget does not change the document, and serialising it on
+      // every click became noticeable once images could be embedded.
+      if (reason === 'selection') return;
+      this.scheduleAutosave();
+    });
     this.installShortcuts();
     this.installFileDrop();
     this.installUnloadGuard();
@@ -123,6 +129,16 @@ export class App {
       if (chain[i].objectType === 'Form') return chain[i].id;
     }
     return undefined;
+  }
+
+  /**
+   * Autosave is debounced: a document with embedded images can be megabytes,
+   * and `localStorage.setItem` is synchronous, so writing on every keystroke
+   * would stutter the editor.
+   */
+  private scheduleAutosave(): void {
+    window.clearTimeout(this.autosaveTimer);
+    this.autosaveTimer = window.setTimeout(() => writeAutosave(this.store.doc, this.slotId), 600);
   }
 
   private notify(message: string, kind: 'info' | 'error' = 'info'): void {
@@ -259,6 +275,11 @@ export class App {
   }
 
   private installUnloadGuard(): void {
+    // Flush the debounced autosave before the tab disappears.
+    window.addEventListener('pagehide', () => {
+      window.clearTimeout(this.autosaveTimer);
+      writeAutosave(this.store.doc, this.slotId);
+    });
     window.addEventListener('beforeunload', event => {
       if (!this.store.dirty) return;
       event.preventDefault();

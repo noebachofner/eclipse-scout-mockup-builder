@@ -189,6 +189,13 @@ interface EmitContext {
   options: JavaExportOptions;
   imports: Set<string>;
   warnings: string[];
+  /**
+   * Every class name used so far in this form. Scout resolves fields with
+   * `getFieldByClass`, which takes the class itself, so two fields sharing a
+   * simple name would produce two identical getters and fail to compile - even
+   * though Java would allow the inner classes themselves.
+   */
+  names: Set<string>;
 }
 
 function javaString(value: string): string {
@@ -367,6 +374,11 @@ function pascal(value: string): string {
   return /^[0-9]/.test(name) ? `F${name}` : name;
 }
 
+/** `BillingBox` -> `Billing`, so it can be used as a qualifier. */
+function stemOf(className: string, suffix: string): string {
+  return className.endsWith(suffix) ? className.slice(0, -suffix.length) : className;
+}
+
 function uniqueName(base: string, used: Set<string>): string {
   let name = base;
   let counter = 2;
@@ -375,13 +387,26 @@ function uniqueName(base: string, used: Set<string>): string {
   return name;
 }
 
-/** Class name for a node: the explicit field id wins, otherwise the label. */
-function classNameFor(node: MockupNode, widget: JavaWidget, used: Set<string>): string {
+/**
+ * Class name for a node: the explicit field id wins, otherwise the label.
+ *
+ * On a collision the enclosing box's name is prepended before falling back to
+ * numbering, so two "Name" fields become `BillingNameField` and
+ * `ShippingNameField` rather than `NameField` and `NameField2`.
+ */
+function classNameFor(node: MockupNode, widget: JavaWidget, used: Set<string>, parentStem = ''): string {
   const id = String(node.properties.id ?? '').trim();
   if (id) return uniqueName(pascal(id), used);
   const label = String(node.properties.label ?? node.properties.text ?? '').trim();
   const stem = pascal(label) || node.objectType.replace(/Field$|Box$/, '');
   const base = stem.endsWith(widget.suffix) ? stem : stem + widget.suffix;
+  if (used.has(base) && parentStem) {
+    const qualified = `${parentStem}${base}`;
+    if (!used.has(qualified)) {
+      used.add(qualified);
+      return qualified;
+    }
+  }
   return uniqueName(base, used);
 }
 
@@ -475,7 +500,8 @@ function emitNode(
   order: number,
   ctx: EmitContext,
   used: Set<string>,
-  getters: Getter[]
+  getters: Getter[],
+  parentStem = ''
 ): void {
   const excuse = JS_ONLY.get(node.objectType);
   if (excuse) {
@@ -491,7 +517,7 @@ function emitNode(
     return;
   }
 
-  const className = classNameFor(node, widget, used);
+  const className = classNameFor(node, widget, used, parentStem);
   const isTableField = node.objectType === 'TableField';
   const typeArgs = isTableField ? `<${className}.Table>` : (widget.typeArgs ?? '');
   ctx.imports.add(widget.fqn);
@@ -507,8 +533,6 @@ function emitNode(
     ? {...node, properties: Object.fromEntries(Object.entries(node.properties).filter(([name]) => !TABLE_ONLY_PROPS.has(name)))}
     : node;
   let members = emitOverrides(writer, fieldNode, indent + 1, ctx);
-  // Children live in their own scope, so a nested field may reuse a name.
-  const childScope = new Set<string>();
 
   if (isTableField) {
     if (members > 0) writer.add(0);
@@ -524,7 +548,7 @@ function emitNode(
       // A table field renders its own menus inside the nested table class.
       if (isTableField && slot === 'menus') continue;
       if (members > 0) writer.add(0);
-      emitNode(writer, child, indent + 1, childOrder, ctx, childScope, getters);
+      emitNode(writer, child, indent + 1, childOrder, ctx, used, getters, stemOf(className, widget.suffix));
       childOrder += 1000;
       members++;
     }
@@ -539,8 +563,7 @@ function emitTable(writer: Writer, node: MockupNode, indent: number, ctx: EmitCo
   writer.add(indent, 'public class Table extends AbstractTable {');
 
   const columns = parseColumnSpecs(node);
-  const used = new Set<string>(['Table']);
-  const names = columns.map(column => uniqueName(pascal(column.header) + 'Column', used));
+  const names = columns.map(column => uniqueName(pascal(column.header) + 'Column', ctx.names));
 
   // Scout's own convention: a typed getter per column, then the column classes.
   names.forEach(name => {
@@ -595,10 +618,9 @@ function emitTable(writer: Writer, node: MockupNode, indent: number, ctx: EmitCo
 
   const menus = node.children.filter(child => child.slot === 'menus');
   let menuOrder = 1000;
-  const menuScope = new Set<string>();
   for (const menu of menus) {
     if (hasMembers) writer.add(0);
-    emitNode(writer, menu, indent + 1, menuOrder, ctx, menuScope, []);
+    emitNode(writer, menu, indent + 1, menuOrder, ctx, ctx.names, []);
     menuOrder += 1000;
     hasMembers = true;
   }
@@ -647,7 +669,12 @@ const DISPLAY_HINTS: Record<string, string> = {
 };
 
 export function generateFormJava(form: MockupNode, options: JavaExportOptions): JavaExportResult {
-  const ctx: EmitContext = {options, imports: new Set([PLATFORM_ORDER]), warnings: []};
+  const ctx: EmitContext = {
+    options,
+    imports: new Set([PLATFORM_ORDER]),
+    warnings: [],
+    names: new Set([options.className, 'MainBox', 'Table'])
+  };
   const body = new Writer();
   const getters: Getter[] = [];
 
@@ -723,18 +750,17 @@ export function generateFormJava(form: MockupNode, options: JavaExportOptions): 
     mainBox.add(2, '}');
     boxMembers++;
   }
-  const boxScope = new Set<string>();
   let order = 1000;
   for (const child of form.children.filter(c => (c.slot ?? 'fields') === 'fields')) {
     if (boxMembers) mainBox.add(0);
-    emitNode(mainBox, child, 2, order, ctx, boxScope, getters);
+    emitNode(mainBox, child, 2, order, ctx, ctx.names, getters);
     order += 1000;
     boxMembers++;
   }
   // Form menus become menus of the main box, which is where Scout puts them.
   for (const menu of form.children.filter(c => c.slot === 'menus')) {
     if (boxMembers) mainBox.add(0);
-    emitNode(mainBox, menu, 2, order, ctx, boxScope, getters);
+    emitNode(mainBox, menu, 2, order, ctx, ctx.names, getters);
     order += 1000;
     boxMembers++;
   }

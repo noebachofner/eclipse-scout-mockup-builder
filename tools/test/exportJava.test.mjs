@@ -10,6 +10,7 @@ import {importTs} from './_bundle.mjs';
 
 const java = await importTs('src/io/exportJava.ts');
 const templates = await importTs('src/model/templates.ts');
+const docModule = await importTs('src/model/document.ts');
 
 const OPTIONS = {packageName: 'org.example.client', className: 'PersonForm', useTexts: false, includeGetters: true};
 const generate = (form, options = {}) => java.generateFormJava(form, {...OPTIONS, ...options});
@@ -134,4 +135,34 @@ test('braces balance out, so the file is at least syntactically plausible', () =
   const open = (code.match(/\{/g) ?? []).length;
   const close = (code.match(/\}/g) ?? []).length;
   assert.equal(open, close);
+});
+
+test('two fields with the same label get distinct class names', () => {
+  // getFieldByClass resolves by class, so two `NameField` classes would produce
+  // two identical getters on the form and fail to compile.
+  const doc = docModule.node({objectType: 'Form', properties: {title: 'Order'}, children: [
+    {objectType: 'GroupBox', slot: 'fields', properties: {label: 'Billing'}, children: [
+      {objectType: 'StringField', slot: 'fields', properties: {label: 'Name'}}
+    ]},
+    {objectType: 'GroupBox', slot: 'fields', properties: {label: 'Shipping'}, children: [
+      {objectType: 'StringField', slot: 'fields', properties: {label: 'Name'}}
+    ]}
+  ]});
+  const {code} = generate(doc, {className: 'OrderForm'});
+  const getters = [...code.matchAll(/^  public \w+ (get\w+)\(\)/gm)].map(match => match[1]);
+  assert.deepEqual(getters, [...new Set(getters)], `duplicate getter: ${getters.join(', ')}`);
+  // The collision is resolved by qualifying with the enclosing box.
+  assert.match(code, /public class ShippingNameField extends AbstractStringField/);
+});
+
+test('a column name cannot collide with a field name', () => {
+  const doc = docModule.node({objectType: 'Form', properties: {title: 'Order'}, children: [
+    {objectType: 'GroupBox', slot: 'fields', properties: {label: 'Main'}, children: [
+      {objectType: 'StringField', slot: 'fields', properties: {label: 'Status'}},
+      {objectType: 'TableField', slot: 'fields', properties: {label: 'Rows', columns: 'Status|left|100', rows: 'Open'}}
+    ]}
+  ]});
+  const {code} = generate(doc, {className: 'OrderForm'});
+  const classes = [...code.matchAll(/public class (\w+) extends/g)].map(match => match[1]);
+  assert.deepEqual(classes, [...new Set(classes)], `duplicate class: ${classes.join(', ')}`);
 });

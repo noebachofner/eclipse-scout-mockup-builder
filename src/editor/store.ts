@@ -14,6 +14,12 @@ type Listener = (state: StoreState, reason: ChangeReason) => void;
 export type ChangeReason = 'document' | 'selection' | 'meta';
 
 const UNDO_LIMIT = 100;
+/**
+ * The undo stack holds whole serialized documents. That is cheap for a sketch
+ * but not for a mockup with embedded images, so the stack is capped by size as
+ * well as by depth.
+ */
+const UNDO_BYTE_LIMIT = 24 * 1024 * 1024;
 
 /**
  * Single source of truth for the editor. Undo/redo works on serialized
@@ -70,11 +76,20 @@ export class Store {
   /** Runs `mutator` against the document and records an undo snapshot. */
   update(mutator: (doc: MockupDocument) => void): void {
     this.undoStack.push(JSON.stringify(this.state.doc));
-    if (this.undoStack.length > UNDO_LIMIT) this.undoStack.shift();
+    this.trimUndoStack();
     this.redoStack.length = 0;
     mutator(this.state.doc);
     this.state.dirty = true;
     this.emit('document');
+  }
+
+  /** Drops the oldest snapshots once the stack is too deep or too large. */
+  private trimUndoStack(): void {
+    while (this.undoStack.length > UNDO_LIMIT) this.undoStack.shift();
+    let bytes = this.undoStack.reduce((sum, snapshot) => sum + snapshot.length, 0);
+    while (this.undoStack.length > 1 && bytes > UNDO_BYTE_LIMIT) {
+      bytes -= this.undoStack.shift()?.length ?? 0;
+    }
   }
 
   /** Replaces the whole document (new file, load, template switch). */
