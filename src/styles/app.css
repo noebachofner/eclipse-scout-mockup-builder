@@ -979,6 +979,239 @@ body.es-dragging * {
   color: var(--es-ui-text);
 }
 
+/* --------------------------------------------------------- canvas presets */
+.es-size-presets {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+  margin: 2px 0 10px;
+}
+
+.es-size-preset {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px 8px;
+  border: 1px solid var(--es-ui-border);
+  border-radius: var(--es-ui-radius);
+  background-color: var(--es-ui-bg);
+  color: var(--es-ui-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.es-size-preset:hover { border-color: var(--es-ui-accent); }
+
+.es-size-preset.selected {
+  border-color: var(--es-ui-accent);
+  background-color: var(--es-ui-accent-dim);
+}
+
+.es-size-preset-name { font-size: 11px; font-weight: 600; }
+.es-size-preset-size { font-size: 10px; color: var(--es-ui-text-dim); }
+
+/* --------------------------------------------------------- image property */
+.es-image-editor { display: flex; flex-direction: column; gap: 6px; }
+
+.es-image-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 74px;
+  padding: 4px;
+  border: 1px solid var(--es-ui-border);
+  border-radius: var(--es-ui-radius);
+  background-color: var(--es-ui-bg);
+  overflow: hidden;
+}
+
+.es-image-preview img { max-width: 100%; max-height: 66px; object-fit: contain; }
+
+.es-image-actions { display: flex; gap: 6px; }
+
+.es-mini-button {
+  font: inherit;
+  font-size: 11px;
+  padding: 4px 9px;
+  border: 1px solid var(--es-ui-border);
+  border-radius: var(--es-ui-radius);
+  background-color: var(--es-ui-bg);
+  color: var(--es-ui-text);
+  cursor: pointer;
+}
+
+.es-mini-button:hover { border-color: var(--es-ui-accent); }
+
+.es-property-warning {
+  grid-column: 1 / -1;
+  margin-top: 2px;
+  padding: 6px 9px;
+  border-left: 3px solid var(--scout-warning-color, #e0a03c);
+  border-radius: 0 var(--es-ui-radius) var(--es-ui-radius) 0;
+  background-color: rgba(224, 160, 60, 0.12);
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--es-ui-text);
+}
+
+/* ------------------------------------------------------------ check dialog */
+.es-check-dialog { width: min(760px, 94vw); }
+.es-check-dialog .es-modal-body { display: block; }
+
+.es-check-clean {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 18px 4px;
+  color: var(--es-ui-text-dim);
+}
+
+.es-check-summary { display: flex; gap: 8px; margin-bottom: 12px; }
+
+.es-check-count {
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.es-check-count.error { background-color: rgba(214, 84, 84, 0.18); color: #ffb4b4; }
+.es-check-count.warning { background-color: rgba(224, 160, 60, 0.18); color: #ffd79a; }
+.es-check-count.info { background-color: var(--es-ui-bg-panel); color: var(--es-ui-text-dim); }
+
+.es-check-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  margin-bottom: 6px;
+  padding: 9px 11px;
+  border: 0;
+  border-left: 3px solid var(--es-ui-border);
+  border-radius: 0 var(--es-ui-radius) var(--es-ui-radius) 0;
+  background-color: var(--es-ui-bg);
+  color: var(--es-ui-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.es-check-row:hover { background-color: var(--es-ui-bg-panel); }
+.es-check-row.error { border-left-color: #d65454; }
+.es-check-row.warning { border-left-color: var(--scout-warning-color, #e0a03c); }
+.es-check-row.info { border-left-color: var(--es-ui-accent); }
+
+.es-check-path { font-size: 11px; font-weight: 600; color: var(--es-ui-text-dim); }
+.es-check-message { line-height: 1.45; }
+
+/* ----------------------------------------------------- java export dialog */
+.es-java-dialog { width: min(920px, 94vw); }
+
+/* The shared modal body lays its children out in columns for the shortcut
+   list; the Java dialog is one column of stacked blocks instead. */
+.es-java-dialog .es-modal-body { display: block; }
+
+.es-java-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px 16px;
+  margin-bottom: 12px;
+}
+
+.es-java-field { display: flex; flex-direction: column; gap: 4px; }
+
+.es-java-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--es-ui-text-dim);
+}
+
+.es-java-input,
+.es-java-select {
+  font: inherit;
+  min-width: 190px;
+  padding: 6px 9px;
+  border-radius: var(--es-ui-radius);
+  border: 1px solid var(--es-ui-border);
+  background-color: var(--es-ui-bg);
+  color: var(--es-ui-text);
+}
+
+.es-java-input:focus,
+.es-java-select:focus { outline: none; border-color: var(--es-ui-accent); }
+
+.es-java-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: 7px;
+  cursor: pointer;
+}
+
+.es-java-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 9px 11px;
+  border-radius: var(--es-ui-radius);
+  background-color: var(--es-ui-bg-panel);
+  color: var(--es-ui-text-dim);
+  line-height: 1.45;
+}
+
+.es-java-note svg { flex: none; margin-top: 1px; }
+
+.es-java-warnings { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; }
+.es-java-warnings.empty { display: none; }
+
+.es-java-warning {
+  padding: 7px 10px;
+  border-left: 3px solid var(--scout-warning-color, #e0a03c);
+  border-radius: 0 var(--es-ui-radius) var(--es-ui-radius) 0;
+  background-color: rgba(224, 160, 60, 0.12);
+  line-height: 1.4;
+}
+
+.es-java-code {
+  max-height: 46vh;
+  margin: 0;
+  padding: 12px 14px;
+  overflow: auto;
+  border: 1px solid var(--es-ui-border);
+  border-radius: var(--es-ui-radius);
+  background-color: var(--es-ui-bg);
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+  font-size: 12px;
+  line-height: 1.55;
+  tab-size: 2;
+  white-space: pre;
+  user-select: text;
+}
+
+.es-java-empty { padding: 24px 4px; color: var(--es-ui-text-dim); }
+
+.es-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex: none;
+  padding: 12px 16px;
+  border-top: 1px solid var(--es-ui-border);
+}
+
+.es-button.primary {
+  background-color: var(--es-ui-accent);
+  border-color: var(--es-ui-accent);
+  color: #fff;
+}
+
+.es-button.primary:hover { filter: brightness(1.08); }
+
 /* ----------------------------------------------------------------- modal */
 .es-modal-backdrop {
   position: fixed;

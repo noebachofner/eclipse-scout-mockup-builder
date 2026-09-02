@@ -416,20 +416,20 @@ const panelWidth = side => page.evaluate(
 );
 
 const leftBefore = await panelWidth('left');
-await page.keyboard.press('[');
+await page.keyboard.press('Control+b');
 await page.waitForTimeout(120);
 const leftCollapsed = await page.isHidden('.es-side-left');
 const railVisible = await page.isVisible('.es-splitter-left.collapsed .es-splitter-label');
-check('“[” collapses the element palette into a rail', leftCollapsed && railVisible);
+check('Ctrl+B collapses the element palette into a rail', leftCollapsed && railVisible);
 
 await page.click('.es-splitter-left .es-splitter-grip');
 await page.waitForTimeout(120);
 check('the rail grip brings the palette back', (await panelWidth('left')) === leftBefore, `${await panelWidth('left')} vs ${leftBefore}`);
 
-await page.keyboard.press(']');
+await page.keyboard.press('Control+Shift+b');
 await page.waitForTimeout(120);
-check('“]” collapses the property panel', await page.isHidden('.es-properties'));
-await page.keyboard.press(']');
+check('Ctrl+Shift+B collapses the property panel', await page.isHidden('.es-properties'));
+await page.keyboard.press('Control+Shift+b');
 await page.waitForTimeout(120);
 
 const splitter = await page.locator('.es-splitter-left').boundingBox();

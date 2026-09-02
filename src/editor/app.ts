@@ -9,6 +9,7 @@ import {defaultDesktopTemplate} from '../model/templates';
 import {readAutosave, readProjectFile, writeAutosave} from '../io/project';
 import {showShortcutsDialog} from './shortcuts';
 import {Workspace} from './panels';
+import {pathTo} from '../model/document';
 
 export class App {
   readonly store: Store;
@@ -27,13 +28,15 @@ export class App {
     const toolbar = new Toolbar(this.store, {
       notify: (message, kind) => this.notify(message, kind),
       fitZoom: () => canvas.fitZoom(),
-      showShortcuts: () => showShortcutsDialog()
+      showShortcuts: () => showShortcutsDialog(),
+      selectedFormId: () => this.selectedFormId()
     });
     this.toolbar = toolbar;
     const palette = new Palette(this.store, canvas);
     const structure = new StructureTree(this.store, canvas);
     const properties = new PropertyPanel(this.store, {
-      measureChildBounds: parentId => canvas.measureChildBounds(parentId)
+      measureChildBounds: parentId => canvas.measureChildBounds(parentId),
+      notify: (message, kind) => this.notify(message, kind)
     });
 
     const left = div('es-side es-side-left');
@@ -62,6 +65,17 @@ export class App {
     if (restored) {
       this.notify('Restored your last mockup from this browser.');
     }
+  }
+
+  /** The innermost form the selection sits in, so the Java dialog preselects it. */
+  private selectedFormId(): string | undefined {
+    const id = this.store.selectedId;
+    if (!id) return undefined;
+    const chain = pathTo(this.store.doc.root, id);
+    for (let i = chain.length - 1; i >= 0; i--) {
+      if (chain[i].objectType === 'Form') return chain[i].id;
+    }
+    return undefined;
   }
 
   private notify(message: string, kind: 'info' | 'error' = 'info'): void {
@@ -104,6 +118,15 @@ export class App {
             if (event.shiftKey) void this.toolbar.exportPng(2);
             else void this.toolbar.exportHtml();
             return;
+          case 'b':
+            // Not [ and ]: both need AltGr on a Swiss or German keyboard.
+            event.preventDefault();
+            this.workspace.toggle(event.shiftKey ? 'right' : 'left');
+            return;
+          case 'j':
+            event.preventDefault();
+            this.toolbar.exportJava();
+            return;
           case '0':
             event.preventDefault();
             this.store.updateCanvas({zoom: 1});
@@ -130,16 +153,6 @@ export class App {
       if (key === '?' || (key === '/' && event.shiftKey)) {
         event.preventDefault();
         showShortcutsDialog();
-        return;
-      }
-      if (key === '[') {
-        event.preventDefault();
-        this.workspace.toggle('left');
-        return;
-      }
-      if (key === ']') {
-        event.preventDefault();
-        this.workspace.toggle('right');
         return;
       }
       if (key === '/') {

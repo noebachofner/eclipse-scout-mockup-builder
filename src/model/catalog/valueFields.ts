@@ -373,7 +373,7 @@ const defs: WidgetDef[] = [
     isFormField: true,
     defaults: formFieldDefaults({label: 'Image', 'gridDataHints.h': 4, imageUrl: '', autoFit: true}),
     props: formFieldProps(
-      {name: 'imageUrl', label: 'Image URL or data URI', type: 'string', group: GROUP_CONTENT},
+      {name: 'imageUrl', label: 'Image', type: 'image', group: GROUP_CONTENT},
       {name: 'autoFit', label: 'Auto fit', type: 'boolean', group: GROUP_CONTENT}
     ),
     slots: [],

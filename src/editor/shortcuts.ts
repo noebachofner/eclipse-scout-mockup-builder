@@ -13,7 +13,8 @@ const GROUPS: ShortcutGroup[] = [
       ['Ctrl+O', 'Open an .esmockup file'],
       ['Ctrl+S', 'Save the mockup'],
       ['Ctrl+E', 'Export as standalone HTML'],
-      ['Ctrl+Shift+E', 'Export as PNG (2×)']
+      ['Ctrl+Shift+E', 'Export as PNG (2×)'],
+      ['Ctrl+J', 'Export the selected form as Scout Java']
     ]
   },
   {
@@ -33,8 +34,8 @@ const GROUPS: ShortcutGroup[] = [
       ['Ctrl+0', 'Zoom to 100 %'],
       ['Ctrl+1', 'Fit the mockup into the window'],
       ['/', 'Jump to the widget search'],
-      ['[', 'Show or hide the element palette'],
-      [']', 'Show or hide the property panel'],
+      ['Ctrl+B', 'Show or hide the element palette'],
+      ['Ctrl+Shift+B', 'Show or hide the property panel'],
       ['Drag a splitter', 'Resize a side panel (double click resets it)']
     ]
   },

@@ -191,7 +191,8 @@ export class Workspace {
     this.toggleButtons[side].forEach(button => {
       button.classList.toggle('active', !collapsed);
       button.setAttribute('aria-pressed', String(!collapsed));
-      button.title = `${collapsed ? 'Show' : 'Hide'} the ${name}`;
+      const shortcut = side === 'left' ? 'Ctrl+B' : 'Ctrl+Shift+B';
+      button.title = `${collapsed ? 'Show' : 'Hide'} the ${name} (${shortcut})`;
       button.setAttribute('aria-label', button.title);
     });
   }

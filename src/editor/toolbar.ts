@@ -8,12 +8,16 @@ import {downloadBlob, downloadText, sanitizeFileName} from '../io/files';
 import {DropdownMenu, type MenuEntry} from './menu';
 import {editorIcon, shortcutLabel} from './icons';
 import type {PanelSide, Workspace} from './panels';
+import {showJavaExportDialog} from './javaDialog';
+import {showCheckDialog} from './checkDialog';
 
 export interface ToolbarCallbacks {
   notify(message: string, kind?: 'info' | 'error'): void;
   /** Zoom factor at which the whole canvas fits into the visible area. */
   fitZoom(): number;
   showShortcuts(): void;
+  /** Id of the form the current selection belongs to, if any. */
+  selectedFormId(): string | undefined;
 }
 
 const ZOOM_STEPS = [0.25, 0.5, 0.67, 0.75, 0.9, 1, 1.25, 1.5, 2];
@@ -73,8 +77,8 @@ export class Toolbar {
 
     // --- panels -------------------------------------------------------------
     this.panelButtons = {
-      left: this.toggleButton('panelLeft', 'Element palette', '['),
-      right: this.toggleButton('panelRight', 'Property panel', ']')
+      left: this.toggleButton('panelLeft', 'Element palette', 'Ctrl+B'),
+      right: this.toggleButton('panelRight', 'Property panel', 'Ctrl+Shift+B')
     };
     this.element.appendChild(this.group([this.panelButtons.left, this.panelButtons.right]));
 
@@ -87,6 +91,15 @@ export class Toolbar {
 
     store.subscribe(() => this.update());
     this.update();
+  }
+
+  /** Opens the Java dialog, preselecting the form the selection sits in. */
+  exportJava(): void {
+    showJavaExportDialog(
+      this.store.doc.root,
+      (message, kind) => this.callbacks.notify(message, kind),
+      this.callbacks.selectedFormId()
+    );
   }
 
   private group(children: HTMLElement[]): HTMLElement {
@@ -104,7 +117,7 @@ export class Toolbar {
   private toggleButton(icon: string, title: string, shortcut: string): HTMLButtonElement {
     const button = h('button', 'es-button icon-only es-toggle');
     button.type = 'button';
-    button.title = `${title} (${shortcut})`;
+    button.title = `${title} (${shortcutLabel(shortcut)})`;
     button.setAttribute('aria-label', title);
     button.appendChild(editorIcon(icon));
     return button;
@@ -144,6 +157,13 @@ export class Toolbar {
       action: () => void this.open()
     });
     entries.push({
+      label: 'Check mockup…',
+      description: 'Lists layout that standard Scout cannot reproduce, and settings that would break an export.',
+      icon: 'help',
+      separatorBefore: true,
+      action: () => showCheckDialog(this.store.doc, id => this.store.select(id))
+    });
+    entries.push({
       label: 'Save',
       description: 'Download the mockup as .esmockup (JSON).',
       icon: 'save',
@@ -161,6 +181,14 @@ export class Toolbar {
         icon: 'code',
         shortcut: 'Ctrl+E',
         action: () => void this.exportHtml()
+      },
+      {
+        label: 'Scout Java form…',
+        description: 'One AbstractForm class to paste into your project. No form data, no service, no outline.',
+        icon: 'code',
+        shortcut: 'Ctrl+J',
+        separatorBefore: true,
+        action: () => this.exportJava()
       },
       {
         label: 'PNG image, 1×',
