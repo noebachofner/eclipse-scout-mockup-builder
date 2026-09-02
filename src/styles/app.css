@@ -489,7 +489,23 @@ body.es-resizing-columns .es-splitter { pointer-events: auto; }
   user-select: none;
 }
 
+.es-palette-item {
+  font: inherit;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  color: var(--es-ui-text);
+}
+
 .es-palette-item:hover { background-color: var(--es-ui-bg-panel); }
+
+/* Focus has to be obvious: these lists are walked with the arrow keys. */
+.es-palette-item:focus-visible,
+.es-structure-row:focus-visible {
+  outline: 2px solid var(--es-ui-accent);
+  outline-offset: -2px;
+}
 .es-palette-item.dragging { opacity: 0.5; }
 .es-palette-item.es-unavailable { opacity: 0.45; }
 

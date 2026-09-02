@@ -51,6 +51,10 @@ export class Palette {
         const first = this.list.querySelector<HTMLElement>('.es-palette-item:not(.es-unavailable)');
         first?.click();
       }
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        this.list.querySelector<HTMLElement>('.es-palette-item')?.focus();
+      }
     });
     searchWrapper.appendChild(this.search);
     this.element.appendChild(searchWrapper);
@@ -67,6 +71,13 @@ export class Palette {
 
   private renderList(): void {
     this.list.replaceChildren();
+    // Re-established at the end: after a re-render nothing is focused yet, so
+    // the first item carries the tab stop again.
+    const restoreRoving = (): void => {
+      const first = this.list.querySelector<HTMLElement>('.es-palette-item');
+      if (first) first.tabIndex = 0;
+    };
+    queueMicrotask(restoreRoving);
     const byCategory = new Map<string, WidgetDef[]>();
     for (const def of allWidgets()) {
       if (this.filter && !`${def.label} ${def.objectType} ${def.description}`.toLowerCase().includes(this.filter)) continue;
@@ -121,7 +132,12 @@ export class Palette {
   }
 
   private renderItem(def: WidgetDef): HTMLElement {
-    const item = div('es-palette-item');
+    // A button rather than a div: it is one by behaviour, and that makes it
+    // reachable and activatable without a mouse for free.
+    const item = h('button', 'es-palette-item');
+    item.type = 'button';
+    // Roving tabindex - one stop for the whole list, arrows move inside it.
+    item.tabIndex = -1;
     item.draggable = true;
     item.dataset.objectType = def.objectType;
     item.title = `${def.description}\n\nobjectType: ${def.objectType}${def.javaClass ? '\nJava: ' + def.javaClass : ''}`;
@@ -143,7 +159,41 @@ export class Palette {
       item.classList.remove('dragging');
     });
     item.addEventListener('click', () => this.addToSelection(def));
+    item.addEventListener('keydown', event => this.onItemKeyDown(event, item));
+    item.addEventListener('focus', () => this.setRovingItem(item));
     return item;
+  }
+
+  /**
+   * Arrow keys walk the list of widgets, Home and End jump to its ends, and
+   * Escape goes back to the search box - the palette is a long list, and
+   * tabbing through 56 buttons to reach the last one is not usable.
+   */
+  private onItemKeyDown(event: KeyboardEvent, item: HTMLElement): void {
+    const items = [...this.list.querySelectorAll<HTMLElement>('.es-palette-item')];
+    const index = items.indexOf(item);
+    const go = (next: number): void => {
+      event.preventDefault();
+      items[Math.max(0, Math.min(items.length - 1, next))]?.focus();
+    };
+    switch (event.key) {
+      case 'ArrowDown': return go(index + 1);
+      case 'ArrowUp': return go(index - 1);
+      case 'Home': return go(0);
+      case 'End': return go(items.length - 1);
+      case 'Escape':
+        event.preventDefault();
+        this.search.focus();
+        return;
+      default:
+    }
+  }
+
+  /** Keeps exactly one item in the tab order, the one last focused. */
+  private setRovingItem(item: HTMLElement): void {
+    this.list.querySelectorAll<HTMLElement>('.es-palette-item').forEach(other => {
+      other.tabIndex = other === item ? 0 : -1;
+    });
   }
 
   /** Adds the widget to the nearest container of the current selection. */

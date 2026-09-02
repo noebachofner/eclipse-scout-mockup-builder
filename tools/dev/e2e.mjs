@@ -630,7 +630,86 @@ check('opening the share link restores the document', sharedName === 'Shared moc
 check('the fragment is dropped after loading', (await shared.evaluate(() => location.hash)) === '');
 await shared.close();
 
-// --- 18. the workspace panels collapse and resize --------------------------
+// --- 18. keyboard operability ----------------------------------------------
+await page.click('.es-toolbar .es-menu-button .es-button:has-text("File")');
+await page.click('.es-dropdown-item:has-text("New: Scout desktop")');
+await page.waitForTimeout(300);
+
+const focusInfo = () => page.evaluate(() => {
+  const el = document.activeElement;
+  if (!el || el === document.body) return {tag: 'body', cls: '', text: ''};
+  return {
+    tag: el.tagName.toLowerCase(),
+    cls: (el.className || '').toString(),
+    text: (el.textContent || el.value || '').trim().slice(0, 40)
+  };
+});
+
+// The palette: one tab stop, arrows inside it, Enter adds.
+await page.focus('.es-palette .es-search');
+await page.keyboard.press('ArrowDown');
+let focus = await focusInfo();
+check('ArrowDown from the search box enters the widget list', focus.cls.includes('es-palette-item'), JSON.stringify(focus));
+await page.keyboard.press('ArrowDown');
+await page.keyboard.press('ArrowDown');
+const walked = await focusInfo();
+check('arrows walk the widget list', walked.text !== focus.text, `${focus.text} -> ${walked.text}`);
+const rovingStops = await page.evaluate(() =>
+  [...document.querySelectorAll('.es-palette-item')].filter(item => item.tabIndex === 0).length);
+check('the palette keeps a single tab stop', rovingStops === 1, `${rovingStops} stops`);
+
+const nodesBeforeKey = await page.evaluate(() => {
+  let count = 0;
+  const walk = node => { count++; node.children.forEach(walk); };
+  walk(window.esMockup.store.doc.root);
+  return count;
+});
+await page.keyboard.press('Enter');
+await page.waitForTimeout(250);
+const nodesAfterKey = await page.evaluate(() => {
+  let count = 0;
+  const walk = node => { count++; node.children.forEach(walk); };
+  walk(window.esMockup.store.doc.root);
+  return count;
+});
+check('Enter adds the focused widget', nodesAfterKey === nodesBeforeKey + 1, `${nodesBeforeKey} -> ${nodesAfterKey}`);
+
+// The structure tree is the keyboard route through the widget tree.
+await page.evaluate(() => document.querySelector('.es-structure-row').focus());
+await page.keyboard.press('ArrowDown');
+await page.keyboard.press('ArrowDown');
+await page.keyboard.press('Enter');
+await page.waitForTimeout(200);
+const treeSelected = await page.evaluate(() => {
+  const id = window.esMockup.store.selectedId;
+  const find = node => node.id === id ? node : node.children.map(find).find(Boolean);
+  return find(window.esMockup.store.doc.root)?.objectType;
+});
+check('the structure tree selects with the keyboard', !!treeSelected && treeSelected !== 'Desktop', treeSelected);
+
+await page.evaluate(() => document.querySelector('.es-structure-row').focus());
+await page.keyboard.press('ArrowLeft');
+await page.waitForTimeout(200);
+const collapsedRows = await page.evaluate(() => document.querySelectorAll('.es-structure-row').length);
+check('ArrowLeft collapses a tree node', collapsedRows === 1, `${collapsedRows} rows visible`);
+await page.keyboard.press('ArrowRight');
+await page.waitForTimeout(200);
+
+// Dialogs keep the focus and give it back.
+await page.focus('.es-toolbar .es-button[aria-label="Keyboard shortcuts and help"]');
+await page.keyboard.press('Enter');
+await page.waitForTimeout(250);
+const dialogFocus = await focusInfo();
+check('the dialog takes the focus', dialogFocus.cls.includes('es-modal-close'), JSON.stringify(dialogFocus));
+await page.keyboard.press('Tab');
+const trapped = await page.evaluate(() => !!document.activeElement?.closest('.es-modal'));
+check('Tab stays inside the dialog', trapped);
+await page.keyboard.press('Escape');
+await page.waitForTimeout(200);
+const restored = await focusInfo();
+check('closing the dialog gives the focus back', restored.cls.includes('es-button'), JSON.stringify(restored));
+
+// --- 19. the workspace panels collapse and resize --------------------------
 const panelWidth = side => page.evaluate(
   selector => Math.round(document.querySelector(selector)?.getBoundingClientRect().width ?? -1),
   side === 'left' ? '.es-side-left' : '.es-properties'

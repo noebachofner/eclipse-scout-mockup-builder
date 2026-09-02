@@ -8,6 +8,7 @@ import {renderIcon} from '../render/icons';
 import {editorIcon} from './icons';
 import {h} from '../render/dom';
 import {showContextMenu} from './contextMenu';
+import {findParent} from '../model/document';
 import {buildWidgetMenu} from './widgetMenu';
 
 /** Tree view of the widget hierarchy - the reliable way to reach nested nodes. */
@@ -43,8 +44,14 @@ export class StructureTree {
 
   render(): void {
     this.body.replaceChildren();
+    this.body.setAttribute('role', 'tree');
     this.renderNode(this.store.doc.root, 0, null);
     this.body.querySelector('.es-structure-row.selected')?.scrollIntoView({block: 'nearest'});
+    // The selected row carries the tab stop, so tabbing into the tree lands on
+    // the widget the panel is showing.
+    const stop = this.body.querySelector<HTMLElement>('.es-structure-row.selected')
+      ?? this.body.querySelector<HTMLElement>('.es-structure-row');
+    if (stop) stop.tabIndex = 0;
   }
 
   private renderNode(node: MockupNode, depth: number, parent: MockupNode | null): void {
@@ -73,7 +80,17 @@ export class StructureTree {
     row.appendChild(span('es-structure-label', this.labelOf(node, def?.label ?? node.objectType)));
     row.appendChild(span('es-structure-type', def?.label ?? node.objectType));
 
+    // The structure tree is the keyboard route through the widget tree: the
+    // canvas itself has no reading order to walk. One tab stop, arrows inside.
+    row.tabIndex = -1;
+    row.setAttribute('role', 'treeitem');
+    row.setAttribute('aria-level', String(depth + 1));
+    if (node.children.length) row.setAttribute('aria-expanded', String(!this.collapsed.has(node.id)));
+    if (this.store.isSelected(node.id)) row.setAttribute('aria-selected', 'true');
+
     row.addEventListener('click', () => this.store.select(node.id));
+    row.addEventListener('focus', () => this.setRovingRow(row));
+    row.addEventListener('keydown', event => this.onRowKeyDown(event, node, row));
     row.addEventListener('contextmenu', event => {
       event.preventDefault();
       this.store.select(node.id);
@@ -106,6 +123,77 @@ export class StructureTree {
       onClick();
     });
     return button;
+  }
+
+  /**
+   * Tree keyboard behaviour, following the usual convention: up and down walk
+   * the visible rows, right expands or steps into the first child, left
+   * collapses or steps out to the parent, Enter selects and Delete removes.
+   */
+  private onRowKeyDown(event: KeyboardEvent, node: MockupNode, row: HTMLElement): void {
+    const rows = [...this.body.querySelectorAll<HTMLElement>('.es-structure-row')];
+    const index = rows.indexOf(row);
+    const move = (next: number): void => {
+      event.preventDefault();
+      rows[Math.max(0, Math.min(rows.length - 1, next))]?.focus();
+    };
+    switch (event.key) {
+      case 'ArrowDown': return move(index + 1);
+      case 'ArrowUp': return move(index - 1);
+      case 'Home': return move(0);
+      case 'End': return move(rows.length - 1);
+      case 'ArrowRight':
+        event.preventDefault();
+        if (node.children.length && this.collapsed.has(node.id)) {
+          this.collapsed.delete(node.id);
+          this.render();
+          this.focusRow(node.id);
+        } else if (node.children.length) {
+          this.focusRow(node.children[0].id);
+        }
+        return;
+      case 'ArrowLeft': {
+        event.preventDefault();
+        if (node.children.length && !this.collapsed.has(node.id)) {
+          this.collapsed.add(node.id);
+          this.render();
+          this.focusRow(node.id);
+          return;
+        }
+        const parent = findParent(this.store.doc.root, node.id);
+        if (parent) this.focusRow(parent.id);
+        return;
+      }
+      case 'Enter':
+      case ' ':
+        event.preventDefault();
+        this.store.select(node.id);
+        return;
+      case 'Delete':
+      case 'Backspace':
+        event.preventDefault();
+        this.store.remove(node.id);
+        return;
+      case 'ContextMenu':
+        event.preventDefault();
+        {
+          const rect = row.getBoundingClientRect();
+          showContextMenu(buildWidgetMenu(this.store, node, findParent(this.store.doc.root, node.id)), rect.left + 20, rect.bottom, row);
+        }
+        return;
+      default:
+    }
+  }
+
+  private focusRow(nodeId: string): void {
+    this.body.querySelector<HTMLElement>(`.es-structure-row[data-node-id="${nodeId}"]`)?.focus();
+  }
+
+  /** Keeps exactly one row in the tab order. */
+  private setRovingRow(row: HTMLElement): void {
+    this.body.querySelectorAll<HTMLElement>('.es-structure-row').forEach(other => {
+      other.tabIndex = other === row ? 0 : -1;
+    });
   }
 
   private labelOf(node: MockupNode, fallback: string): string {

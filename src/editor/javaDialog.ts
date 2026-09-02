@@ -3,6 +3,7 @@ import type {MockupNode} from '../model/types';
 import {collectForms, generateFormJava, suggestClassName, type JavaExportOptions, type PropertyDetail} from '../io/exportJava';
 import {downloadText} from '../io/files';
 import {editorIcon} from './icons';
+import {trapFocus} from './focusTrap';
 
 const STORAGE_KEY = 'es-mockup.java.v1';
 
@@ -209,9 +210,11 @@ export function showJavaExportDialog(root: MockupNode, notify: (message: string,
   function finish(): void {
     backdrop.appendChild(dialog);
     document.body.appendChild(backdrop);
+    const release = trapFocus(dialog);
     const close = (): void => {
       backdrop.remove();
       document.removeEventListener('keydown', onKeyDown, true);
+      release();
     };
     const onKeyDown = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') {

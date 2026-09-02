@@ -1,5 +1,6 @@
 import {div, h, span} from '../render/dom';
 import {shortcutLabel} from './icons';
+import {trapFocus} from './focusTrap';
 
 interface ShortcutGroup {
   title: string;
@@ -53,6 +54,16 @@ const GROUPS: ShortcutGroup[] = [
     ]
   },
   {
+    title: 'Without a mouse',
+    items: [
+      ['Tab', 'Move between toolbar, palette, structure tree and properties'],
+      ['↑ ↓ in the palette', 'Walk the widget list, Enter adds the focused one'],
+      ['↑ ↓ in the structure', 'Walk the widget tree, Enter selects'],
+      ['← → in the structure', 'Collapse or expand, or step to parent and child'],
+      ['Menu key', 'Open the widget menu on the focused row']
+    ]
+  },
+  {
     title: 'Adding widgets',
     items: [
       ['Click in Elements', 'Add to the current selection'],
@@ -97,9 +108,11 @@ export function showShortcutsDialog(): void {
   backdrop.appendChild(dialog);
   document.body.appendChild(backdrop);
 
+  const release = trapFocus(dialog);
   const close = (): void => {
     backdrop.remove();
     document.removeEventListener('keydown', onKeyDown, true);
+    release();
   };
   const onKeyDown = (event: KeyboardEvent): void => {
     if (event.key === 'Escape') {
