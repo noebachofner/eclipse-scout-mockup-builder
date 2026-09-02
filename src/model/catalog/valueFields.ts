@@ -1,5 +1,5 @@
 import {registerWidgets, type WidgetDef} from './registry';
-import {formFieldDefaults, formFieldProps, GROUP_CONTENT, GROUP_STYLE} from './common';
+import {CLEARABLE_OPTIONS, formFieldDefaults, formFieldProps, GROUP_CONTENT, GROUP_STYLE} from './common';
 import {div, span} from '../../render/dom';
 import {inputField, lines} from '../../render/parts';
 import {renderIcon} from '../../render/icons';
@@ -14,7 +14,9 @@ const ALIGN_OPTIONS = [
 const valueProps = [
   {name: 'displayText', label: 'Display text', type: 'string' as const, group: GROUP_CONTENT, description: 'The value shown in the mockup.'},
   {name: 'placeholder', label: 'Placeholder', type: 'string' as const, group: GROUP_CONTENT},
-  {name: 'readOnly', label: 'Read only', type: 'boolean' as const, group: GROUP_CONTENT}
+  {name: 'readOnly', label: 'Read only', type: 'boolean' as const, group: GROUP_CONTENT},
+  {name: 'clearable', label: 'Clearable', type: 'enum' as const, group: GROUP_CONTENT, options: CLEARABLE_OPTIONS,
+    description: 'When the clear icon is shown (ValueField.clearable).'}
 ];
 
 function styleClass(fieldStyle: string): string {
@@ -160,13 +162,18 @@ const defs: WidgetDef[] = [
     javaClass: 'org.eclipse.scout.rt.client.ui.form.fields.smartfield.AbstractSmartField',
     jsClass: 'SmartField',
     isFormField: true,
-    defaults: formFieldDefaults({label: 'Smart field', displayText: '', browseAutoExpandAll: true, displayStyle: 'default'}),
+    defaults: formFieldDefaults({label: 'Smart field', displayText: '', browseAutoExpandAll: true, displayStyle: 'default', browseMaxRowCount: 100, searchRequired: false, activeFilterEnabled: false, clearable: 'focused'}),
     props: formFieldProps(
       ...valueProps,
       {name: 'displayStyle', label: 'Display style', type: 'enum', group: GROUP_STYLE, options: [
         {value: 'default', label: 'DEFAULT'},
         {value: 'dropdown', label: 'DROPDOWN'}
       ]},
+      {name: 'lookupCall', label: 'Lookup call', type: 'string', group: GROUP_CONTENT, placeholder: 'LocaleLookupCall', description: 'Informational: the lookup call the field would use in Scout.'},
+      {name: 'browseMaxRowCount', label: 'Browse max row count', type: 'number', group: GROUP_CONTENT, min: 1},
+      {name: 'searchRequired', label: 'Search required', type: 'boolean', group: GROUP_CONTENT},
+      {name: 'activeFilterEnabled', label: 'Active filter enabled', type: 'boolean', group: GROUP_CONTENT},
+      {name: 'browseAutoExpandAll', label: 'Browse auto expand all', type: 'boolean', group: GROUP_CONTENT, description: 'Only relevant for a hierarchical (tree) smart field.'},
       {name: 'popupOpen', label: 'Show proposal popup', type: 'boolean', group: GROUP_CONTENT},
       {name: 'proposals', label: 'Proposals (one per line)', type: 'lines', group: GROUP_CONTENT, visibleWhen: p => p.popupOpen === true}
     ),
@@ -202,8 +209,12 @@ const defs: WidgetDef[] = [
     javaClass: 'org.eclipse.scout.rt.client.ui.form.fields.smartfield.AbstractProposalField',
     jsClass: 'ProposalField',
     isFormField: true,
-    defaults: formFieldDefaults({label: 'Proposal field', displayText: ''}),
-    props: formFieldProps(...valueProps),
+    defaults: formFieldDefaults({label: 'Proposal field', displayText: '', maxLength: 4000, trimText: true}),
+    props: formFieldProps(
+      ...valueProps,
+      {name: 'maxLength', label: 'Max length', type: 'number', group: GROUP_CONTENT, min: 1},
+      {name: 'trimText', label: 'Trim text', type: 'boolean', group: GROUP_CONTENT}
+    ),
     slots: [],
     render(ctx, node) {
       return inputField(ctx.prop<string>(node, 'displayText', ''), {

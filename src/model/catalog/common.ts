@@ -54,15 +54,28 @@ export const WIDGET_PROPS: PropDef[] = [
 /** Properties shared by everything deriving from Scout's `FormField`. */
 export const FORM_FIELD_PROPS: PropDef[] = [
   {name: 'label', label: 'Label', type: 'string', group: GROUP_LABEL},
-  {name: 'subLabel', label: 'Sub label', type: 'string', group: GROUP_LABEL},
   {name: 'labelVisible', label: 'Label visible', type: 'boolean', group: GROUP_LABEL},
   {name: 'labelPosition', label: 'Label position', type: 'enum', group: GROUP_LABEL, options: LABEL_POSITION_OPTIONS},
   {name: 'labelWidthInPixel', label: 'Label width (px)', type: 'number', group: GROUP_LABEL, min: -1, description: '0 = Scout default (140px), -1 = use UI width.'},
+  {name: 'labelHtmlEnabled', label: 'Label HTML enabled', type: 'boolean', group: GROUP_LABEL},
   {name: 'mandatory', label: 'Mandatory', type: 'boolean', group: GROUP_STATE},
+  {name: 'loading', label: 'Loading', type: 'boolean', group: GROUP_STATE, description: 'Shows the loading indicator instead of the field content.'},
   {name: 'tooltipText', label: 'Tooltip', type: 'text', group: GROUP_STATE},
+  {name: 'tooltipAnchor', label: 'Tooltip anchor', type: 'enum', group: GROUP_STATE, options: [
+    {value: 'default', label: 'DEFAULT'},
+    {value: 'onField', label: 'ON_FIELD'}
+  ]},
   {name: 'errorStatus', label: 'Status severity', type: 'enum', group: GROUP_STATE, options: SEVERITY_OPTIONS},
   {name: 'errorStatusMessage', label: 'Status message', type: 'string', group: GROUP_STATE, visibleWhen: p => p.errorStatus !== 'none' && p.errorStatus !== undefined},
   {name: 'statusVisible', label: 'Status visible', type: 'boolean', group: GROUP_STATE},
+  {name: 'statusPosition', label: 'Status position', type: 'enum', group: GROUP_STATE, options: [
+    {value: 'default', label: 'DEFAULT'},
+    {value: 'top', label: 'TOP'}
+  ]},
+  {name: 'disabledStyle', label: 'Disabled style', type: 'enum', group: GROUP_STATE, options: [
+    {value: 0, label: 'DEFAULT'},
+    {value: 1, label: 'READ_ONLY'}
+  ], visibleWhen: p => p.enabled === false},
   {name: 'fieldStyle', label: 'Field style', type: 'enum', group: GROUP_STYLE, options: FIELD_STYLE_OPTIONS, description: "Scout's FormField.fieldStyle. ALTERNATIVE draws only an underline and is the framework default."},
   {name: 'fontColor', label: 'Font color', type: 'color', group: GROUP_STYLE},
   {name: 'backgroundColor', label: 'Background color', type: 'color', group: GROUP_STYLE},
@@ -91,8 +104,11 @@ export const FORM_FIELD_DEFAULTS: Record<string, PropertyValue> = {
   labelWidthInPixel: 0,
   mandatory: false,
   statusVisible: true,
+  statusPosition: 'default',
+  tooltipAnchor: 'default',
   errorStatus: 'none',
   fieldStyle: 'alternative',
+  loading: false,
   'gridDataHints.w': 1,
   'gridDataHints.h': 1,
   'gridDataHints.weightX': -1,
@@ -118,3 +134,34 @@ export function formFieldProps(...extra: PropDef[]): PropDef[] {
 export function formFieldDefaults(extra: Record<string, PropertyValue> = {}): Record<string, PropertyValue> {
   return {...FORM_FIELD_DEFAULTS, ...extra};
 }
+
+/** Scout `ValueField.Clearable`. */
+export const CLEARABLE_OPTIONS = [
+  {value: 'focused', label: 'FOCUSED (default)'},
+  {value: 'always', label: 'ALWAYS'},
+  {value: 'never', label: 'NEVER'}
+];
+
+/**
+ * `GroupBox.responsive` is tri-state in Scout: `null` inherits from the parent
+ * form, `true`/`false` force the behaviour for this box and its children.
+ */
+export const RESPONSIVE_OPTIONS = [
+  {value: 'inherit', label: 'null (inherit)'},
+  {value: 'true', label: 'true'},
+  {value: 'false', label: 'false'}
+];
+
+/** Properties every GroupBox-like container adds on top of the form field ones. */
+export const GROUP_BOX_PROPS: PropDef[] = [
+  {name: 'subLabel', label: 'Sub label', type: 'string', group: GROUP_LABEL},
+  {name: 'menuBarVisible', label: 'Menu bar visible', type: 'boolean', group: GROUP_LAYOUT},
+  {
+    name: 'responsive',
+    label: 'Responsive',
+    type: 'enum',
+    group: GROUP_LAYOUT,
+    options: RESPONSIVE_OPTIONS,
+    description: 'Scout moves the labels on top once the box is narrower than it would like to be. `null` inherits the setting from the parent.'
+  }
+];

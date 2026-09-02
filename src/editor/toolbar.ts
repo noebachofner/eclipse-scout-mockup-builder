@@ -5,23 +5,28 @@ import {saveProject, openProject, clearAutosave} from '../io/project';
 import {buildHtmlExport} from '../io/exportHtml';
 import {exportPng} from '../io/exportPng';
 import {downloadBlob, downloadText, sanitizeFileName} from '../io/files';
+import {DropdownMenu, type MenuEntry} from './menu';
+import {editorIcon, shortcutLabel} from './icons';
 
 export interface ToolbarCallbacks {
   notify(message: string, kind?: 'info' | 'error'): void;
   /** Zoom factor at which the whole canvas fits into the visible area. */
   fitZoom(): number;
+  showShortcuts(): void;
 }
 
-const ZOOM_STEPS = [0.5, 0.67, 0.75, 0.9, 1, 1.25, 1.5];
+const ZOOM_STEPS = [0.25, 0.5, 0.67, 0.75, 0.9, 1, 1.25, 1.5, 2];
 
 export class Toolbar {
   readonly element: HTMLElement;
   private readonly status: HTMLElement;
   private readonly undoButton: HTMLButtonElement;
   private readonly redoButton: HTMLButtonElement;
+  private readonly zoomLabel: HTMLElement;
 
   constructor(private store: Store, private callbacks: ToolbarCallbacks) {
     this.element = h('header', 'es-toolbar');
+    this.element.setAttribute('role', 'toolbar');
 
     const brand = div('es-brand');
     brand.appendChild(span('es-brand-mark', 'ES'));
@@ -29,37 +34,47 @@ export class Toolbar {
     brand.title = 'Mockup builder for the Eclipse Scout Framework';
     this.element.appendChild(brand);
 
-    this.element.appendChild(this.group([
-      this.menuButton('New', 'Start from a template', TEMPLATES.map(template => ({
-        label: template.label,
-        description: template.description,
-        action: () => {
-          if (this.store.dirty && !confirm('Start a new mockup? Unsaved changes are lost.')) return;
-          this.store.replace(template.create());
-          clearAutosave();
-          this.callbacks.notify(`New mockup from "${template.label}".`);
-        }
-      }))),
-      this.button('Open…', 'Open an .esmockup file', () => void this.open()),
-      this.button('Save', 'Download the mockup as .esmockup (JSON)', () => this.save())
-    ]));
+    // --- file ---------------------------------------------------------------
+    const fileMenu = new DropdownMenu('File', {
+      icon: 'file',
+      title: 'New, open and save mockups',
+      entries: () => this.fileEntries()
+    });
+    this.element.appendChild(this.group([fileMenu.element]));
 
-    this.undoButton = this.button('Undo', 'Undo (Ctrl+Z)', () => this.store.undo());
-    this.redoButton = this.button('Redo', 'Redo (Ctrl+Shift+Z)', () => this.store.redo());
+    // --- edit ---------------------------------------------------------------
+    this.undoButton = this.iconButton('undo', 'Undo', 'Ctrl+Z', () => this.store.undo());
+    this.redoButton = this.iconButton('redo', 'Redo', 'Ctrl+Shift+Z', () => this.store.redo());
     this.element.appendChild(this.group([this.undoButton, this.redoButton]));
 
-    this.element.appendChild(this.group([
-      this.menuButton('Export', 'Export the mockup', [
-        {label: 'HTML file…', description: 'Standalone .html with all styles and the icon font inlined.', action: () => void this.exportHtml()},
-        {label: 'PNG image (1×)…', description: 'Pixel size equals the canvas size.', action: () => void this.exportPng(1)},
-        {label: 'PNG image (2×)…', description: 'Retina resolution - best for slides and documents.', action: () => void this.exportPng(2)}
-      ])
-    ]));
+    // --- export -------------------------------------------------------------
+    const exportMenu = new DropdownMenu('Export', {
+      icon: 'export',
+      title: 'Export the mockup as HTML or PNG',
+      entries: () => this.exportEntries()
+    });
+    this.element.appendChild(this.group([exportMenu.element]));
 
-    this.element.appendChild(this.zoomControl());
+    // --- zoom ---------------------------------------------------------------
+    const zoomGroup = div('es-toolbar-group es-zoom');
+    zoomGroup.appendChild(this.iconButton('zoomOut', 'Zoom out', '', () => this.stepZoom(-1)));
+    this.zoomLabel = h('button', 'es-zoom-value');
+    (this.zoomLabel as HTMLButtonElement).type = 'button';
+    this.zoomLabel.title = 'Reset to 100%';
+    this.zoomLabel.addEventListener('click', () => this.store.updateCanvas({zoom: 1}));
+    zoomGroup.appendChild(this.zoomLabel);
+    zoomGroup.appendChild(this.iconButton('zoomIn', 'Zoom in', '', () => this.stepZoom(1)));
+    zoomGroup.appendChild(this.iconButton('fit', 'Fit the mockup into the window', '', () => {
+      this.store.updateCanvas({zoom: this.callbacks.fitZoom()});
+    }));
+    this.element.appendChild(zoomGroup);
 
+    // --- right hand side ----------------------------------------------------
     this.status = div('es-status');
     this.element.appendChild(this.status);
+    this.element.appendChild(this.group([
+      this.iconButton('help', 'Keyboard shortcuts and help', '?', () => this.callbacks.showShortcuts())
+    ]));
 
     store.subscribe(() => this.update());
     this.update();
@@ -71,93 +86,109 @@ export class Toolbar {
     return group;
   }
 
-  private button(label: string, title: string, action: () => void): HTMLButtonElement {
-    const button = h('button', 'es-button');
+  private iconButton(icon: string, title: string, shortcut: string, action: () => void): HTMLButtonElement {
+    const button = h('button', 'es-button icon-only');
     button.type = 'button';
-    button.textContent = label;
-    button.title = title;
+    button.title = shortcut ? `${title} (${shortcutLabel(shortcut)})` : title;
+    button.setAttribute('aria-label', title);
+    button.appendChild(editorIcon(icon));
     button.addEventListener('click', action);
     return button;
   }
 
-  private menuButton(
-    label: string,
-    title: string,
-    entries: {label: string; description?: string; action: () => void}[]
-  ): HTMLElement {
-    const wrapper = div('es-menu-button');
-    const button = this.button(label, title, () => {
-      const open = wrapper.classList.toggle('open');
-      if (open) {
-        const close = (event: MouseEvent): void => {
-          if (!wrapper.contains(event.target as Node)) {
-            wrapper.classList.remove('open');
-            document.removeEventListener('mousedown', close);
-          }
-        };
-        document.addEventListener('mousedown', close);
+  /* ------------------------------------------------------------------ menus */
+
+  private fileEntries(): MenuEntry[] {
+    const entries: MenuEntry[] = TEMPLATES.map((template, index) => ({
+      label: `New: ${template.label}`,
+      description: template.description,
+      icon: 'file',
+      separatorBefore: index === 0 ? false : undefined,
+      action: () => {
+        if (this.store.dirty && !confirm('Start a new mockup? Unsaved changes are lost.')) return;
+        this.store.replace(template.create());
+        clearAutosave();
+        this.callbacks.notify(`New mockup from "${template.label}".`);
       }
+    }));
+    entries.push({
+      label: 'Open…',
+      description: 'Open an .esmockup file, or drop one on the window.',
+      icon: 'folderOpen',
+      shortcut: 'Ctrl+O',
+      separatorBefore: true,
+      action: () => void this.open()
     });
-    button.classList.add('with-caret');
-    wrapper.appendChild(button);
-    const menu = div('es-dropdown');
-    for (const entry of entries) {
-      const item = h('button', 'es-dropdown-item');
-      item.type = 'button';
-      item.appendChild(span('es-dropdown-label', entry.label));
-      if (entry.description) item.appendChild(span('es-dropdown-description', entry.description));
-      item.addEventListener('click', () => {
-        wrapper.classList.remove('open');
-        entry.action();
-      });
-      menu.appendChild(item);
-    }
-    wrapper.appendChild(menu);
-    return wrapper;
+    entries.push({
+      label: 'Save',
+      description: 'Download the mockup as .esmockup (JSON).',
+      icon: 'save',
+      shortcut: 'Ctrl+S',
+      action: () => this.save()
+    });
+    return entries;
   }
 
-  private zoomControl(): HTMLElement {
-    const group = div('es-toolbar-group es-zoom');
-    group.appendChild(span('es-zoom-label', 'Zoom'));
-    const select = h('select', 'es-input small');
-    const fit = h('option');
-    fit.value = 'fit';
-    fit.textContent = 'Fit';
-    select.appendChild(fit);
-    for (const zoom of ZOOM_STEPS) {
-      const option = h('option');
-      option.value = String(zoom);
-      option.textContent = `${Math.round(zoom * 100)}%`;
-      select.appendChild(option);
-    }
-    const sync = (): void => {
-      const value = String(this.store.doc.canvas.zoom);
-      if (select.value !== value) select.value = ZOOM_STEPS.includes(this.store.doc.canvas.zoom) ? value : 'fit';
-    };
-    select.value = String(this.store.doc.canvas.zoom);
-    select.addEventListener('change', () => {
-      this.store.updateCanvas({zoom: select.value === 'fit' ? this.callbacks.fitZoom() : Number(select.value)});
-    });
-    this.store.subscribe(sync);
-    sync();
-    group.appendChild(select);
-    return group;
+  private exportEntries(): MenuEntry[] {
+    return [
+      {
+        label: 'HTML file…',
+        description: 'Standalone .html with all styles and the icon font inlined.',
+        icon: 'code',
+        shortcut: 'Ctrl+E',
+        action: () => void this.exportHtml()
+      },
+      {
+        label: 'PNG image, 1×',
+        description: 'Pixel size equals the canvas size.',
+        icon: 'image',
+        separatorBefore: true,
+        action: () => void this.exportPng(1)
+      },
+      {
+        label: 'PNG image, 2×',
+        description: 'Retina resolution - best for slides and documents.',
+        icon: 'image',
+        shortcut: 'Ctrl+Shift+E',
+        action: () => void this.exportPng(2)
+      }
+    ];
+  }
+
+  /* ----------------------------------------------------------------- actions */
+
+  private stepZoom(direction: number): void {
+    const current = this.store.doc.canvas.zoom;
+    const index = ZOOM_STEPS.findIndex(step => step >= current - 0.001);
+    const next = ZOOM_STEPS[Math.min(ZOOM_STEPS.length - 1, Math.max(0, (index < 0 ? ZOOM_STEPS.length - 1 : index) + direction))];
+    this.store.updateCanvas({zoom: next});
   }
 
   private update(): void {
     this.undoButton.disabled = !this.store.canUndo;
     this.redoButton.disabled = !this.store.canRedo;
-    this.status.textContent = `${this.store.doc.meta.name}${this.store.dirty ? ' •' : ''}`;
-    this.status.title = this.store.dirty ? 'Unsaved changes' : 'All changes saved locally';
+    this.zoomLabel.textContent = `${Math.round(this.store.doc.canvas.zoom * 100)}%`;
+
+    this.status.replaceChildren();
+    const name = span('es-status-name', this.store.doc.meta.name);
+    this.status.appendChild(name);
+    if (this.store.dirty) {
+      const dot = span('es-status-dot', '•');
+      dot.title = 'Unsaved changes';
+      this.status.appendChild(dot);
+    }
+    this.status.title = this.store.dirty
+      ? 'Unsaved changes - autosaved in this browser'
+      : 'All changes saved';
   }
 
-  private save(): void {
+  save(): void {
     const fileName = saveProject(this.store.doc);
     this.store.markSaved(fileName);
     this.callbacks.notify(`Saved as ${fileName}.`);
   }
 
-  private async open(): Promise<void> {
+  async open(): Promise<void> {
     try {
       const result = await openProject();
       if (!result) return;
@@ -168,7 +199,7 @@ export class Toolbar {
     }
   }
 
-  private async exportHtml(): Promise<void> {
+  async exportHtml(): Promise<void> {
     try {
       const html = await buildHtmlExport(this.store.doc);
       const fileName = sanitizeFileName(this.store.doc.meta.name, 'html');
@@ -179,7 +210,7 @@ export class Toolbar {
     }
   }
 
-  private async exportPng(scale: number): Promise<void> {
+  async exportPng(scale: number): Promise<void> {
     this.callbacks.notify('Rendering PNG…');
     try {
       const blob = await exportPng(this.store.doc, {scale});

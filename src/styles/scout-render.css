@@ -18,7 +18,7 @@
   font-family: scoutIcons;
   font-weight: normal;
   font-display: block;
-  src: url('/fonts/scoutIcons.woff') format('woff');
+  src: url('../assets/scoutIcons.woff') format('woff');
 }
 
 /* ----------------------------------------------------------------------------
@@ -859,8 +859,15 @@
   }
 }
 
-/* Turned off per document via the "Responsive labels" setting. */
+/* Turned off per document via the "Responsive labels" setting ... */
 .es-mockup-root.no-responsive .logical-grid { container-type: normal; }
+
+/* ... or per group box via Scout's tri-state `GroupBox.responsive`. */
+.logical-grid.responsive-off { container-type: normal; }
+.es-mockup-root.no-responsive .logical-grid.responsive-on {
+  container-type: inline-size;
+  container-name: es-grid;
+}
 
 .logical-grid {
   display: grid;
@@ -873,11 +880,17 @@
   align-content: start;
 }
 
-/* Every cell is at least one logical grid row high, as in Scout. */
+/*
+ * Cells must NOT get a blanket `min-height` here: a specified minimum caps the
+ * item's minimum contribution, which stops CSS grid from growing an `auto`
+ * track to fit taller content and makes widgets overlap the next row. Form
+ * fields carry the logical row height themselves, and widgets spanning several
+ * rows get an inline minimum from the layout code.
+ */
 .logical-grid > * {
-  min-height: var(--es-grid-row-height);
   min-width: 0;
 }
+
 
 .free-form {
   position: relative;
@@ -955,6 +968,43 @@
 .form-field > .status:empty {
   width: 0;
   margin-left: 0;
+}
+
+/* FormField.StatusPosition.TOP puts the status next to the label instead. */
+.form-field.status-position-top.label-position-top > .status,
+.form-field.status-position-top.label-position-default > .status {
+  align-self: start;
+}
+
+/* FormField.loading replaces the field content with Scout's pulsing ring. */
+.form-field.loading > .field {
+  visibility: hidden;
+}
+
+.form-field.loading {
+  position: relative;
+}
+
+.form-field.loading::after {
+  content: '';
+  position: absolute;
+  left: calc(var(--scout-mandatory-indicator-width) + var(--es-label-width) + 6px);
+  top: 4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--scout-busyindicator-color);
+  animation: es-pulsate 2s cubic-bezier(0.5, 0.1, 0.1, 0.5) infinite;
+}
+
+.form-field.loading.label-hidden::after,
+.form-field.label-position-top.loading::after {
+  left: var(--scout-mandatory-indicator-width);
+}
+
+@keyframes es-pulsate {
+  0% { transform: scale(0.6); opacity: 1; }
+  100% { transform: scale(1.2); opacity: 0; }
 }
 
 .form-field > .status.error { color: var(--scout-error-color); }
@@ -1930,6 +1980,23 @@
 
 .menu-item .submenu-icon { font-size: 11px; }
 
+/* Action.ActionStyle.BUTTON renders a menu like a button. */
+.menu-item.menu-button {
+  border: 1px solid var(--scout-button-border-color);
+  border-radius: var(--scout-button-border-radius);
+  padding: var(--scout-button-padding-y) 14px;
+}
+
+.menu-item.text-position-bottom {
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--scout-font-size-small);
+}
+
+.menu-item.text-position-bottom .font-icon {
+  font-size: var(--scout-font-size-icon);
+}
+
 .menu-separator {
   width: 1px;
   height: 15px;
@@ -2098,6 +2165,78 @@
   border: var(--scout-item-selection-border-width) solid var(--scout-item-selection-border-color);
   border-radius: var(--scout-border-radius);
   pointer-events: none;
+}
+
+.table-row.checked {
+  background-color: var(--scout-item-selection-background-color);
+}
+
+.table-cell.multiline {
+  white-space: pre-wrap;
+  overflow: visible;
+}
+
+.table-cell.has-row-icon {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.table-cell > .row-icon {
+  color: var(--scout-text-color-2);
+  font-size: var(--scout-font-size-icon-small);
+}
+
+.table-aggregate-row {
+  display: grid;
+  align-items: stretch;
+  font-weight: bold;
+  background-color: var(--scout-panel-background-color);
+}
+
+.table-aggregate-row > .table-cell {
+  border-bottom: 0;
+  border-top: 1px solid var(--scout-border-color);
+}
+
+.table-header.disabled > .table-header-item {
+  cursor: default;
+}
+
+.table-filter-field {
+  position: absolute;
+  right: var(--scout-filter-field-right);
+  bottom: var(--scout-filter-field-bottom);
+  width: var(--scout-filter-field-width);
+  background-color: var(--scout-background-color);
+  margin: 0;
+}
+
+.table {
+  position: relative;
+}
+
+/* Table.compact collapses every column into one cell per row. */
+.table.compact .table-header { display: none; }
+
+.table.compact .table-row,
+.table.compact .table-aggregate-row {
+  display: block;
+}
+
+.table.compact .table-cell {
+  display: inline;
+  padding: 0 6px 0 0;
+  border-bottom: 0;
+}
+
+.table.compact .table-row {
+  padding: var(--scout-table-row-padding-y) 10px;
+  border-bottom: 1px solid var(--scout-table-row-border-color);
+}
+
+.group-box-notification {
+  padding: 8px 0 0 var(--scout-mandatory-indicator-width);
 }
 
 .table-empty {
@@ -2675,4 +2814,193 @@
   border-radius: var(--scout-border-radius);
   color: var(--scout-error-color);
   font-size: var(--scout-font-size-smaller);
+}
+
+/* ----------------------------------------------------------------------------
+ * Popups, tooltips and the heat map (widgets demo modules)
+ * ------------------------------------------------------------------------- */
+.desktop-popups {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 25;
+}
+
+.widget-popup {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  pointer-events: auto;
+  background-color: var(--scout-background-color);
+  border-radius: var(--scout-border-radius-medium);
+  box-shadow: 0 var(--scout-drop-shadow-large-y) var(--scout-drop-shadow-large-blur) rgba(0, 0, 0, var(--scout-drop-shadow-large-alpha));
+  overflow: hidden;
+}
+
+.widget-popup-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--scout-border-color);
+}
+
+.widget-popup-title {
+  flex: 1 1 auto;
+  font-weight: bold;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.widget-popup-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px;
+}
+
+.widget-popup-content {
+  white-space: pre-wrap;
+  color: var(--scout-text-color-1);
+}
+
+.widget-popup-resize-handle {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  width: 10px;
+  height: 10px;
+  border-right: 2px solid var(--scout-palette-gray-5);
+  border-bottom: 2px solid var(--scout-palette-gray-5);
+}
+
+.tooltip {
+  position: absolute;
+  pointer-events: auto;
+  max-width: 300px;
+  padding: 8px 12px;
+  border-radius: var(--scout-border-radius);
+  background-color: var(--scout-tooltip-background-color, var(--scout-palette-gray-9));
+  color: var(--scout-palette-white);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  white-space: normal;
+}
+
+.tooltip.severity-error {
+  background-color: var(--scout-error-color);
+}
+
+.tooltip-arrow {
+  position: absolute;
+  width: 0;
+  height: 0;
+  border: 7px solid transparent;
+}
+
+.tooltip.arrow-bottom .tooltip-arrow {
+  bottom: -14px;
+  left: 16px;
+  border-top-color: var(--scout-tooltip-background-color, var(--scout-palette-gray-9));
+}
+
+.tooltip.arrow-top .tooltip-arrow {
+  top: -14px;
+  left: 16px;
+  border-bottom-color: var(--scout-tooltip-background-color, var(--scout-palette-gray-9));
+}
+
+.tooltip.arrow-left .tooltip-arrow {
+  left: -14px;
+  top: 12px;
+  border-right-color: var(--scout-tooltip-background-color, var(--scout-palette-gray-9));
+}
+
+.tooltip.arrow-right .tooltip-arrow {
+  right: -14px;
+  top: 12px;
+  border-left-color: var(--scout-tooltip-background-color, var(--scout-palette-gray-9));
+}
+
+.tooltip.severity-error.arrow-bottom .tooltip-arrow { border-top-color: var(--scout-error-color); }
+.tooltip.severity-error.arrow-top .tooltip-arrow { border-bottom-color: var(--scout-error-color); }
+.tooltip.severity-error.arrow-left .tooltip-arrow { border-right-color: var(--scout-error-color); }
+.tooltip.severity-error.arrow-right .tooltip-arrow { border-left-color: var(--scout-error-color); }
+
+.heatmap-field-box {
+  height: 100%;
+  min-height: 200px;
+  border: 1px solid var(--scout-border-color);
+  border-radius: var(--scout-border-radius);
+  overflow: hidden;
+}
+
+.heatmap-map {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background-color: #e8e5dd;
+  overflow: hidden;
+}
+
+/* A stylised map ground - a mockup never loads real tiles. */
+.heatmap-tiles {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.55) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.55) 1px, transparent 1px),
+    radial-gradient(circle at 22% 30%, #cfe0c3 0 12%, transparent 13%),
+    radial-gradient(circle at 68% 62%, #cfe0c3 0 16%, transparent 17%),
+    radial-gradient(circle at 82% 18%, #bcd3e8 0 10%, transparent 11%);
+  background-size: 42px 42px, 42px 42px, 100% 100%, 100% 100%, 100% 100%;
+}
+
+.heat-point {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle,
+    rgba(255, 60, 0, calc(0.85 * var(--heat, 0.8))) 0%,
+    rgba(255, 200, 0, calc(0.55 * var(--heat, 0.8))) 35%,
+    rgba(80, 120, 255, calc(0.35 * var(--heat, 0.8))) 65%,
+    transparent 72%);
+  pointer-events: none;
+}
+
+.heatmap-zoom {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--scout-border-radius);
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.heatmap-zoom-button {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--scout-background-color);
+  color: var(--scout-text-color-1);
+  font-size: var(--scout-font-size-large);
+}
+
+.heatmap-zoom-button + .heatmap-zoom-button {
+  border-top: 1px solid var(--scout-border-color);
+}
+
+.heatmap-attribution {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  padding: 1px 5px;
+  background-color: rgba(255, 255, 255, 0.75);
+  color: var(--scout-text-color-2);
+  font-size: var(--scout-font-size-extra-small);
 }

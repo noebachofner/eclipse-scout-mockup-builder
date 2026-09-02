@@ -15,6 +15,9 @@ const require = createRequire(import.meta.url);
 const {build} = await import('vite');
 const bundle = await build({
   logLevel: 'silent',
+  // Ignore the app's vite.config.ts: its manual chunking would split this
+  // single module into two files and break the data-URI import below.
+  configFile: false,
   build: {
     write: false,
     lib: {entry: 'src/render/colorSystem.ts', formats: ['es'], fileName: 'cs'},

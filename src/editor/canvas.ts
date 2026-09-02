@@ -10,6 +10,31 @@ import {div} from '../render/dom';
 
 export const DRAG_MIME = 'application/x-es-mockup-widget';
 
+/** Resize handles, named after the compass direction they sit on. */
+export const RESIZE_HANDLES = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'] as const;
+export type ResizeHandle = (typeof RESIZE_HANDLES)[number];
+type FreeDragMode = ResizeHandle | 'move';
+
+interface FreeBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+interface FreeDrag {
+  nodeId: string;
+  mode: FreeDragMode;
+  startX: number;
+  startY: number;
+  origin: FreeBounds;
+}
+
+/** Free placement snaps to this grid unless Alt is held. */
+const FREE_SNAP = 5;
+const FREE_MIN_WIDTH = 40;
+const FREE_MIN_HEIGHT = 24;
+
 interface DragPayload {
   objectType: string;
   /** Set when an existing node is being moved rather than a new one created. */
@@ -29,7 +54,7 @@ export class Canvas {
   private readonly hint: HTMLElement;
   private nodeElements = new Map<string, HTMLElement>();
   private dragPayload: DragPayload | null = null;
-  private freeDrag: {nodeId: string; mode: 'move' | 'resize'; startX: number; startY: number; origin: {x: number; y: number; width: number; height: number}} | null = null;
+  private freeDrag: FreeDrag | null = null;
 
   constructor(private store: Store) {
     this.element = div('es-canvas');
@@ -50,7 +75,9 @@ export class Canvas {
   }
 
   private attachEvents(): void {
-    this.host.addEventListener('pointerdown', e => this.onPointerDown(e));
+    // Listen on the page, not on the host: the resize handles live in the
+    // overlay, which is a sibling of the host.
+    this.page.addEventListener('pointerdown', e => this.onPointerDown(e));
     this.element.addEventListener('dragover', e => this.onDragOver(e));
     this.element.addEventListener('dragleave', e => this.onDragLeave(e));
     this.element.addEventListener('drop', e => this.onDrop(e));
@@ -112,7 +139,13 @@ export class Canvas {
 
     if (this.isFreeFormChild(node)) {
       box.classList.add('free-form');
-      box.appendChild(div('es-resize-handle'));
+      for (const handle of RESIZE_HANDLES) {
+        const el = div(`es-resize-handle es-handle-${handle}`);
+        el.dataset.handle = handle;
+        box.appendChild(el);
+      }
+      const badge = div('es-size-badge', `${Math.round(rect.width / zoom)} × ${Math.round(rect.height / zoom)}`);
+      box.appendChild(badge);
     }
     this.overlay.appendChild(box);
   }
@@ -132,13 +165,14 @@ export class Canvas {
   }
 
   private onPointerDown(event: PointerEvent): void {
-    const handle = event.target instanceof HTMLElement ? event.target.closest('.es-resize-handle') : null;
+    const handle = event.target instanceof HTMLElement ? event.target.closest<HTMLElement>('.es-resize-handle') : null;
     const chain = this.nodeChainAt(event.target);
     const node = chain[chain.length - 1];
 
     if (handle && this.store.selectedId) {
       const selected = findNode(this.store.doc.root, this.store.selectedId);
-      if (selected) this.startFreeDrag(selected, 'resize', event);
+      const direction = handle.dataset.handle as ResizeHandle | undefined;
+      if (selected && direction) this.startFreeDrag(selected, direction, event);
       return;
     }
     if (!node) {
@@ -149,7 +183,7 @@ export class Canvas {
     if (this.isFreeFormChild(node)) this.startFreeDrag(node, 'move', event);
   }
 
-  private startFreeDrag(node: MockupNode, mode: 'move' | 'resize', event: PointerEvent): void {
+  private startFreeDrag(node: MockupNode, mode: FreeDragMode, event: PointerEvent): void {
     const el = this.nodeElements.get(node.id);
     if (!el) return;
     event.preventDefault();
@@ -165,27 +199,74 @@ export class Canvas {
         height: Number(node.properties['bounds.height'] ?? el.offsetHeight)
       }
     };
+    document.body.classList.add('es-dragging');
+    this.element.style.cursor = mode === 'move' ? 'grabbing' : `${mode}-resize`;
   }
 
   private onPointerMove(event: PointerEvent): void {
     if (!this.freeDrag) return;
-    const zoom = this.store.doc.canvas.zoom || 1;
-    const dx = (event.clientX - this.freeDrag.startX) / zoom;
-    const dy = (event.clientY - this.freeDrag.startY) / zoom;
     const el = this.nodeElements.get(this.freeDrag.nodeId);
     if (!el) return;
-    const {origin, mode} = this.freeDrag;
-    if (mode === 'move') {
-      el.style.left = `${Math.round(origin.x + dx)}px`;
-      el.style.top = `${Math.round(origin.y + dy)}px`;
-    } else {
-      el.style.width = `${Math.max(40, Math.round(origin.width + dx))}px`;
-      el.style.height = `${Math.max(24, Math.round(origin.height + dy))}px`;
-    }
-    this.updateSelectionBoxFrom(el);
+    const bounds = this.computeDragBounds(event);
+    el.style.left = `${bounds.x}px`;
+    el.style.top = `${bounds.y}px`;
+    el.style.width = `${bounds.width}px`;
+    el.style.height = `${bounds.height}px`;
+    this.updateSelectionBoxFrom(el, bounds);
   }
 
-  private updateSelectionBoxFrom(el: HTMLElement): void {
+  /**
+   * Position and size while dragging. Movement snaps to a small grid so
+   * free-form sketches stay tidy; holding Alt drags pixel by pixel.
+   */
+  private computeDragBounds(event: PointerEvent): FreeBounds {
+    const drag = this.freeDrag!;
+    const zoom = this.store.doc.canvas.zoom || 1;
+    const step = event.altKey ? 1 : FREE_SNAP;
+    const snap = (value: number): number => Math.round(value / step) * step;
+    const dx = (event.clientX - drag.startX) / zoom;
+    const dy = (event.clientY - drag.startY) / zoom;
+    const {origin, mode} = drag;
+
+    if (mode === 'move') {
+      return {
+        x: Math.max(0, snap(origin.x + dx)),
+        y: Math.max(0, snap(origin.y + dy)),
+        width: origin.width,
+        height: origin.height
+      };
+    }
+
+    let {x, y, width, height} = origin;
+    if (mode.includes('e')) width = origin.width + dx;
+    if (mode.includes('s')) height = origin.height + dy;
+    if (mode.includes('w')) {
+      width = origin.width - dx;
+      x = origin.x + dx;
+    }
+    if (mode.includes('n')) {
+      height = origin.height - dy;
+      y = origin.y + dy;
+    }
+
+    // Clamp against the minimum size, keeping the opposite edge in place.
+    if (width < FREE_MIN_WIDTH) {
+      if (mode.includes('w')) x = origin.x + origin.width - FREE_MIN_WIDTH;
+      width = FREE_MIN_WIDTH;
+    }
+    if (height < FREE_MIN_HEIGHT) {
+      if (mode.includes('n')) y = origin.y + origin.height - FREE_MIN_HEIGHT;
+      height = FREE_MIN_HEIGHT;
+    }
+    return {
+      x: Math.max(0, snap(x)),
+      y: Math.max(0, snap(y)),
+      width: snap(width),
+      height: snap(height)
+    };
+  }
+
+  private updateSelectionBoxFrom(el: HTMLElement, bounds?: FreeBounds): void {
     const box = this.overlay.querySelector<HTMLElement>('.es-selection-box');
     if (!box) return;
     const pageRect = this.page.getBoundingClientRect();
@@ -195,6 +276,12 @@ export class Canvas {
     box.style.top = `${(rect.top - pageRect.top) / zoom}px`;
     box.style.width = `${rect.width / zoom}px`;
     box.style.height = `${rect.height / zoom}px`;
+    const badge = box.querySelector('.es-size-badge');
+    if (badge) {
+      badge.textContent = bounds
+        ? `${Math.round(bounds.width)} × ${Math.round(bounds.height)}`
+        : `${Math.round(rect.width / zoom)} × ${Math.round(rect.height / zoom)}`;
+    }
   }
 
   private onPointerUp(): void {
@@ -202,18 +289,56 @@ export class Canvas {
     const {nodeId, mode} = this.freeDrag;
     const el = this.nodeElements.get(nodeId);
     this.freeDrag = null;
+    document.body.classList.remove('es-dragging');
+    this.element.style.cursor = '';
     if (!el) return;
-    if (mode === 'move') {
-      this.store.setProperties(nodeId, {
-        'bounds.x': parseInt(el.style.left, 10) || 0,
-        'bounds.y': parseInt(el.style.top, 10) || 0
+    const bounds = {
+      'bounds.x': parseInt(el.style.left, 10) || 0,
+      'bounds.y': parseInt(el.style.top, 10) || 0,
+      'bounds.width': parseInt(el.style.width, 10) || FREE_MIN_WIDTH,
+      'bounds.height': parseInt(el.style.height, 10) || FREE_MIN_HEIGHT
+    };
+    // A pure move must not touch the size, and vice versa, so that a stray
+    // pixel from the measured layout never sneaks into the document.
+    this.store.setProperties(nodeId, mode === 'move'
+      ? {'bounds.x': bounds['bounds.x'], 'bounds.y': bounds['bounds.y']}
+      : bounds);
+  }
+
+  /**
+   * Arrow keys nudge the selected free-form widget, Shift+arrows resize it.
+   * Returns true when the key was consumed.
+   */
+  nudgeSelection(key: string, resize: boolean, coarse: boolean): boolean {
+    const id = this.store.selectedId;
+    if (!id) return false;
+    const node = findNode(this.store.doc.root, id);
+    if (!node || !this.isFreeFormChild(node)) return false;
+    const el = this.nodeElements.get(id);
+    if (!el) return false;
+
+    const step = coarse ? FREE_SNAP : 1;
+    const dx = key === 'ArrowLeft' ? -step : key === 'ArrowRight' ? step : 0;
+    const dy = key === 'ArrowUp' ? -step : key === 'ArrowDown' ? step : 0;
+    if (!dx && !dy) return false;
+
+    const x = Number(node.properties['bounds.x'] ?? el.offsetLeft);
+    const y = Number(node.properties['bounds.y'] ?? el.offsetTop);
+    const width = Number(node.properties['bounds.width'] ?? el.offsetWidth);
+    const height = Number(node.properties['bounds.height'] ?? el.offsetHeight);
+
+    if (resize) {
+      this.store.setProperties(id, {
+        'bounds.width': Math.max(FREE_MIN_WIDTH, width + dx),
+        'bounds.height': Math.max(FREE_MIN_HEIGHT, height + dy)
       });
     } else {
-      this.store.setProperties(nodeId, {
-        'bounds.width': parseInt(el.style.width, 10) || 200,
-        'bounds.height': parseInt(el.style.height, 10) || 30
+      this.store.setProperties(id, {
+        'bounds.x': Math.max(0, x + dx),
+        'bounds.y': Math.max(0, y + dy)
       });
     }
+    return true;
   }
 
   private clearDropHighlight(): void {
@@ -312,6 +437,35 @@ export class Canvas {
     }
     if (!insertBefore) return parent.children.length;
     return parent.children.indexOf(insertBefore);
+  }
+
+  /**
+   * Reads the rendered position and size of every child of `parentId`, relative
+   * to that parent. Used when a container is switched to free placement so the
+   * children keep the position the logical grid gave them instead of all
+   * collapsing onto the same default spot.
+   */
+  measureChildBounds(parentId: string): Record<string, Record<string, number>> {
+    const parent = findNode(this.store.doc.root, parentId);
+    const parentEl = this.nodeElements.get(parentId);
+    if (!parent || !parentEl) return {};
+    // The children sit in the container's body, not in its outer element.
+    const body = parentEl.querySelector<HTMLElement>('.logical-grid, .free-form') ?? parentEl;
+    const bodyRect = body.getBoundingClientRect();
+    const zoom = this.store.doc.canvas.zoom || 1;
+    const result: Record<string, Record<string, number>> = {};
+    for (const child of parent.children) {
+      const el = this.nodeElements.get(child.id);
+      if (!el) continue;
+      const rect = el.getBoundingClientRect();
+      result[child.id] = {
+        'bounds.x': Math.round((rect.left - bodyRect.left) / zoom),
+        'bounds.y': Math.round((rect.top - bodyRect.top) / zoom),
+        'bounds.width': Math.round(rect.width / zoom),
+        'bounds.height': Math.round(rect.height / zoom)
+      };
+    }
+    return result;
   }
 
   /** Zoom factor at which the whole mockup fits into the visible canvas area. */

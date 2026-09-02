@@ -103,7 +103,8 @@ const defs: WidgetDef[] = [
       {name: 'views', label: 'Views (bench)', accepts: ['Form'], layout: 'stack'},
       {name: 'toolMenus', label: 'Tool box menus', accepts: ['Menu'], layout: 'inline'},
       {name: 'notifications', label: 'Notifications', accepts: ['Notification'], layout: 'stack'},
-      {name: 'dialogs', label: 'Dialogs & message boxes', accepts: ['Form', 'MessageBox'], layout: 'stack'}
+      {name: 'dialogs', label: 'Dialogs & message boxes', accepts: ['Form', 'MessageBox'], layout: 'stack'},
+      {name: 'popups', label: 'Popups & tooltips', accepts: ['Popup', 'Tooltip'], layout: 'stack'}
     ],
     render(ctx, node) {
       const navigationVisible = ctx.prop<boolean>(node, 'navigationVisible', true)
@@ -253,6 +254,14 @@ const defs: WidgetDef[] = [
           bench.appendChild(content);
         }
         desktop.appendChild(bench);
+      }
+
+      // Popups float above the desktop without dimming it, unlike a dialog.
+      const popups = ctx.renderSlot(node, 'popups');
+      if (popups.length) {
+        const layer = div('desktop-popups');
+        popups.forEach(popup => layer.appendChild(popup));
+        desktop.appendChild(layer);
       }
 
       const dialogs = ctx.childrenOf(node, 'dialogs');

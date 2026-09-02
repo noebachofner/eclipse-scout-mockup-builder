@@ -129,6 +129,22 @@ export class Store {
     });
   }
 
+  /**
+   * Applies a property to `nodeId` and, in the same undo step, properties to a
+   * set of other nodes. Used when switching a container to free placement,
+   * which has to seed the children's bounds at the same time.
+   */
+  setPropertyWithChildren(nodeId: string, name: string, value: PropertyValue, children: Record<string, Record<string, PropertyValue>>): void {
+    this.update(doc => {
+      const target = findNode(doc.root, nodeId);
+      if (target) target.properties[name] = value;
+      for (const [childId, props] of Object.entries(children)) {
+        const child = findNode(doc.root, childId);
+        if (child) Object.assign(child.properties, props);
+      }
+    });
+  }
+
   setProperties(nodeId: string, values: Record<string, PropertyValue>): void {
     this.update(doc => {
       const target = findNode(doc.root, nodeId);

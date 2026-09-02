@@ -276,6 +276,13 @@ export function widgetGalleryTemplate(name = 'Widget gallery'): MockupDocument {
               ]},
               {objectType: 'Group', slot: 'groups', properties: {title: 'Address', collapsed: true}}
             ]},
+            {objectType: 'TileAccordion', slot: 'fields', properties: {'gridDataHints.h': 7, gridColumnCount: 3}, children: [
+              {objectType: 'Group', slot: 'groups', properties: {title: 'Favourites', subTitle: '2 tiles'}, children: [
+                {objectType: 'Tile', slot: 'tiles', properties: {title: 'Open orders', content: '17'}},
+                {objectType: 'Tile', slot: 'tiles', properties: {title: 'Revenue', content: "1'250'000", colorScheme: 'default-inverted'}}
+              ]},
+              {objectType: 'Group', slot: 'groups', properties: {title: 'Archive', collapsed: true}}
+            ]},
             {objectType: 'Carousel', slot: 'fields', properties: {'gridDataHints.h': 4}},
             {objectType: 'SplitBox', slot: 'fields', properties: {'gridDataHints.h': 6}, children: [
               {objectType: 'GroupBox', slot: 'fields', properties: {label: 'Left', gridColumnCount: 1}, children: [
@@ -297,10 +304,13 @@ export function widgetGalleryTemplate(name = 'Widget gallery'): MockupDocument {
             {objectType: 'ChartField', slot: 'fields', properties: {labelVisible: false, chartType: 'pie', 'gridDataHints.h': 6, series: 'Share|35, 25, 22, 18', categories: 'North, South, East, West'}},
             {objectType: 'ChartField', slot: 'fields', properties: {labelVisible: false, chartType: 'doughnut', 'gridDataHints.h': 6, series: 'Share|40, 30, 30', categories: 'Web, Mobile, Desk'}},
             {objectType: 'BrowserField', slot: 'fields', properties: {labelVisible: false, 'gridDataHints.w': 2, 'gridDataHints.h': 4}},
-            {objectType: 'ClipboardField', slot: 'fields', properties: {label: 'Clipboard', 'gridDataHints.w': 2, 'gridDataHints.h': 3}}
+            {objectType: 'ClipboardField', slot: 'fields', properties: {label: 'Clipboard', 'gridDataHints.w': 2, 'gridDataHints.h': 3}},
+            {objectType: 'HeatmapField', slot: 'fields', properties: {'gridDataHints.w': 2, 'gridDataHints.h': 8}}
           ]
         },
         {objectType: 'Notification', slot: 'notifications', properties: {severity: 'info', message: 'This gallery shows one instance of every widget in the catalog.'}},
+        {objectType: 'Popup', slot: 'popups', properties: {title: 'Popup', content: 'Floating panel - it does not dim the desktop.', 'bounds.x': 980, 'bounds.y': 620}},
+        {objectType: 'Tooltip', slot: 'popups', properties: {text: 'Tooltips explain a field or a menu.', 'bounds.x': 980, 'bounds.y': 830}},
         {objectType: 'Menu', slot: 'toolMenus', properties: {text: '', iconId: 'search'}},
         {objectType: 'Menu', slot: 'toolMenus', properties: {text: '', iconId: 'star'}},
         {objectType: 'Menu', slot: 'toolMenus', properties: {text: '', iconId: 'person-solid'}}

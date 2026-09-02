@@ -1,0 +1,10 @@
+# Build inputs and development tooling - none of this is needed to build or
+# serve the app, and leaving it out keeps the upload and the install small.
+.scout/
+tools/dev/
+docs/
+e2e-out/
+gallery/
+screenshot*.png
+*.tgz
+.git/

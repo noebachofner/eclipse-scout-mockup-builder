@@ -101,6 +101,8 @@ export function renderFormField(ctx: RenderContext, node: MockupNode, def: Widge
   if (mandatory) root.classList.add('mandatory');
   if (!enabled) root.classList.add('disabled');
   if (ctx.prop<boolean>(node, 'readOnly', false)) root.classList.add('read-only');
+  if (ctx.prop<boolean>(node, 'loading', false)) root.classList.add('loading');
+  if (ctx.prop<string>(node, 'statusPosition', 'default') === 'top') root.classList.add('status-position-top');
   if (severity && severity !== 'none') root.classList.add('has-' + severity);
   if (!labelVisible || labelPosition === 2) root.classList.add('label-hidden');
 
