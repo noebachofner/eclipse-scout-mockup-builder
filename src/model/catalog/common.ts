@@ -82,7 +82,7 @@ export const FORM_FIELD_PROPS: PropDef[] = [
 ];
 
 export const GRID_PROPS: PropDef[] = [
-  {name: 'gridDataHints.w', label: 'Grid width (w)', type: 'number', group: GROUP_GRID, min: 1, max: 12, description: 'How many logical grid columns the field spans.'},
+  {name: 'gridDataHints.w', label: 'Grid width (w)', type: 'number', group: GROUP_GRID, min: 0, max: 12, description: 'How many logical grid columns the field spans. 0 is Scout\'s FULL_WIDTH: as many as the container has.'},
   {name: 'gridDataHints.h', label: 'Grid height (h)', type: 'number', group: GROUP_GRID, min: 1, max: 20, description: 'How many logical grid rows the field spans.'},
   {name: 'gridDataHints.weightX', label: 'Weight X', type: 'number', group: GROUP_GRID, min: -1, step: 0.1, description: '-1 lets Scout compute the weight (w > 1 grows, w = 1 does not).'},
   {name: 'gridDataHints.weightY', label: 'Weight Y', type: 'number', group: GROUP_GRID, min: -1, step: 0.1, description: '-1 lets Scout compute the weight; > 0 makes the row absorb extra height.'},

@@ -1,7 +1,7 @@
 import {registerWidgets, type RenderContext, type WidgetDef} from './registry';
 import {formFieldDefaults, formFieldProps, GROUP_BOX_PROPS, GROUP_CONTENT, GROUP_LAYOUT, GROUP_STYLE, WIDGET_DEFAULTS, WIDGET_PROPS} from './common';
 import {div, span} from '../../render/dom';
-import {renderFreeForm, renderLogicalGrid} from '../../render/layout';
+import {FULL_WIDTH, INHERIT_COLUMN_COUNT, renderFreeForm, renderLogicalGrid, resolveColumnCount} from '../../render/layout';
 import type {MockupNode} from '../types';
 import {renderIcon} from '../../render/icons';
 
@@ -13,7 +13,7 @@ export const LAYOUT_MODE_OPTIONS = [
 ];
 
 const LAYOUT_PROPS = [
-  {name: 'gridColumnCount', label: 'Grid column count', type: 'number' as const, group: GROUP_LAYOUT, min: 1, max: 12, description: "Scout's GroupBox.gridColumnCount - how many logical columns the body has."},
+  {name: 'gridColumnCount', label: 'Grid column count', type: 'number' as const, group: GROUP_LAYOUT, min: -1, max: 12, description: "Scout's GroupBox.gridColumnCount - how many logical columns the body has. -1 inherits from the nearest ancestor group box, falling back to 2."},
   {
     name: 'layoutMode',
     label: 'Layout mode',
@@ -32,7 +32,7 @@ export function renderBody(ctx: RenderContext, node: MockupNode, body: HTMLEleme
   if (ctx.prop<string>(node, 'layoutMode', 'grid') === 'free') {
     renderFreeForm(ctx, body, node, children);
   } else {
-    renderLogicalGrid(ctx, body, node, children, Number(ctx.prop<number>(node, 'gridColumnCount', 2)));
+    renderLogicalGrid(ctx, body, node, children, resolveColumnCount(ctx, node));
   }
   if (!children.length) body.classList.add('empty-container');
   return body;
@@ -61,9 +61,11 @@ const defs: WidgetDef[] = [
     jsClass: 'GroupBox',
     isFormField: true,
     defaults: formFieldDefaults({
+      'gridDataHints.useUiHeight': true,
+      'gridDataHints.w': FULL_WIDTH,
       label: 'Group box',
       labelVisible: true,
-      gridColumnCount: 2,
+      gridColumnCount: INHERIT_COLUMN_COUNT,
       layoutMode: 'grid',
       borderVisible: true,
       borderDecoration: 'auto',
@@ -74,8 +76,7 @@ const defs: WidgetDef[] = [
       menuBarEllipsisPosition: 'right',
       responsive: 'inherit',
       notificationSeverity: 'info',
-      'gridDataHints.w': 2,
-      'gridDataHints.h': 2
+      'gridDataHints.h': 1,
     }),
     props: formFieldProps(
       ...GROUP_BOX_PROPS,
@@ -186,11 +187,12 @@ const defs: WidgetDef[] = [
     jsClass: 'TabBox',
     isFormField: true,
     defaults: formFieldDefaults({
+      'gridDataHints.useUiHeight': true,
+      'gridDataHints.w': FULL_WIDTH,
       label: '',
       labelVisible: false,
       selectedTab: 0,
-      'gridDataHints.w': 2,
-      'gridDataHints.h': 6
+      'gridDataHints.h': 1,
     }),
     props: formFieldProps(
       {name: 'selectedTab', label: 'Selected tab index', type: 'number', group: GROUP_CONTENT, min: 0}
@@ -199,7 +201,7 @@ const defs: WidgetDef[] = [
       {name: 'tabItems', label: 'Tabs', accepts: ['TabItem'], layout: 'stack'},
       {name: 'menus', label: 'Menus', accepts: ['Menu'], layout: 'inline'}
     ],
-    defaultGridH: 6,
+    defaultGridH: 1,
     render(ctx, node) {
       const root = div('tab-box');
       const tabs = ctx.childrenOf(node, 'tabItems');
@@ -238,7 +240,7 @@ const defs: WidgetDef[] = [
     javaClass: 'org.eclipse.scout.rt.client.ui.form.fields.tabbox.AbstractTabItem',
     jsClass: 'TabItem',
     isFormField: false,
-    defaults: {...WIDGET_DEFAULTS, label: 'Tab', gridColumnCount: 2, layoutMode: 'grid', subLabel: ''},
+    defaults: {...WIDGET_DEFAULTS, label: 'Tab', gridColumnCount: INHERIT_COLUMN_COUNT, layoutMode: 'grid', subLabel: ''},
     props: [
       ...WIDGET_PROPS,
       {name: 'label', label: 'Title', type: 'string', group: GROUP_CONTENT},
@@ -291,12 +293,13 @@ const defs: WidgetDef[] = [
     jsClass: 'SplitBox',
     isFormField: true,
     defaults: formFieldDefaults({
+      'gridDataHints.useUiHeight': true,
+      'gridDataHints.w': FULL_WIDTH,
       label: '',
       labelVisible: false,
       splitHorizontal: true,
       splitterPosition: 0.5,
-      'gridDataHints.w': 2,
-      'gridDataHints.h': 6
+      'gridDataHints.h': 1,
     }),
     props: formFieldProps(
       {name: 'splitHorizontal', label: 'Split horizontally', type: 'boolean', group: GROUP_LAYOUT, description: 'Scout: true places the fields next to each other.'},
@@ -304,7 +307,7 @@ const defs: WidgetDef[] = [
       {name: 'splitterEnabled', label: 'Splitter enabled', type: 'boolean', group: GROUP_LAYOUT}
     ),
     slots: [{name: 'fields', label: 'Fields', accepts: FIELD_TYPES, layout: 'stack', max: 2}],
-    defaultGridH: 6,
+    defaultGridH: 1,
     render(ctx, node) {
       const horizontal = ctx.prop<boolean>(node, 'splitHorizontal', true);
       const position = Math.min(0.95, Math.max(0.05, Number(ctx.prop<number>(node, 'splitterPosition', 0.5))));
@@ -355,7 +358,9 @@ const defs: WidgetDef[] = [
     javaClass: 'org.eclipse.scout.rt.client.ui.form.fields.wrappedform.AbstractWrappedFormField',
     jsClass: 'WrappedFormField',
     isFormField: true,
-    defaults: formFieldDefaults({label: 'Wrapped form', labelVisible: false, gridColumnCount: 2, layoutMode: 'grid', 'gridDataHints.w': 2, 'gridDataHints.h': 4}),
+    defaults: formFieldDefaults({
+      'gridDataHints.useUiHeight': true,
+      'gridDataHints.weightY': 1,label: 'Wrapped form', labelVisible: false, gridColumnCount: 2, layoutMode: 'grid', 'gridDataHints.w': 2, 'gridDataHints.h': 4}),
     props: formFieldProps(...LAYOUT_PROPS, {name: 'formTitle', label: 'Embedded form title', type: 'string', group: GROUP_CONTENT}),
     slots: [{name: 'fields', label: 'Fields', accepts: FIELD_TYPES, layout: 'grid'}],
     defaultGridH: 4,

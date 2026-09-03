@@ -46,8 +46,7 @@ export function defaultDesktopTemplate(name = 'New mockup'): MockupDocument {
               slot: 'fields',
               properties: {
                 label: 'Personal data',
-                gridColumnCount: 2,
-                'gridDataHints.w': 2
+                gridColumnCount: 2
               },
               children: [
                 {objectType: 'StringField', slot: 'fields', properties: {label: 'First name', displayText: 'Ada', mandatory: true}},
@@ -65,7 +64,7 @@ export function defaultDesktopTemplate(name = 'New mockup'): MockupDocument {
             {
               objectType: 'TabBox',
               slot: 'fields',
-              properties: {'gridDataHints.w': 2, 'gridDataHints.h': 8, selectedTab: 0},
+              properties: {'gridDataHints.h': 8, selectedTab: 0},
               children: [
                 {
                   objectType: 'TabItem',

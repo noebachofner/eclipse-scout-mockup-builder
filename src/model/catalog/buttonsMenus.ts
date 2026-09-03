@@ -155,7 +155,8 @@ const defs: WidgetDef[] = [
     description: 'Button that opens the file chooser.',
     jsClass: 'FileChooserButton',
     isFormField: true,
-    defaults: formFieldDefaults({label: 'Attachment', text: 'Choose file...', 'gridDataHints.fillHorizontal': false}),
+    defaults: formFieldDefaults({
+      'gridDataHints.fillHorizontal': false, label: 'Attachment', text: 'Choose file...'}),
     props: formFieldProps({name: 'text', label: 'Text', type: 'string', group: GROUP_CONTENT}),
     slots: [],
     render(ctx, node) {

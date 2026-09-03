@@ -228,6 +228,8 @@ const defs: WidgetDef[] = [
     jsClass: 'WizardProgressField',
     isFormField: true,
     defaults: formFieldDefaults({
+      'gridDataHints.weightY': 0,
+      'gridDataHints.useUiHeight': true,
       label: '',
       labelVisible: false,
       'gridDataHints.w': 2,

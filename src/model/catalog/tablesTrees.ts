@@ -225,15 +225,16 @@ const defs: WidgetDef[] = [
     jsClass: 'TableField',
     isFormField: true,
     defaults: formFieldDefaults({
+      'gridDataHints.weightY': 1,
       label: 'Table',
       labelVisible: false,
       'gridDataHints.w': 2,
-      'gridDataHints.h': 6,
+      'gridDataHints.h': 3,
       ...TABLE_DEFAULTS
     }),
     props: formFieldProps(...TABLE_PROPS),
     slots: [{name: 'menus', label: 'Menus', accepts: ['Menu'], layout: 'inline'}],
-    defaultGridH: 6,
+    defaultGridH: 3,
     render: renderTable
   },
   {
@@ -260,9 +261,10 @@ const defs: WidgetDef[] = [
     jsClass: 'TreeField',
     isFormField: true,
     defaults: formFieldDefaults({
+      'gridDataHints.weightY': 1,
       label: 'Tree',
       labelVisible: false,
-      'gridDataHints.h': 6,
+      'gridDataHints.h': 3,
       nodes: DEFAULT_TREE,
       selectedNode: 1,
       checkable: false
@@ -280,7 +282,7 @@ const defs: WidgetDef[] = [
       {name: 'textFilterEnabled', label: 'Text filter enabled', type: 'boolean', group: GROUP_CONTENT}
     ),
     slots: [{name: 'menus', label: 'Menus', accepts: ['Menu'], layout: 'inline'}],
-    defaultGridH: 6,
+    defaultGridH: 3,
     render(ctx, node) {
       const nodes = parseTreeNodes(ctx.prop<string>(node, 'nodes', DEFAULT_TREE));
       const selected = Number(ctx.prop<number>(node, 'selectedNode', 1));
@@ -314,10 +316,11 @@ const defs: WidgetDef[] = [
     jsClass: 'CalendarField',
     isFormField: true,
     defaults: formFieldDefaults({
+      'gridDataHints.weightY': 1,
       label: 'Calendar',
       labelVisible: false,
       'gridDataHints.w': 2,
-      'gridDataHints.h': 8,
+      'gridDataHints.h': 9,
       displayMode: 'week',
       title: 'September 2026',
       appointments: [
@@ -337,7 +340,7 @@ const defs: WidgetDef[] = [
       {name: 'appointments', label: 'Appointments', type: 'rows', group: GROUP_CONTENT, columns: ['Day', 'Time', 'Title']}
     ),
     slots: [],
-    defaultGridH: 8,
+    defaultGridH: 9,
     render(ctx, node) {
       const mode = ctx.prop<string>(node, 'displayMode', 'week');
       const dayNames = mode === 'workWeek'
@@ -410,7 +413,7 @@ const defs: WidgetDef[] = [
       label: 'Planner',
       labelVisible: false,
       'gridDataHints.w': 2,
-      'gridDataHints.h': 8,
+      'gridDataHints.h': 6,
       resources: [
         ['Team A', '2', '4', 'Kick-off'],
         ['Team B', '5', '3', 'Implementation'],
@@ -423,7 +426,7 @@ const defs: WidgetDef[] = [
       {name: 'columnCount', label: 'Timeline columns', type: 'number', group: GROUP_LAYOUT, min: 4, max: 40}
     ),
     slots: [],
-    defaultGridH: 8,
+    defaultGridH: 6,
     render(ctx, node) {
       const columnCount = Math.max(4, Number(ctx.prop<number>(node, 'columnCount', 12)));
       const root = div('planner');
