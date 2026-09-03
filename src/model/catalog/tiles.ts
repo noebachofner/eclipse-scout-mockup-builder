@@ -18,7 +18,7 @@ const defs: WidgetDef[] = [
       label: 'Tiles',
       labelVisible: false,
       'gridDataHints.w': 2,
-      'gridDataHints.h': 6,
+      'gridDataHints.h': 3,
       gridColumnCount: 4,
       selectable: false,
       layoutMode: 'grid'
@@ -28,7 +28,7 @@ const defs: WidgetDef[] = [
       {name: 'selectable', label: 'Selectable', type: 'boolean', group: GROUP_CONTENT}
     ),
     slots: [{name: 'tiles', label: 'Tiles', accepts: ['Tile', 'FormFieldTile'], layout: 'grid'}],
-    defaultGridH: 6,
+    defaultGridH: 3,
     render(ctx, node) {
       const grid = div('tile-grid');
       grid.style.gridTemplateColumns = `repeat(${Math.max(1, Number(ctx.prop<number>(node, 'gridColumnCount', 4)))}, minmax(0, 1fr))`;

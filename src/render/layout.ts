@@ -1,5 +1,6 @@
 import type {MockupNode} from '../model/types';
-import type {RenderContext} from '../model/catalog/registry';
+import {getWidget, type RenderContext} from '../model/catalog/registry';
+import {pathTo} from '../model/document';
 
 export interface GridCell {
   node: MockupNode;
@@ -22,7 +23,24 @@ function num(value: unknown, fallback: number): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
+export const FULL_WIDTH = 0;
+
+export const INHERIT_COLUMN_COUNT = -1;
+
+const FALLBACK_COLUMN_COUNT = 2;
+
 export type PropReader = (node: MockupNode, name: string, fallback: number) => number;
+
+export function resolveColumnCount(ctx: RenderContext, container: MockupNode): number {
+  const chain = pathTo(ctx.doc.root, container.id);
+  for (let i = chain.length - 1; i >= 0; i--) {
+    const ancestor = chain[i];
+    if (getWidget(ancestor.objectType)?.defaults.gridColumnCount === undefined) continue;
+    const count = Number(ctx.prop<number>(ancestor, 'gridColumnCount', INHERIT_COLUMN_COUNT));
+    if (count >= 0) return count;
+  }
+  return FALLBACK_COLUMN_COUNT;
+}
 
 const readOwnProperty: PropReader = (node, name, fallback) => num(node.properties[name], fallback);
 
@@ -51,7 +69,8 @@ export function placeInGrid(nodes: MockupNode[], columnCount: number, read: Prop
   let cursorY = 0;
 
   for (const node of nodes) {
-    const w = Math.max(1, Math.min(columns, read(node, 'gridDataHints.w', 1)));
+    const requested = read(node, 'gridDataHints.w', 1);
+    const w = requested === FULL_WIDTH ? columns : Math.max(1, Math.min(columns, requested));
     const h = Math.max(1, read(node, 'gridDataHints.h', 1));
     const pinnedX = read(node, 'gridDataHints.x', -1);
     const pinnedY = read(node, 'gridDataHints.y', -1);
@@ -218,7 +237,7 @@ export function reapplyPlacement(ctx: RenderContext, parent: MockupNode, node: M
     return;
   }
   const read: PropReader = (child, name, fallback) => Number(ctx.prop(child, name, fallback));
-  const placement = placeInGrid(children, Number(ctx.prop<number>(parent, 'gridColumnCount', 2)), read);
+  const placement = placeInGrid(children, resolveColumnCount(ctx, parent), read);
   const cell = placement.cells.find(entry => entry.node === node);
   if (cell) applyGridCell(ctx, el, cell, logicalRowHeight(ctx), read);
 }

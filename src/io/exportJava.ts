@@ -217,7 +217,12 @@ const EMITTERS: Record<string, Emitter> = {
   fontColor: {method: 'getConfiguredForegroundColor', returns: 'String', express: v => (v ? javaString(String(v).replace('#', '')) : null)},
   backgroundColor: {method: 'getConfiguredBackgroundColor', returns: 'String', express: v => (v ? javaString(String(v).replace('#', '')) : null)},
 
-  'gridDataHints.w': {method: 'getConfiguredGridW', returns: 'int', express: int},
+  'gridDataHints.w': {
+    method: 'getConfiguredGridW',
+    returns: 'int',
+    imports: [I_FORM_FIELD],
+    express: value => (Number(value) === 0 ? 'IFormField.FULL_WIDTH' : int(value))
+  },
   'gridDataHints.h': {method: 'getConfiguredGridH', returns: 'int', express: int},
   'gridDataHints.weightX': {method: 'getConfiguredGridWeightX', returns: 'double', express: double},
   'gridDataHints.weightY': {method: 'getConfiguredGridWeightY', returns: 'double', express: double},
@@ -229,7 +234,11 @@ const EMITTERS: Record<string, Emitter> = {
   'gridDataHints.verticalAlignment': {method: 'getConfiguredVerticalAlignment', returns: 'int', express: int},
 
   subLabel: {method: 'getConfiguredSubLabel', returns: 'String', express: text},
-  gridColumnCount: {method: 'getConfiguredGridColumnCount', returns: 'int', express: int},
+  gridColumnCount: {
+    method: 'getConfiguredGridColumnCount',
+    returns: 'int',
+    express: value => (Number(value) < 0 ? null : int(value))
+  },
   borderVisible: {method: 'getConfiguredBorderVisible', returns: 'boolean', express: bool},
   borderDecoration: {method: 'getConfiguredBorderDecoration', returns: 'String', express: v => (v ? javaString(String(v)) : null)},
   expandable: {method: 'getConfiguredExpandable', returns: 'boolean', express: bool},

@@ -80,3 +80,19 @@ test('a spanning field spreads its weight over the columns it covers', () => {
   const template = gridTemplate(placeInGrid([field({'gridDataHints.w': 2})], 2), '30px');
   assert.equal(template.columns, 'minmax(0, 1fr) minmax(0, 1fr)');
 });
+
+test('gridW 0 is FULL_WIDTH and spans every column of the container', () => {
+  const placement = placeInGrid([field({'gridDataHints.w': 0}), field()], 3);
+  assert.deepEqual(at(placement, 0), {x: 0, y: 0, w: 3, h: 1});
+  assert.deepEqual(at(placement, 1), {x: 0, y: 1, w: 1, h: 1});
+});
+
+test('FULL_WIDTH follows the container, not a fixed number', () => {
+  assert.equal(placeInGrid([field({'gridDataHints.w': 0})], 2).cells[0].w, 2);
+  assert.equal(placeInGrid([field({'gridDataHints.w': 0})], 4).cells[0].w, 4);
+});
+
+test('a full width field takes the weight of every column it covers', () => {
+  const template = gridTemplate(placeInGrid([field({'gridDataHints.w': 0})], 3), '30px');
+  assert.equal(template.columns, 'minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr)');
+});

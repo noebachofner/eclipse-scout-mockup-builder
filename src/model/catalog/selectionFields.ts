@@ -44,11 +44,13 @@ const defs: WidgetDef[] = [
     javaClass: 'org.eclipse.scout.rt.client.ui.form.fields.radiobuttongroup.AbstractRadioButtonGroup',
     jsClass: 'RadioButtonGroup',
     isFormField: true,
-    defaults: formFieldDefaults({label: 'Radio group', options: 'First choice\nSecond choice\nThird choice', selectedIndex: 0, gridColumnCount: 1, layoutHorizontal: false}),
+    defaults: formFieldDefaults({
+      gridColumnCount: -1,
+      'gridDataHints.weightY': 0, label: 'Radio group', options: 'First choice\nSecond choice\nThird choice', selectedIndex: 0, layoutHorizontal: false}),
     props: formFieldProps(
       {name: 'options', label: 'Buttons (one per line)', type: 'lines', group: GROUP_CONTENT},
       {name: 'selectedIndex', label: 'Selected index', type: 'number', group: GROUP_CONTENT, min: -1},
-      {name: 'gridColumnCount', label: 'Grid column count', type: 'number', group: GROUP_LAYOUT, min: 1, max: 6},
+      {name: 'gridColumnCount', label: 'Grid column count', type: 'number', group: GROUP_LAYOUT, min: -1, max: 6, description: '-1 lets Scout choose, as AbstractRadioButtonGroup does by default.'},
       {name: 'layoutHorizontal', label: 'Layout horizontally', type: 'boolean', group: GROUP_LAYOUT}
     ),
     slots: [],
@@ -79,14 +81,16 @@ const defs: WidgetDef[] = [
     javaClass: 'org.eclipse.scout.rt.client.ui.form.fields.listbox.AbstractListBox',
     jsClass: 'ListBox',
     isFormField: true,
-    defaults: formFieldDefaults({label: 'List box', 'gridDataHints.h': 4, options: 'Austria\nBelgium\nSwitzerland\nGermany', checkedIndexes: '0\n2', filterField: false}),
+    defaults: formFieldDefaults({
+      'gridDataHints.weightY': 1,
+      'gridDataHints.h': 2, label: 'List box', options: 'Austria\nBelgium\nSwitzerland\nGermany', checkedIndexes: '0\n2', filterField: false}),
     props: formFieldProps(
       {name: 'options', label: 'Entries (one per line)', type: 'lines', group: GROUP_CONTENT},
       {name: 'checkedIndexes', label: 'Checked indexes (one per line)', type: 'lines', group: GROUP_CONTENT},
       {name: 'filterField', label: 'Show filter field', type: 'boolean', group: GROUP_CONTENT}
     ),
     slots: [],
-    defaultGridH: 4,
+    defaultGridH: 2,
     render(ctx, node) {
       const items = lines(ctx.prop<string>(node, 'options', ''), ['Austria', 'Belgium', 'Switzerland', 'Germany']);
       const checked = new Set(lines(ctx.prop<string>(node, 'checkedIndexes', ''), ['0', '2']).map(Number));
@@ -117,8 +121,9 @@ const defs: WidgetDef[] = [
     jsClass: 'TreeBox',
     isFormField: true,
     defaults: formFieldDefaults({
+      'gridDataHints.weightY': 1,
       label: 'Tree box',
-      'gridDataHints.h': 5,
+      'gridDataHints.h': 2,
       options: 'Europe\n  Switzerland\n  Austria\nAsia\n  Japan',
       checkedIndexes: '1'
     }),
@@ -127,7 +132,7 @@ const defs: WidgetDef[] = [
       {name: 'checkedIndexes', label: 'Checked indexes (one per line)', type: 'lines', group: GROUP_CONTENT}
     ),
     slots: [],
-    defaultGridH: 5,
+    defaultGridH: 2,
     render(ctx, node) {
       const raw = ctx.prop<string>(node, 'options', 'Europe\n  Switzerland\n  Austria\nAsia\n  Japan');
       const checked = new Set(lines(ctx.prop<string>(node, 'checkedIndexes', '1'), ['1']).map(Number));
