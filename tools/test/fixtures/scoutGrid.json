@@ -1,0 +1,936 @@
+{
+  "source": "org.eclipse.scout.rt.client.test, HorizontalGroupBoxBodyGrid tests (EPL-2.0)",
+  "fixtures": [
+    {
+      "name": "GroupBoxLayout0100Test",
+      "columnCount": 2,
+      "fields": [
+        {
+          "name": "Field01",
+          "base": "AbstractStringField",
+          "order": 10,
+          "properties": {
+            "gridDataHints.w": 3
+          }
+        },
+        {
+          "name": "Field02",
+          "base": "AbstractStringField",
+          "order": 20,
+          "properties": {}
+        },
+        {
+          "name": "Field03",
+          "base": "AbstractStringField",
+          "order": 30,
+          "properties": {}
+        },
+        {
+          "name": "CloseButton",
+          "base": "AbstractCloseButton",
+          "order": 200,
+          "properties": {}
+        }
+      ],
+      "expected": {
+        "columnCount": 2,
+        "rowCount": 2,
+        "cells": [
+          {
+            "field": "Field01",
+            "x": 0,
+            "y": 0,
+            "w": 2,
+            "h": 1
+          },
+          {
+            "field": "Field02",
+            "x": 0,
+            "y": 1,
+            "w": 1,
+            "h": 1
+          },
+          {
+            "field": "Field03",
+            "x": 1,
+            "y": 1,
+            "w": 1,
+            "h": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "GroupBoxLayout01Test",
+      "columnCount": 2,
+      "fields": [
+        {
+          "name": "Field01",
+          "base": "AbstractStringField",
+          "order": 10,
+          "properties": {}
+        },
+        {
+          "name": "Field02",
+          "base": "AbstractStringField",
+          "order": 20,
+          "properties": {
+            "gridDataHints.h": 2
+          }
+        },
+        {
+          "name": "Field03",
+          "base": "AbstractStringField",
+          "order": 30,
+          "properties": {
+            "gridDataHints.h": 2
+          }
+        },
+        {
+          "name": "Field04",
+          "base": "AbstractStringField",
+          "order": 40,
+          "properties": {}
+        }
+      ],
+      "expected": {
+        "columnCount": 2,
+        "rowCount": 3,
+        "cells": [
+          {
+            "field": "Field01",
+            "x": 0,
+            "y": 0,
+            "w": 1,
+            "h": 1
+          },
+          {
+            "field": "Field02",
+            "x": 1,
+            "y": 0,
+            "w": 1,
+            "h": 2
+          },
+          {
+            "field": "Field03",
+            "x": 0,
+            "y": 1,
+            "w": 1,
+            "h": 2
+          },
+          {
+            "field": "Field04",
+            "x": 1,
+            "y": 2,
+            "w": 1,
+            "h": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "GroupBoxLayout02Test",
+      "columnCount": 3,
+      "fields": [
+        {
+          "name": "Field01",
+          "base": "AbstractStringField",
+          "order": 10,
+          "properties": {}
+        },
+        {
+          "name": "Field02",
+          "base": "AbstractStringField",
+          "order": 20,
+          "properties": {}
+        },
+        {
+          "name": "Field03",
+          "base": "AbstractStringField",
+          "order": 30,
+          "properties": {
+            "gridDataHints.w": 2
+          }
+        },
+        {
+          "name": "Field04",
+          "base": "AbstractStringField",
+          "order": 40,
+          "properties": {}
+        },
+        {
+          "name": "Field05",
+          "base": "AbstractStringField",
+          "order": 50,
+          "properties": {}
+        },
+        {
+          "name": "Field06",
+          "base": "AbstractStringField",
+          "order": 60,
+          "properties": {
+            "gridDataHints.w": 2
+          }
+        },
+        {
+          "name": "CloseButton",
+          "base": "AbstractCloseButton",
+          "order": 200,
+          "properties": {}
+        }
+      ],
+      "expected": {
+        "columnCount": 3,
+        "rowCount": 3,
+        "cells": [
+          {
+            "field": "Field01",
+            "x": 0,
+            "y": 0,
+            "w": 1,
+            "h": 1
+          },
+          {
+            "field": "Field02",
+            "x": 1,
+            "y": 0,
+            "w": 1,
+            "h": 1
+          },
+          {
+            "field": "Field03",
+            "x": 0,
+            "y": 1,
+            "w": 2,
+            "h": 1
+          },
+          {
+            "field": "Field04",
+            "x": 2,
+            "y": 1,
+            "w": 1,
+            "h": 1
+          },
+          {
+            "field": "Field05",
+            "x": 0,
+            "y": 2,
+            "w": 1,
+            "h": 1
+          },
+          {
+            "field": "Field06",
+            "x": 1,
+            "y": 2,
+            "w": 2,
+            "h": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "GroupBoxLayout04Test",
+      "columnCount": 3,
+      "fields": [
+        {
+          "name": "Field01",
+          "base": "AbstractStringField",
+          "order": 10,
+          "properties": {}
+        },
+        {
+          "name": "Field02",
+          "base": "AbstractStringField",
+          "order": 20,
+          "properties": {}
+        },
+        {
+          "name": "Field03",
+          "base": "AbstractStringField",
+          "order": 30,
+          "properties": {
+            "gridDataHints.w": 2
+          }
+        },
+        {
+          "name": "Field04",
+          "base": "AbstractStringField",
+          "order": 40,
+          "properties": {}
+        },
+        {
+          "name": "Field05",
+          "base": "AbstractStringField",
+          "order": 50,
+          "properties": {}
+        },
+        {
+          "name": "CloseButton",
+          "base": "AbstractCloseButton",
+          "order": 200,
+          "properties": {}
+        }
+      ],
+      "expected": {
+        "columnCount": 3,
+        "rowCount": 3,
+        "cells": [
+          {
+            "field": "Field01",
+            "x": 0,
+            "y": 0,
+            "w": 1,
+            "h": 1
+          },
+          {
+            "field": "Field02",
+            "x": 1,
+            "y": 0,
+            "w": 1,
+            "h": 1
+          },
+          {
+            "field": "Field03",
+            "x": 0,
+            "y": 1,
+            "w": 2,
+            "h": 1
+          },
+          {
+            "field": "Field04",
+            "x": 2,
+            "y": 1,
+            "w": 1,
+            "h": 1
+          },
+          {
+            "field": "Field05",
+            "x": 0,
+            "y": 2,
+            "w": 1,
+            "h": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "GroupBoxLayout05Test",
+      "columnCount": 3,
+      "fields": [
+        {
+          "name": "Field01",
+          "base": "AbstractStringField",
+          "order": 10,
+          "properties": {
+            "gridDataHints.w": 2,
+            "gridDataHints.h": 2
+          }
+        },
+        {
+          "name": "Field02",
+          "base": "AbstractStringField",
+          "order": 20,
+          "properties": {}
+        },
+        {
+          "name": "Field03",
+          "base": "AbstractStringField",
+          "order": 30,
+          "properties": {}
+        },
+        {
+          "name": "CloseButton",
+          "base": "AbstractCloseButton",
+          "order": 200,
+          "properties": {}
+        }
+      ],
+      "expected": {
+        "columnCount": 3,
+        "rowCount": 2,
+        "cells": [
+          {
+            "field": "Field01",
+            "x": 0,
+            "y": 0,
+            "w": 2,
+            "h": 2
+          },
+          {
+            "field": "Field02",
+            "x": 2,
+            "y": 0,
+            "w": 1,
+            "h": 1
+          },
+          {
+            "field": "Field03",
+            "x": 2,
+            "y": 1,
+            "w": 1,
+            "h": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "GroupBoxLayout06Test",
+      "columnCount": 2,
+      "fields": [
+        {
+          "name": "Field01",
+          "base": "AbstractStringField",
+          "order": 10,
+          "properties": {}
+        },
+        {
+          "name": "Field02",
+          "base": "AbstractStringField",
+          "order": 20,
+          "properties": {}
+        },
+        {
+          "name": "Field03",
+          "base": "AbstractStringField",
+          "order": 30,
+          "properties": {
+            "gridDataHints.w": 2,
+            "gridDataHints.h": 2
+          }
+        },
+        {
+          "name": "Field04",
+          "base": "AbstractStringField",
+          "order": 40,
+          "properties": {}
+        },
+        {
+          "name": "Field05",
+          "base": "AbstractStringField",
+          "order": 50,
+          "properties": {}
+        },
+        {
+          "name": "CloseButton",
+          "base": "AbstractCloseButton",
+          "order": 200,
+          "properties": {}
+        }
+      ],
+      "expected": {
+        "columnCount": 2,
+        "rowCount": 4,
+        "cells": [
+          {
+            "field": "Field01",
+            "x": 0,
+            "y": 0,
+            "w": 1,
+            "h": 1
+          },
+          {
+            "field": "Field02",
+            "x": 1,
+            "y": 0,
+            "w": 1,
+            "h": 1
+          },
+          {
+            "field": "Field03",
+            "x": 0,
+            "y": 1,
+            "w": 2,
+            "h": 2
+          },
+          {
+            "field": "Field04",
+            "x": 0,
+            "y": 3,
+            "w": 1,
+            "h": 1
+          },
+          {
+            "field": "Field05",
+            "x": 1,
+            "y": 3,
+            "w": 1,
+            "h": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "GroupBoxLayout07Test",
+      "columnCount": 3,
+      "fields": [
+        {
+          "name": "Field01",
+          "base": "AbstractStringField",
+          "order": 10,
+          "properties": {}
+        },
+        {
+          "name": "Field02",
+          "base": "AbstractStringField",
+          "order": 20,
+          "properties": {}
+        },
+        {
+          "name": "Field03",
+          "base": "AbstractStringField",
+          "order": 30,
+          "properties": {
+            "gridDataHints.w": 2,
+            "gridDataHints.h": 2
+          }
+        },
+        {
+          "name": "Field04",
+          "base": "AbstractStringField",
+          "order": 40,
+          "properties": {}
+        },
+        {
+          "name": "Field05",
+          "base": "AbstractStringField",
+          "order": 50,
+          "properties": {}
+        },
+        {
+          "name": "CloseButton",
+          "base": "AbstractCloseButton",
+          "order": 200,
+          "properties": {}
+        }
+      ],
+      "expected": {
+        "columnCount": 3,
+        "rowCount": 3,
+        "cells": [
+          {
+            "field": "Field01",
+            "x": 0,
+            "y": 0,
+            "w": 1,
+            "h": 1
+          },
+          {
+            "field": "Field02",
+            "x": 1,
+            "y": 0,
+            "w": 1,
+            "h": 1
+          },
+          {
+            "field": "Field03",
+            "x": 0,
+            "y": 1,
+            "w": 2,
+            "h": 2
+          },
+          {
+            "field": "Field04",
+            "x": 2,
+            "y": 1,
+            "w": 1,
+            "h": 1
+          },
+          {
+            "field": "Field05",
+            "x": 2,
+            "y": 2,
+            "w": 1,
+            "h": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "GroupBoxLayout08Test",
+      "columnCount": 4,
+      "fields": [
+        {
+          "name": "GroupBox01",
+          "base": "AbstractGroupBox",
+          "order": 10,
+          "properties": {
+            "gridDataHints.w": 2
+          }
+        },
+        {
+          "name": "GroupBox02",
+          "base": "AbstractGroupBox",
+          "order": 20,
+          "properties": {
+            "gridDataHints.w": 2
+          }
+        },
+        {
+          "name": "GroupBox03",
+          "base": "AbstractGroupBox",
+          "order": 30,
+          "properties": {
+            "gridDataHints.w": 2
+          }
+        },
+        {
+          "name": "GroupBox04",
+          "base": "AbstractGroupBox",
+          "order": 40,
+          "properties": {
+            "gridDataHints.w": 2
+          }
+        },
+        {
+          "name": "GroupBox05",
+          "base": "AbstractGroupBox",
+          "order": 50,
+          "properties": {
+            "gridDataHints.w": 2
+          }
+        },
+        {
+          "name": "GroupBox06",
+          "base": "AbstractGroupBox",
+          "order": 60,
+          "properties": {
+            "gridDataHints.w": 1
+          }
+        },
+        {
+          "name": "GroupBox07",
+          "base": "AbstractGroupBox",
+          "order": 70,
+          "properties": {
+            "gridDataHints.w": 2
+          }
+        },
+        {
+          "name": "CloseButton",
+          "base": "AbstractCloseButton",
+          "order": 200,
+          "properties": {}
+        }
+      ],
+      "expected": {
+        "columnCount": 4,
+        "rowCount": 4,
+        "cells": [
+          {
+            "field": "GroupBox01",
+            "x": 0,
+            "y": 0,
+            "w": 2,
+            "h": 1
+          },
+          {
+            "field": "GroupBox02",
+            "x": 2,
+            "y": 0,
+            "w": 2,
+            "h": 1
+          },
+          {
+            "field": "GroupBox03",
+            "x": 0,
+            "y": 1,
+            "w": 2,
+            "h": 1
+          },
+          {
+            "field": "GroupBox04",
+            "x": 2,
+            "y": 1,
+            "w": 2,
+            "h": 1
+          },
+          {
+            "field": "GroupBox05",
+            "x": 0,
+            "y": 2,
+            "w": 2,
+            "h": 1
+          },
+          {
+            "field": "GroupBox06",
+            "x": 2,
+            "y": 2,
+            "w": 1,
+            "h": 1
+          },
+          {
+            "field": "GroupBox07",
+            "x": 0,
+            "y": 3,
+            "w": 2,
+            "h": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "GroupBoxLayout09Test",
+      "columnCount": 2,
+      "fields": [
+        {
+          "name": "Field01",
+          "base": "AbstractStringField",
+          "order": 10,
+          "properties": {}
+        },
+        {
+          "name": "Field02",
+          "base": "AbstractStringField",
+          "order": 20,
+          "properties": {
+            "gridDataHints.w": 2
+          }
+        },
+        {
+          "name": "Field03",
+          "base": "AbstractStringField",
+          "order": 30,
+          "properties": {}
+        },
+        {
+          "name": "Field04",
+          "base": "AbstractStringField",
+          "order": 40,
+          "properties": {
+            "gridDataHints.h": 2
+          }
+        },
+        {
+          "name": "CloseButton",
+          "base": "AbstractCloseButton",
+          "order": 200,
+          "properties": {}
+        }
+      ],
+      "expected": {
+        "columnCount": 2,
+        "rowCount": 4,
+        "cells": [
+          {
+            "field": "Field01",
+            "x": 0,
+            "y": 0,
+            "w": 1,
+            "h": 1
+          },
+          {
+            "field": "Field02",
+            "x": 0,
+            "y": 1,
+            "w": 2,
+            "h": 1
+          },
+          {
+            "field": "Field03",
+            "x": 0,
+            "y": 2,
+            "w": 1,
+            "h": 1
+          },
+          {
+            "field": "Field04",
+            "x": 1,
+            "y": 2,
+            "w": 1,
+            "h": 2
+          }
+        ]
+      }
+    },
+    {
+      "name": "GroupBoxLayout10Test",
+      "columnCount": 3,
+      "fields": [
+        {
+          "name": "Field01",
+          "base": "AbstractStringField",
+          "order": 10,
+          "properties": {
+            "gridDataHints.w": 1
+          }
+        },
+        {
+          "name": "Field02",
+          "base": "AbstractStringField",
+          "order": 20,
+          "properties": {}
+        },
+        {
+          "name": "Field03",
+          "base": "AbstractStringField",
+          "order": 30,
+          "properties": {
+            "gridDataHints.w": 2
+          }
+        },
+        {
+          "name": "Field04",
+          "base": "AbstractStringField",
+          "order": 40,
+          "properties": {}
+        },
+        {
+          "name": "Field05",
+          "base": "AbstractStringField",
+          "order": 50,
+          "properties": {}
+        },
+        {
+          "name": "Field06",
+          "base": "AbstractStringField",
+          "order": 60,
+          "properties": {
+            "gridDataHints.w": 2
+          }
+        },
+        {
+          "name": "F04VisToggleButton",
+          "base": "AbstractButton",
+          "order": 100,
+          "properties": {}
+        },
+        {
+          "name": "CloseButton",
+          "base": "AbstractCloseButton",
+          "order": 200,
+          "properties": {}
+        }
+      ],
+      "expected": {
+        "columnCount": 3,
+        "rowCount": 3,
+        "cells": [
+          {
+            "field": "Field01",
+            "x": 0,
+            "y": 0,
+            "w": 1,
+            "h": 1
+          },
+          {
+            "field": "Field02",
+            "x": 1,
+            "y": 0,
+            "w": 1,
+            "h": 1
+          },
+          {
+            "field": "Field03",
+            "x": 0,
+            "y": 1,
+            "w": 2,
+            "h": 1
+          },
+          {
+            "field": "Field04",
+            "x": 2,
+            "y": 1,
+            "w": 1,
+            "h": 1
+          },
+          {
+            "field": "Field05",
+            "x": 0,
+            "y": 2,
+            "w": 1,
+            "h": 1
+          },
+          {
+            "field": "Field06",
+            "x": 1,
+            "y": 2,
+            "w": 2,
+            "h": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "GroupBoxLayout11Test",
+      "columnCount": 2,
+      "fields": [
+        {
+          "name": "Group01",
+          "base": "AbstractGroupBox",
+          "order": 20,
+          "properties": {}
+        },
+        {
+          "name": "Group02",
+          "base": "AbstractGroupBox",
+          "order": 30,
+          "properties": {
+            "gridDataHints.w": 1
+          }
+        },
+        {
+          "name": "Group03",
+          "base": "AbstractGroupBox",
+          "order": 40,
+          "properties": {
+            "gridDataHints.w": 1
+          }
+        },
+        {
+          "name": "Group04",
+          "base": "AbstractGroupBox",
+          "order": 50,
+          "properties": {
+            "gridDataHints.w": 2
+          }
+        },
+        {
+          "name": "OkButton",
+          "base": "AbstractOkButton",
+          "order": 60,
+          "properties": {}
+        },
+        {
+          "name": "CancelButton",
+          "base": "AbstractCancelButton",
+          "order": 70,
+          "properties": {}
+        }
+      ],
+      "expected": {
+        "columnCount": 2,
+        "rowCount": 3,
+        "cells": [
+          {
+            "field": "Group01",
+            "x": 0,
+            "y": 0,
+            "w": 2,
+            "h": 1
+          },
+          {
+            "field": "Group02",
+            "x": 0,
+            "y": 1,
+            "w": 1,
+            "h": 1
+          },
+          {
+            "field": "Group03",
+            "x": 1,
+            "y": 1,
+            "w": 1,
+            "h": 1
+          },
+          {
+            "field": "Group04",
+            "x": 0,
+            "y": 2,
+            "w": 2,
+            "h": 1
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 import {registerWidgets, type WidgetDef} from './registry';
-import {formFieldDefaults, formFieldProps, GROUP_CONTENT, GROUP_STYLE, WIDGET_DEFAULTS, WIDGET_PROPS} from './common';
+import {formFieldDefaults, formFieldProps, GROUP_CONTENT, GROUP_LAYOUT, GROUP_STYLE, WIDGET_DEFAULTS, WIDGET_PROPS} from './common';
 import {div, span} from '../../render/dom';
 import {renderIcon} from '../../render/icons';
 
@@ -32,6 +32,7 @@ const defs: WidgetDef[] = [
         {value: 'link', label: 'LINK'},
         {value: 'borderless', label: 'BORDERLESS'}
       ]},
+      {name: 'processButton', label: 'Process button', type: 'boolean', group: GROUP_LAYOUT, description: 'Scout keeps process buttons out of the logical grid and shows them in the menu bar of the surrounding box. Turn this off to place the button in the grid like any other field.'},
       {name: 'defaultButton', label: 'Default button', type: 'boolean', group: GROUP_STYLE},
       {name: 'selected', label: 'Selected (toggle)', type: 'boolean', group: GROUP_CONTENT, visibleWhen: p => p.displayStyle === 'toggle'},
       {name: 'keyStroke', label: 'Key stroke', type: 'string', group: GROUP_CONTENT, placeholder: 'ctrl-s'}

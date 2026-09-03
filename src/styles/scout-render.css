@@ -3135,3 +3135,22 @@
   font-size: 13px;
   line-height: 1.4;
 }
+
+.menubar-buttons {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: var(--scout-menubar-item-margin-x);
+  margin-left: auto;
+  padding: var(--scout-menubar-item-margin-y) var(--scout-menubar-item-margin-x);
+}
+
+.menubar-buttons > .form-field {
+  flex: 0 0 auto;
+  width: auto;
+  min-height: var(--es-grid-row-height);
+}
+
+.menubar.button-bar {
+  min-height: var(--es-grid-row-height);
+}

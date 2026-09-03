@@ -1,7 +1,7 @@
 import {registerWidgets, type RenderContext, type WidgetDef} from './registry';
 import {formFieldDefaults, formFieldProps, GROUP_BOX_PROPS, GROUP_CONTENT, GROUP_LAYOUT, GROUP_STYLE, WIDGET_DEFAULTS, WIDGET_PROPS} from './common';
 import {div, span} from '../../render/dom';
-import {FULL_WIDTH, INHERIT_COLUMN_COUNT, renderFreeForm, renderLogicalGrid, resolveColumnCount} from '../../render/layout';
+import {FULL_WIDTH, INHERIT_COLUMN_COUNT, partitionFields, renderFreeForm, renderLogicalGrid, resolveColumnCount} from '../../render/layout';
 import type {MockupNode} from '../types';
 import {renderIcon} from '../../render/icons';
 
@@ -24,6 +24,14 @@ const LAYOUT_PROPS = [
   }
 ];
 
+function splitFields(ctx: RenderContext, node: MockupNode, slot: string): {controls: MockupNode[]; processButtons: MockupNode[]} {
+  const children = ctx.childrenOf(node, slot);
+  if (ctx.prop<string>(node, 'layoutMode', 'grid') === 'free') {
+    return {controls: children, processButtons: []};
+  }
+  return partitionFields(children, (child, name, fallback) => ctx.prop<boolean>(child, name, fallback));
+}
+
 export function renderBody(ctx: RenderContext, node: MockupNode, body: HTMLElement, slot = 'fields'): HTMLElement {
   const children = ctx.childrenOf(node, slot);
   const responsive = ctx.prop<string>(node, 'responsive', 'inherit');
@@ -32,10 +40,26 @@ export function renderBody(ctx: RenderContext, node: MockupNode, body: HTMLEleme
   if (ctx.prop<string>(node, 'layoutMode', 'grid') === 'free') {
     renderFreeForm(ctx, body, node, children);
   } else {
-    renderLogicalGrid(ctx, body, node, children, resolveColumnCount(ctx, node));
+    renderLogicalGrid(ctx, body, node, splitFields(ctx, node, slot).controls, resolveColumnCount(ctx, node));
   }
   if (!children.length) body.classList.add('empty-container');
   return body;
+}
+
+export function renderButtonBar(ctx: RenderContext, node: MockupNode, slot = 'fields'): HTMLElement | null {
+  const {processButtons} = splitFields(ctx, node, slot);
+  if (!processButtons.length) return null;
+  const bar = div('menubar menubar-bottom button-bar');
+  const box = div('menubar-box');
+  box.appendChild(renderProcessButtons(ctx, node, processButtons));
+  bar.appendChild(box);
+  return bar;
+}
+
+function renderProcessButtons(ctx: RenderContext, node: MockupNode, buttons: MockupNode[]): HTMLElement {
+  const group = div('menubar-buttons');
+  buttons.forEach(button => group.appendChild(ctx.renderNode(button, node)));
+  return group;
 }
 
 function renderMenuBar(ctx: RenderContext, node: MockupNode, position: 'top' | 'bottom' | 'title'): HTMLElement | null {
@@ -165,6 +189,8 @@ const defs: WidgetDef[] = [
 
       if (!expandable || expanded) {
         root.appendChild(renderBody(ctx, node, div('group-box-body')));
+        const buttons = renderButtonBar(ctx, node);
+        if (buttons) root.appendChild(buttons);
       } else {
         root.classList.add('collapsed');
       }
@@ -252,6 +278,8 @@ const defs: WidgetDef[] = [
     render(ctx, node) {
       const root = div('tab-item-content group-box');
       root.appendChild(renderBody(ctx, node, div('group-box-body')));
+      const buttons = renderButtonBar(ctx, node);
+      if (buttons) root.appendChild(buttons);
       return root;
     }
   },
@@ -448,11 +476,13 @@ const defs: WidgetDef[] = [
       body.appendChild(renderBody(ctx, node, div('group-box-body')));
       root.appendChild(body);
 
+      const {processButtons} = splitFields(ctx, node, 'fields');
       const menus = ctx.renderSlot(node, 'menus');
-      if (menus.length) {
+      if (menus.length || processButtons.length) {
         const bar = div('menubar main-menubar bottom');
         const box = div('menubar-box');
         menus.forEach(m => box.appendChild(m));
+        if (processButtons.length) box.appendChild(renderProcessButtons(ctx, node, processButtons));
         bar.appendChild(box);
         root.appendChild(bar);
       }

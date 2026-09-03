@@ -301,6 +301,7 @@ const EMITTERS: Record<string, Emitter> = {
   separator: {method: 'getConfiguredSeparator', returns: 'boolean', express: bool, only: ['Menu']},
   toggleAction: {method: 'getConfiguredToggleAction', returns: 'boolean', express: bool, only: ['Menu']},
   defaultButton: {method: 'getConfiguredDefaultButton', returns: 'Boolean', express: bool, only: ['Button']},
+  processButton: {method: 'getConfiguredProcessButton', returns: 'boolean', express: bool, only: ['Button']},
 
   checkable: {method: 'getConfiguredCheckable', returns: 'boolean', express: bool},
   multiCheck: {method: 'getConfiguredMultiCheck', returns: 'boolean', express: bool},
@@ -374,6 +375,7 @@ const LAYOUT_PROPS = [
   'gridDataHints.horizontalAlignment',
   'gridDataHints.verticalAlignment',
   'gridColumnCount',
+  'processButton',
   'labelPosition',
   'labelVisible',
   'labelWidthInPixel'

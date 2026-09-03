@@ -44,13 +44,85 @@ export function resolveColumnCount(ctx: RenderContext, container: MockupNode): n
 
 const readOwnProperty: PropReader = (node, name, fallback) => num(node.properties[name], fallback);
 
-export function placeInGrid(nodes: MockupNode[], columnCount: number, read: PropReader = readOwnProperty): GridPlacement {
-  const columns = Math.max(1, Math.min(12, Math.round(columnCount)));
+export type FlagReader = (node: MockupNode, name: string, fallback: boolean) => boolean;
+
+const readOwnFlag: FlagReader = (node, name, fallback) => {
+  const value = node.properties[name];
+  return value === undefined ? fallback : value === true;
+};
+
+export function isProcessButton(node: MockupNode, readFlag: FlagReader = readOwnFlag): boolean {
+  return node.objectType === 'Button' && readFlag(node, 'processButton', true);
+}
+
+export interface FieldPartition {
+  controls: MockupNode[];
+  processButtons: MockupNode[];
+}
+
+export function partitionFields(nodes: MockupNode[], readFlag: FlagReader = readOwnFlag): FieldPartition {
+  const controls: MockupNode[] = [];
+  const processButtons: MockupNode[] = [];
+  for (const node of nodes) {
+    if (isProcessButton(node, readFlag)) processButtons.push(node);
+    else controls.push(node);
+  }
+  return {controls, processButtons};
+}
+
+interface Hints {
+  node: MockupNode;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  weightX: number;
+  weightY: number;
+}
+
+function readHints(nodes: MockupNode[], read: PropReader): Hints[] {
+  return nodes.map(node => ({
+    node,
+    x: read(node, 'gridDataHints.x', -1),
+    y: read(node, 'gridDataHints.y', -1),
+    w: read(node, 'gridDataHints.w', 1),
+    h: Math.max(1, read(node, 'gridDataHints.h', 1)),
+    weightX: read(node, 'gridDataHints.weightX', -1),
+    weightY: read(node, 'gridDataHints.weightY', -1)
+  }));
+}
+
+function toCell(hints: Hints, x: number, y: number, w: number): GridCell {
+  return {
+    node: hints.node,
+    x,
+    y,
+    w,
+    h: hints.h,
+    weightX: hints.weightX < 0 ? Math.max(1, w) : hints.weightX,
+    weightY: hints.weightY < 0 ? (hints.h >= 2 ? hints.h : 0) : hints.weightY
+  };
+}
+
+function placeStatic(hints: Hints[]): GridPlacement {
+  let columnCount = 1;
+  let rowCount = 0;
+  for (const entry of hints) {
+    const w = entry.w === FULL_WIDTH ? 1 : Math.max(1, entry.w);
+    columnCount = Math.max(columnCount, entry.x + w);
+    rowCount = Math.max(rowCount, entry.y + entry.h);
+  }
+  const cells = hints.map(entry =>
+    toCell(entry, entry.x, entry.y, entry.w === FULL_WIDTH ? columnCount : Math.max(1, entry.w))
+  );
+  return {cells, columnCount, rowCount};
+}
+
+function placeDynamic(hints: Hints[], columns: number): GridPlacement {
   const occupied = new Set<string>();
-  const cells: GridCell[] = [];
   const key = (x: number, y: number): string => `${x}:${y}`;
 
-  const fits = (x: number, y: number, w: number, h: number): boolean => {
+  const isFree = (x: number, y: number, w: number, h: number): boolean => {
     if (x + w > columns) return false;
     for (let dy = 0; dy < h; dy++) {
       for (let dx = 0; dx < w; dx++) {
@@ -59,61 +131,37 @@ export function placeInGrid(nodes: MockupNode[], columnCount: number, read: Prop
     }
     return true;
   };
-  const occupy = (x: number, y: number, w: number, h: number): void => {
-    for (let dy = 0; dy < h; dy++) {
-      for (let dx = 0; dx < w; dx++) occupied.add(key(x + dx, y + dy));
-    }
-  };
 
-  let cursorX = 0;
+  const cells: GridCell[] = [];
+  let cursorX = -1;
   let cursorY = 0;
+  let rowCount = 0;
 
-  for (const node of nodes) {
-    const requested = read(node, 'gridDataHints.w', 1);
-    const w = requested === FULL_WIDTH ? columns : Math.max(1, Math.min(columns, requested));
-    const h = Math.max(1, read(node, 'gridDataHints.h', 1));
-    const pinnedX = read(node, 'gridDataHints.x', -1);
-    const pinnedY = read(node, 'gridDataHints.y', -1);
-
-    let x: number;
-    let y: number;
-    if (pinnedX >= 0 && pinnedY >= 0) {
-      x = Math.min(pinnedX, columns - 1);
-      y = pinnedY;
-    } else {
-      x = cursorX;
-      y = cursorY;
-      while (!fits(x, y, w, h)) {
-        x++;
-        if (x + w > columns) {
-          x = 0;
-          y++;
-        }
-      }
-      cursorX = x + w;
-      cursorY = y;
+  for (const entry of hints) {
+    const w = entry.w === FULL_WIDTH ? columns : Math.max(1, Math.min(columns, entry.w));
+    do {
+      cursorX++;
       if (cursorX >= columns) {
         cursorX = 0;
-        cursorY = y + 1;
+        cursorY++;
       }
-    }
-    occupy(x, y, w, h);
+    } while (!isFree(cursorX, cursorY, w, entry.h));
 
-    const rawWeightX = read(node, 'gridDataHints.weightX', -1);
-    const rawWeightY = read(node, 'gridDataHints.weightY', -1);
-    cells.push({
-      node,
-      x,
-      y,
-      w,
-      h,
-      weightX: rawWeightX < 0 ? Math.max(1, w) : rawWeightX,
-      weightY: rawWeightY < 0 ? (h >= 2 ? h : 0) : rawWeightY
-    });
+    for (let dy = 0; dy < entry.h; dy++) {
+      for (let dx = 0; dx < w; dx++) occupied.add(key(cursorX + dx, cursorY + dy));
+    }
+    cells.push(toCell(entry, cursorX, cursorY, w));
+    rowCount = cursorY + entry.h;
   }
 
-  const rowCount = cells.reduce((max, c) => Math.max(max, c.y + c.h), 0);
   return {cells, columnCount: columns, rowCount};
+}
+
+export function placeInGrid(nodes: MockupNode[], columnCount: number, read: PropReader = readOwnProperty): GridPlacement {
+  const columns = Math.max(1, Math.min(12, Math.round(columnCount)));
+  const hints = readHints(nodes, read);
+  const pinned = hints.every(entry => entry.x >= 0 && entry.y >= 0);
+  return hints.length && pinned ? placeStatic(hints) : placeDynamic(hints, columns);
 }
 
 export interface GridTemplate {
@@ -237,7 +285,8 @@ export function reapplyPlacement(ctx: RenderContext, parent: MockupNode, node: M
     return;
   }
   const read: PropReader = (child, name, fallback) => Number(ctx.prop(child, name, fallback));
-  const placement = placeInGrid(children, resolveColumnCount(ctx, parent), read);
+  const {controls} = partitionFields(children, (child, name, fallback) => ctx.prop<boolean>(child, name, fallback));
+  const placement = placeInGrid(controls, resolveColumnCount(ctx, parent), read);
   const cell = placement.cells.find(entry => entry.node === node);
   if (cell) applyGridCell(ctx, el, cell, logicalRowHeight(ctx), read);
 }
