@@ -17,10 +17,12 @@
     "e2e": "node tools/dev/e2e.mjs e2e-out",
     "gallery": "node tools/dev/gallery.mjs gallery",
     "screenshot": "node tools/dev/screenshot.mjs screenshot.png",
-    "verify": "npm run typecheck && npm test && npm run build && npm run e2e && npm run visual",
+    "verify": "npm run typecheck && npm test && npm run build && npm run e2e && npm run visual && npm run javac",
     "test:unit": "node --test \"tools/test/*.test.mjs\"",
     "visual": "node tools/dev/visual.mjs",
-    "visual:update": "node tools/dev/visual.mjs --update"
+    "visual:update": "node tools/dev/visual.mjs --update",
+    "javac": "node tools/dev/javac.mjs",
+    "scout:java": "node tools/extract-scout-java-api.mjs"
   },
   "devDependencies": {
     "less": "^4.2.0",

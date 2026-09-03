@@ -34,7 +34,16 @@ test('imports are sorted and free of duplicates', () => {
   const {code} = generate(personForm());
   const imports = code.split('\n').filter(line => line.startsWith('import '));
   assert.deepEqual(imports, [...new Set(imports)], 'duplicate import');
-  assert.deepEqual(imports, [...imports].sort(), 'imports are not sorted');
+
+  const own = imports.filter(line => line.includes(`.${OPTIONS.className}.`));
+  const framework = imports.filter(line => !own.includes(line));
+  assert.deepEqual(framework, [...framework].sort(), 'framework imports are not sorted');
+
+  // Sorted by class name rather than by line, which puts a container ahead of
+  // the fields nested inside it.
+  const names = own.map(line => line.slice('import '.length, -1));
+  assert.deepEqual(names, [...names].sort(), 'self imports are not sorted');
+  assert.ok(code.indexOf(framework[framework.length - 1]) < code.indexOf(own[0]), 'the framework imports come first');
 });
 
 test('the form title becomes getConfiguredTitle', () => {
@@ -186,4 +195,39 @@ test('every detail level still produces balanced braces', () => {
     const {code} = generate(personForm(), {detail});
     assert.equal((code.match(/\{/g) ?? []).length, (code.match(/\}/g) ?? []).length, detail);
   }
+});
+
+test('an override is only emitted for a method the Scout class actually has', async () => {
+  const api = await importTs('src/model/scoutJavaApi.generated.ts');
+  const {code} = generate(personForm(), {detail: 'all'});
+  const classes = [...code.matchAll(/public class \w+ extends (\w+)/g)].map(match => match[1]);
+  for (const base of new Set(classes)) {
+    assert.ok(api.SCOUT_JAVA_API[base], `${base} is missing from the generated Scout API table`);
+  }
+});
+
+test('menus get action methods, not form field ones', () => {
+  const {code} = generate(personForm(), {detail: 'all'});
+  const menu = code.slice(code.indexOf('class NewMenu extends AbstractMenu'), code.indexOf('class EditMenu'));
+  assert.match(menu, /getConfiguredText/);
+  assert.doesNotMatch(menu, /getConfiguredGridW|getConfiguredLabelPosition|getConfiguredMandatory/);
+});
+
+test('the nested table gets table methods, not form field ones', () => {
+  const {code} = generate(personForm(), {detail: 'all'});
+  const table = code.slice(code.indexOf('public class Table extends AbstractTable'), code.indexOf('class OrderNoColumn'));
+  assert.doesNotMatch(table, /getConfiguredGridW|getConfiguredLabel\b/);
+});
+
+test('getters reference their nested class through a self import', () => {
+  const {code} = generate(personForm(), {packageName: 'org.example.client'});
+  assert.match(code, /import org\.example\.client\.PersonForm\.MainBox\.PersonalDataBox;/);
+  assert.match(code, /import org\.example\.client\.PersonForm\.MainBox\.PersonalDataBox\.FirstNameField;/);
+});
+
+test('without a package the getters use the qualified nested name', () => {
+  const {code} = generate(personForm(), {packageName: ''});
+  assert.doesNotMatch(code, /^import org\.example/m);
+  assert.match(code, /public MainBox\.PersonalDataBox\.FirstNameField getFirstNameField\(\)/);
+  assert.match(code, /return getFieldByClass\(MainBox\.PersonalDataBox\.FirstNameField\.class\);/);
 });

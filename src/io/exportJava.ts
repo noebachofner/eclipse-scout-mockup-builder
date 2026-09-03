@@ -1,5 +1,6 @@
 import type {MockupNode, PropertyValue} from '../model/types';
 import {getWidget} from '../model/catalog';
+import {SCOUT_JAVA_API} from '../model/scoutJavaApi.generated';
 
 export type PropertyDetail = 'changed' | 'layout' | 'all';
 
@@ -378,7 +379,11 @@ const LAYOUT_PROPS = [
   'labelWidthInPixel'
 ];
 
-function emitOverrides(writer: Writer, node: MockupNode, indent: number, ctx: EmitContext): number {
+export function declares(baseClass: string, method: string): boolean {
+  return SCOUT_JAVA_API[baseClass]?.includes(method) ?? false;
+}
+
+function emitOverrides(writer: Writer, node: MockupNode, indent: number, ctx: EmitContext, baseClass: string): number {
   const def = getWidget(node.objectType);
   const defaults = def?.defaults ?? {};
   const detail = ctx.options.detail;
@@ -397,6 +402,8 @@ function emitOverrides(writer: Writer, node: MockupNode, indent: number, ctx: Em
     const emitter = EMITTERS[name];
     if (!emitter) continue;
     if (emitter.only && !emitter.only.includes(node.objectType)) continue;
+    if (!declares(baseClass, emitter.method)) continue;
+    
     const value = node.properties[name] ?? defaults[name];
     if (value === undefined) continue;
 
@@ -457,6 +464,7 @@ function parseColumnSpecs(node: MockupNode): ColumnSpec[] {
 interface Getter {
   type: string;
   name: string;
+  path: string[];
 }
 
 function emitNode(
@@ -467,7 +475,8 @@ function emitNode(
   ctx: EmitContext,
   used: Set<string>,
   getters: Getter[],
-  parentStem = ''
+  parentStem = '',
+  nesting: string[] = []
 ): void {
   const excuse = JS_ONLY.get(node.objectType);
   if (excuse) {
@@ -488,7 +497,8 @@ function emitNode(
   const typeArgs = isTableField ? `<${className}.Table>` : (widget.typeArgs ?? '');
   ctx.imports.add(widget.fqn);
   widget.imports?.forEach(fqn => ctx.imports.add(fqn));
-  getters.push({type: className, name: `get${className}`});
+  const path = [...nesting, className];
+  getters.push({type: className, name: `get${className}`, path});
 
   if (widget.note) writer.add(indent, `// TODO ${widget.note}`);
   writer.add(indent, `@Order(${order})`);
@@ -497,7 +507,7 @@ function emitNode(
   const fieldNode = isTableField
     ? {...node, properties: Object.fromEntries(Object.entries(node.properties).filter(([name]) => !TABLE_ONLY_PROPS.has(name)))}
     : node;
-  let members = emitOverrides(writer, fieldNode, indent + 1, ctx);
+  let members = emitOverrides(writer, fieldNode, indent + 1, ctx, widget.base);
 
   if (isTableField) {
     if (members > 0) writer.add(0);
@@ -512,7 +522,7 @@ function emitNode(
     for (const child of children) {
       if (isTableField && slot === 'menus') continue;
       if (members > 0) writer.add(0);
-      emitNode(writer, child, indent + 1, childOrder, ctx, used, getters, stemOf(className, widget.suffix));
+      emitNode(writer, child, indent + 1, childOrder, ctx, used, getters, stemOf(className, widget.suffix), path);
       childOrder += 1000;
       members++;
     }
@@ -570,7 +580,7 @@ function emitTable(writer: Writer, node: MockupNode, indent: number, ctx: EmitCo
   });
 
   const tableWriter = new Writer();
-  const count = emitOverrides(tableWriter, {...node, properties: tableProperties(node)}, indent + 1, ctx);
+  const count = emitOverrides(tableWriter, {...node, properties: tableProperties(node)}, indent + 1, ctx, 'AbstractTable');
   if (count > 0) {
     if (hasMembers) writer.add(0);
     tableWriter.lines.forEach(line => writer.lines.push(line));
@@ -581,7 +591,7 @@ function emitTable(writer: Writer, node: MockupNode, indent: number, ctx: EmitCo
   let menuOrder = 1000;
   for (const menu of menus) {
     if (hasMembers) writer.add(0);
-    emitNode(writer, menu, indent + 1, menuOrder, ctx, ctx.names, []);
+    emitNode(writer, menu, indent + 1, menuOrder, ctx, ctx.names, [], '', []);
     menuOrder += 1000;
     hasMembers = true;
   }
@@ -630,6 +640,7 @@ export function generateFormJava(form: MockupNode, options: JavaExportOptions): 
   };
   const body = new Writer();
   const getters: Getter[] = [];
+  const selfImports: string[] = [];
 
   const formOverrides = new Writer();
   let formMembers = 0;
@@ -703,13 +714,13 @@ export function generateFormJava(form: MockupNode, options: JavaExportOptions): 
   let order = 1000;
   for (const child of form.children.filter(c => (c.slot ?? 'fields') === 'fields')) {
     if (boxMembers) mainBox.add(0);
-    emitNode(mainBox, child, 2, order, ctx, ctx.names, getters);
+    emitNode(mainBox, child, 2, order, ctx, ctx.names, getters, '', ['MainBox']);
     order += 1000;
     boxMembers++;
   }
   for (const menu of form.children.filter(c => c.slot === 'menus')) {
     if (boxMembers) mainBox.add(0);
-    emitNode(mainBox, menu, 2, order, ctx, ctx.names, getters);
+    emitNode(mainBox, menu, 2, order, ctx, ctx.names, getters, '', ['MainBox']);
     order += 1000;
     boxMembers++;
   }
@@ -720,13 +731,19 @@ export function generateFormJava(form: MockupNode, options: JavaExportOptions): 
     body.add(0);
   }
   if (options.includeGetters) {
+    const packageName = options.packageName.trim();
     body.add(1, 'public MainBox getMainBox() {');
     body.add(2, 'return getFieldByClass(MainBox.class);');
     body.add(1, '}');
     getters.forEach(getter => {
+      const nested = getter.path.join('.');
+      if (packageName) {
+        selfImports.push(`${packageName}.${options.className}.${nested}`);
+      }
+      const reference = packageName ? getter.type : nested;
       body.add(0);
-      body.add(1, `public ${getter.type} ${getter.name}() {`);
-      body.add(2, `return getFieldByClass(${getter.type}.class);`);
+      body.add(1, `public ${reference} ${getter.name}() {`);
+      body.add(2, `return getFieldByClass(${reference}.class);`);
       body.add(1, '}');
     });
     body.add(0);
@@ -740,6 +757,10 @@ export function generateFormJava(form: MockupNode, options: JavaExportOptions): 
   }
   ctx.imports.add('org.eclipse.scout.rt.client.ui.form.AbstractForm');
   [...ctx.imports].sort().forEach(fqn => header.add(0, `import ${fqn};`));
+  if (selfImports.length) {
+    header.add(0);
+    [...new Set(selfImports)].sort().forEach(fqn => header.add(0, `import ${fqn};`));
+  }
   header.add(0);
   header.add(0, '/**');
   header.add(0, ` * Generated by ES Mockup from the mockup form "${title || options.className}".`);
